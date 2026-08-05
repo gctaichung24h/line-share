@@ -246,9 +246,8 @@
     if (!window.liff || !liff.isInClient()) {
       throw new Error(COMMON['非LINE開啟提醒'] || '請從 LINE 聊天室開啟。');
     }
-    if (typeof liff.isApiAvailable === 'function' && !liff.isApiAvailable('sendMessages')) {
-      throw new Error(COMMON['缺少傳送權限提醒'] || 'LIFF 尚未啟用傳送訊息權限。');
-    }
+    // sendMessages 不是 liff.isApiAvailable() 支援的檢查名稱。
+    // 直接呼叫並由 LINE 回傳實際成功／失敗結果。
     await liff.sendMessages([{ type: 'text', text }]);
   }
 
