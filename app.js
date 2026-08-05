@@ -301,6 +301,7 @@
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
+      if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
       appendLine(lines, cfg['訊息欄位_用車方式'], typeText);
       if (serviceType === 'reserve') {
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
@@ -354,6 +355,7 @@
       if (!valid) return;
 
       const lines = [cfg['訊息標題']];
+      if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
       appendLine(lines, cfg['訊息欄位_備註'], value('notes'));
