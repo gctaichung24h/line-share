@@ -1,5 +1,5 @@
 window.GC_FORM_CONFIG = {
-    "liffId":  "2010950556-2aThrkRp",
+    "liffId":  "2010952768-gu3rzglx",
     "common":  {
                    "品牌名稱":  "GC 台中白牌車隊 24H",
                    "初始化文字":  "表格載入中，請稍候…",
