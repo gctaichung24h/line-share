@@ -325,7 +325,7 @@
       setSending(true, cfg);
       try {
         await sendText(lines.join('\n'), cfg);
-        renderSuccess(cfg);
+        renderSuccess(cfg, serviceType);
       } catch (error) {
         sending = false;
         setSending(false, cfg);
@@ -373,22 +373,25 @@
     });
   }
 
-  function successLines(cfg) {
+  function successLines(cfg, reservation = false) {
+    const prefix = reservation ? '成功內容_預約' : '成功內容';
     return Object.keys(cfg)
-      .filter(key => /^成功內容\d+$/.test(key))
-      .sort((a, b) => Number(a.replace('成功內容', '')) - Number(b.replace('成功內容', '')))
+      .filter(key => key.startsWith(prefix) && /^\d+$/.test(key.slice(prefix.length)))
+      .sort((a, b) => Number(a.slice(prefix.length)) - Number(b.slice(prefix.length)))
       .map(key => cfg[key])
       .filter(Boolean);
   }
 
-  function renderSuccess(cfg) {
+  function renderSuccess(cfg, serviceType = '') {
+    const reservation = serviceType === 'reserve' && Boolean(cfg['成功標題_預約']);
+    const title = reservation ? cfg['成功標題_預約'] : cfg['成功標題'];
     app.innerHTML = `
       ${renderBrand()}
       <section class="success-card">
         <div class="success-icon">✓</div>
-        <h1>${escapeHtml(cfg['成功標題'])}</h1>
+        <h1>${escapeHtml(title)}</h1>
         <div class="success-lines">
-          ${successLines(cfg).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+          ${successLines(cfg, reservation).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
         </div>
         <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
       </section>`;
