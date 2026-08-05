@@ -92,6 +92,15 @@
       </div>`;
   }
 
+  function renderReminderNotice(cfg) {
+    const reminderLines = [];
+    for (let i = 1; i <= 6; i += 1) {
+      const text = cfg[`表格提醒${i}`];
+      if (text) reminderLines.push(`<p>${escapeHtml(text)}</p>`);
+    }
+    return reminderLines.length ? `<div class="notice">${reminderLines.join('')}</div>` : '';
+  }
+
   function directionChoices(cfg) {
     return `
       <div class="field">
@@ -141,10 +150,7 @@
             <summary>${escapeHtml(cfg['更多資訊標題'])}</summary>
             <div class="optional-content">${extraFields}</div>
           </details>
-          <div class="notice">
-            <p>${escapeHtml(cfg['表格提醒1'])}</p>
-            <p>${escapeHtml(cfg['表格提醒2'])}</p>
-          </div>
+          ${renderReminderNotice(cfg)}
           <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
         </form>
       </section>`;
@@ -167,10 +173,7 @@
           ${fieldText('pickup', cfg['上車標題'], cfg['上車提示'], true)}
           ${fieldText('destination', cfg['下車標題'], cfg['下車提示'], true)}
           ${fieldTextarea('notes', cfg['備註標題'], cfg['備註提示'])}
-          <div class="notice">
-            <p>${escapeHtml(cfg['表格提醒1'])}</p>
-            <p>${escapeHtml(cfg['表格提醒2'])}</p>
-          </div>
+          ${renderReminderNotice(cfg)}
           <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
         </form>
       </section>`;
