@@ -238,7 +238,7 @@
   }
 
   function appendLine(lines, label, data) {
-    if (data) lines.push(`❖ ${label}：${data}`);
+    if (data) lines.push(`• ${label}：${data}`);
   }
 
   async function sendText(text, cfg) {
@@ -325,7 +325,7 @@
       setSending(true, cfg);
       try {
         await sendText(lines.join('\n'), cfg);
-        renderSuccess(cfg, serviceType);
+        renderSuccess(cfg, serviceType === 'reserve');
       } catch (error) {
         sending = false;
         setSending(false, cfg);
@@ -382,16 +382,16 @@
       .filter(Boolean);
   }
 
-  function renderSuccess(cfg, serviceType = '') {
-    const reservation = serviceType === 'reserve' && Boolean(cfg['成功標題_預約']);
-    const title = reservation ? cfg['成功標題_預約'] : cfg['成功標題'];
+  function renderSuccess(cfg, reservation = false) {
+    const useReservation = reservation === true && Boolean(cfg['成功標題_預約']);
+    const title = useReservation ? cfg['成功標題_預約'] : cfg['成功標題'];
     app.innerHTML = `
       ${renderBrand()}
       <section class="success-card">
         <div class="success-icon">✓</div>
         <h1>${escapeHtml(title)}</h1>
         <div class="success-lines">
-          ${successLines(cfg, reservation).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
+          ${successLines(cfg, useReservation).map(line => `<p>${escapeHtml(line)}</p>`).join('')}
         </div>
         <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
       </section>`;
