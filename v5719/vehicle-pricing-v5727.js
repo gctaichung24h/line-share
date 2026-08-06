@@ -94,7 +94,7 @@
         <option value="seven">七人座</option>
         <option value="nine">九人座</option>
       </select>
-      <div class="graduation-field-help">未指定則隨機派車，無法挑選品牌或車款；指定車型仍須依現場車況媒合。</div>
+      <div class="graduation-field-help">未指定則隨機派車，無法挑選品牌或車款。指定車型需依現場車況媒合，可能延長等候時間或降低媒合成功率。</div>
       <div class="graduation-price-notice hidden" id="graduationVehiclePassengerNotice" aria-live="polite"></div>`;
 
     pickupField.before(field);
