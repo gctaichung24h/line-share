@@ -1,0 +1,50 @@
+/* GC graduation V5.7.27 vehicle and pricing guidance */
+.graduation-vehicle-field select,
+#passengers {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #4b6b88 50%),
+    linear-gradient(135deg, #4b6b88 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 21px,
+    calc(100% - 13px) 21px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 38px;
+}
+
+.graduation-field-help,
+.graduation-child-seat-note {
+  margin-top: 7px;
+  color: #66798b;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.graduation-child-seat-note {
+  padding: 10px 11px;
+  border: 1px solid #d8e5ef;
+  border-radius: 11px;
+  background: #f6fafe;
+}
+
+.graduation-price-notice {
+  margin-top: 9px;
+  padding: 10px 11px;
+  border: 1px solid #efd28a;
+  border-radius: 11px;
+  color: #725313;
+  background: #fff8e7;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.graduation-price-notice p {
+  margin: 0;
+}
+
+.graduation-price-notice p + p {
+  margin-top: 4px;
+}
