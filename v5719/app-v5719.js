@@ -6,7 +6,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png?v=5723';
-  const RELEASE_MARKER = 'GC_V5724_STABLE_IN_PLACE';
+  const RELEASE_MARKER = 'GC_V5725_FORCE_REPAIR';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
