@@ -71,7 +71,10 @@
       boundSource = source;
     }
 
-    passengers.addEventListener('change', () => setTimeout(syncNotices, 0), { once: false });
+    if (passengers.dataset.qaV5728Bound !== '1') {
+      passengers.dataset.qaV5728Bound = '1';
+      passengers.addEventListener('change', () => setTimeout(syncNotices, 0));
+    }
     syncNotices();
   }
 
