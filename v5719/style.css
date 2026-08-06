@@ -467,7 +467,7 @@ body.modal-open { overflow: hidden; }
 .recent-clear-cancel:active { background: #f3f7fa; }
 .recent-clear-confirm:active { background: #913e36; }
 
-/* V5.7.19｜即時定位 */
+/* V5.7.23｜即時定位 */
 .location-action {
   margin-top: 8px;
 }
@@ -496,7 +496,7 @@ body.modal-open { overflow: hidden; }
 .location-status.is-success { color: #2d7459; }
 .location-status.is-error { color: var(--danger); }
 
-/* V5.7.19｜常用行程 */
+/* V5.7.23｜常用行程 */
 .favorite-box { background: #fbfdff; }
 .favorite-content {
   padding: 12px 13px 13px;
@@ -582,7 +582,7 @@ body.modal-open { overflow: hidden; }
 .favorite-status.is-error { color: var(--danger); }
 .favorite-status.is-success { color: #2d7459; }
 
-/* V5.7.19｜儲存常用行程確認框 */
+/* V5.7.23｜儲存常用行程確認框 */
 .favorite-save-overlay {
   position: fixed;
   z-index: 1150;
