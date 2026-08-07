@@ -14,13 +14,19 @@
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
-  const LOCATION_ADDRESS_MAX_ACCURACY_M = 50;
+  const LOCATION_AUTO_ACCEPT_ACCURACY_M = 35;
+  const LOCATION_REVIEW_ACCURACY_M = 100;
+  const LOCATION_SAMPLE_WINDOW_MS = 3200;
   const LOCATION_REVERSE_GEOCODE_TIMEOUT_MS = 3500;
+  const ADDRESS_SUGGEST_DEBOUNCE_MS = 420;
+  const ADDRESS_SUGGEST_TIMEOUT_MS = 3000;
+  const ADDRESS_BIAS_LOCATION = '120.6736,24.1477';
   let pendingConfirmAction = null;
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
   let attachedLocation = null;
   let locationRequestToken = 0;
+  let addressSuggestRequestToken = 0;
   let modalScrollY = 0;
   let modalLockDepth = 0;
   let liffReadyPromise = null;
@@ -133,10 +139,15 @@
       <div class="field address-field">
         <label for="${id}">${required ? requiredLabel(label) : escapeHtml(label)}</label>
         <input class="input" id="${id}" name="${id}" type="text" placeholder="${escapeHtml(placeholder || '')}" ${required ? 'required' : ''} autocomplete="street-address">
+        <div class="gc-address-suggest hidden" id="${id}Suggest" role="listbox" aria-label="地址建議"></div>
         ${allowLocation ? `
           <div class="location-action hidden" id="locationAction">
             <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 使用目前位置')}</button>
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
+          </div>
+          <div class="location-review hidden" id="locationReview">
+            <span id="locationReviewText"></span>
+            <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 地址正確</button>
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
@@ -193,13 +204,14 @@
       </div>`;
   }
 
-  function renderReminderNotice(cfg) {
+  function renderReminderNotice(cfg, extraClass = '') {
     const reminderLines = [];
     for (let i = 1; i <= 12; i += 1) {
       const text = cfg[`表格提醒${i}`];
       if (text) reminderLines.push(`<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`);
     }
-    return reminderLines.length ? `<div class="notice">${reminderLines.join('')}</div>` : '';
+    const className = ['notice', extraClass].filter(Boolean).join(' ');
+    return reminderLines.length ? `<div class="${className}">${reminderLines.join('')}</div>` : '';
   }
 
   function directionChoices(cfg) {
@@ -221,6 +233,164 @@
 
   function normalizeAddress(address) {
     return String(address || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function smartNormalizeTaiwanAddress(address) {
+    let text = normalizeAddress(address).replace(/号/g, '號');
+    if (!text || /[號樓室]$/.test(text)) return text;
+    const match = text.match(/([0-9０-９]+(?:[-之][0-9０-９]+)?)$/);
+    if (!match || !/[路街道巷弄]/.test(text)) return text;
+    const mainDigits = match[1].split(/[-之]/)[0];
+    const prefix = text.slice(0, match.index);
+    const looksLikeHouseNumber = mainDigits.length >= 2 || /[段巷弄]$/.test(prefix) || /[段巷弄].*$/.test(prefix);
+    if (looksLikeHouseNumber) text += '號';
+    return text;
+  }
+
+  function normalizeAddressInput(id) {
+    const input = document.getElementById(id);
+    if (!input) return '';
+    const normalized = smartNormalizeTaiwanAddress(input.value);
+    if (normalized && normalized !== input.value.trim()) input.value = normalized;
+    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && normalized) {
+      attachedLocation.manualAddress = normalized;
+      attachedLocation.address = normalized;
+    }
+    return normalized;
+  }
+
+  function hideAddressSuggestions(id) {
+    const box = document.getElementById(`${id}Suggest`);
+    if (!box) return;
+    box.innerHTML = '';
+    box.classList.add('hidden');
+  }
+
+  function cleanSuggestedAddress(value) {
+    return normalizeAddress(String(value || '')
+      .replace(/,\s*Taiwan$/i, '')
+      .replace(/,\s*/g, ' '));
+  }
+
+  async function fetchAddressSuggestions(query) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        f: 'json',
+        text: query,
+        countryCode: 'TWN',
+        langCode: 'zh-TW',
+        location: ADDRESS_BIAS_LOCATION,
+        distance: '80000',
+        maxSuggestions: '5'
+      });
+      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params.toString()}`, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      if (!data || data.error || !Array.isArray(data.suggestions)) return [];
+      return data.suggestions
+        .map(item => ({ text: cleanSuggestedAddress(item.text), magicKey: item.magicKey || '' }))
+        .filter(item => item.text)
+        .slice(0, 5);
+    } catch (_) {
+      return [];
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function resolveAddressSuggestion(item) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        f: 'json',
+        SingleLine: item.text,
+        countryCode: 'TWN',
+        langCode: 'zh-TW',
+        location: ADDRESS_BIAS_LOCATION,
+        maxLocations: '1',
+        forStorage: 'false',
+        outFields: 'Match_addr,LongLabel,ShortLabel,Addr_type,Address,District,City,Subregion,Region,Postal'
+      });
+      if (item.magicKey) params.set('magicKey', item.magicKey);
+      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+      });
+      if (!response.ok) return item.text;
+      const data = await response.json();
+      const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
+      return cleanSuggestedAddress(candidate?.address || candidate?.attributes?.Match_addr || item.text);
+    } catch (_) {
+      return item.text;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  function bindSmartAddressInputs() {
+    ['pickup', 'destination'].forEach(id => {
+      const input = document.getElementById(id);
+      const box = document.getElementById(`${id}Suggest`);
+      if (!input || !box || input.dataset.gcSmartAddressBound === '1') return;
+      input.dataset.gcSmartAddressBound = '1';
+      let timer = 0;
+      let localToken = 0;
+
+      input.addEventListener('input', () => {
+        clearTimeout(timer);
+        if (input.dataset.gcSkipSuggestOnce === '1') {
+          delete input.dataset.gcSkipSuggestOnce;
+          hideAddressSuggestions(id);
+          return;
+        }
+        const query = normalizeAddress(input.value);
+        if (query.length < 2 || query === LOCATION_MARKER) {
+          hideAddressSuggestions(id);
+          return;
+        }
+        const token = ++addressSuggestRequestToken;
+        localToken = token;
+        timer = setTimeout(async () => {
+          const suggestions = await fetchAddressSuggestions(query);
+          if (localToken !== token || normalizeAddress(input.value) !== query) return;
+          if (!suggestions.length) { hideAddressSuggestions(id); return; }
+          box.innerHTML = suggestions.map((item, index) => `
+            <button type="button" class="gc-address-suggest-item" data-index="${index}" role="option">
+              <span>${escapeHtml(item.text)}</span>
+            </button>`).join('');
+          box._gcSuggestions = suggestions;
+          box.classList.remove('hidden');
+        }, ADDRESS_SUGGEST_DEBOUNCE_MS);
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          normalizeAddressInput(id);
+          hideAddressSuggestions(id);
+        }, 180);
+      });
+
+      box.addEventListener('mousedown', event => event.preventDefault());
+      box.addEventListener('click', async event => {
+        const button = event.target.closest('.gc-address-suggest-item');
+        if (!button) return;
+        const item = box._gcSuggestions?.[Number(button.dataset.index)];
+        if (!item) return;
+        const selected = smartNormalizeTaiwanAddress(await resolveAddressSuggestion(item));
+        if (!selected) return;
+        input.value = selected;
+        input.dataset.gcSkipSuggestOnce = '1';
+        input.classList.remove('invalid');
+        document.getElementById(`${id}Error`)?.classList.remove('show');
+        hideAddressSuggestions(id);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
   }
 
   function loadRecentAddresses() {
@@ -488,6 +658,7 @@
         clearAttachedLocation(false);
         const pickupInput = document.getElementById('pickup');
         const destinationInput = document.getElementById('destination');
+        if (attachedLocation) clearAttachedLocation(false);
         if (pickupInput) pickupInput.value = trip.pickup;
         if (destinationInput) destinationInput.value = trip.destination;
         ['pickup', 'destination'].forEach(id => {
@@ -536,6 +707,8 @@
       pickupInput.value = '';
     }
     attachedLocation = null;
+    const review = document.getElementById('locationReview');
+    if (review) review.classList.add('hidden');
     const status = document.getElementById('locationStatus');
     if (status) {
       status.textContent = '';
@@ -608,6 +781,53 @@
     return compactReverseAddressPart(rawAddress.Match_addr || rawAddress.LongLabel).replace(/,\s*/g, ' ');
   }
 
+  function getBestCurrentPosition() {
+    return new Promise((resolve, reject) => {
+      let best = null;
+      let finished = false;
+      let watchId = null;
+      const finish = (position, error) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        if (watchId !== null) {
+          try { navigator.geolocation.clearWatch(watchId); } catch (_) {}
+        }
+        if (position) resolve(position);
+        else reject(error || new Error('無法取得目前位置'));
+      };
+      const timer = setTimeout(() => finish(best), LOCATION_SAMPLE_WINDOW_MS);
+      const onPosition = position => {
+        const accuracy = Number(position?.coords?.accuracy);
+        if (!Number.isFinite(Number(position?.coords?.latitude)) || !Number.isFinite(Number(position?.coords?.longitude))) return;
+        if (!best || (Number.isFinite(accuracy) && accuracy < Number(best.coords.accuracy || Infinity))) best = position;
+        if (Number.isFinite(accuracy) && accuracy <= LOCATION_AUTO_ACCEPT_ACCURACY_M) finish(position);
+      };
+      const onError = error => {
+        if (best) finish(best);
+        else if (error?.code === 1) finish(null, error);
+      };
+      try {
+        watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+          enableHighAccuracy: true, timeout: 8000, maximumAge: 0
+        });
+      } catch (error) {
+        try {
+          navigator.geolocation.getCurrentPosition(onPosition, onError, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+        } catch (fallbackError) {
+          finish(null, fallbackError || error);
+        }
+      }
+    });
+  }
+
+  function setLocationReview(message = '', visible = false) {
+    const review = document.getElementById('locationReview');
+    const text = document.getElementById('locationReviewText');
+    if (text) text.textContent = message;
+    if (review) review.classList.toggle('hidden', !visible);
+  }
+
   async function reverseGeocodeCurrentLocation(latitude, longitude) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = setTimeout(() => controller?.abort(), LOCATION_REVERSE_GEOCODE_TIMEOUT_MS);
@@ -639,74 +859,160 @@
     }
   }
 
+  function addressAreaSkeleton(value) {
+    return normalizeAddress(value)
+      .replace(/臺/g, '台')
+      .replace(/[0-9０-９號之\-\s]/g, '')
+      .replace(/^\d{3,5}/, '');
+  }
+
+  function manualAddressLikelyMatchesGenerated(manual, generated) {
+    const a = addressAreaSkeleton(manual);
+    const b = addressAreaSkeleton(generated);
+    if (!a || !b || Math.min(a.length, b.length) < 3) return false;
+    return a.includes(b) || b.includes(a);
+  }
+
   function bindCurrentLocation(mode) {
     const button = document.getElementById('locationBtn');
     const pickupInput = document.getElementById('pickup');
+    const confirmButton = document.getElementById('locationConfirmBtn');
     if (!button || !pickupInput) return;
+
     pickupInput.addEventListener('input', () => {
-      const generatedAddress = attachedLocation?.address || '';
-      if (pickupInput.value !== LOCATION_MARKER && (!generatedAddress || pickupInput.value !== generatedAddress)) {
-        clearAttachedLocation(false);
+      if (!attachedLocation || attachedLocation.settingInput) return;
+      const current = normalizeAddress(pickupInput.value);
+      if (!current || current === LOCATION_MARKER) {
+        attachedLocation.confirmed = false;
+        return;
+      }
+      const generatedAddress = normalizeAddress(attachedLocation.generatedAddress || '');
+      if (!generatedAddress || current !== generatedAddress) {
+        attachedLocation.address = smartNormalizeTaiwanAddress(current);
+        attachedLocation.manualAddress = attachedLocation.address;
+        attachedLocation.confirmed = true;
+        attachedLocation.requiresConfirmation = false;
+        const keepMap = generatedAddress && manualAddressLikelyMatchesGenerated(current, generatedAddress) && attachedLocation.accuracy <= LOCATION_REVIEW_ACCURACY_M;
+        attachedLocation.sendMap = Boolean(keepMap);
+        setLocationReview('', false);
+        setLocationStatus(keepMap
+          ? '已修正文字地址，定位仍會一併附上。'
+          : '已改用你輸入的文字上車地址，避免舊定位與地址不一致。', 'success');
       }
     });
-    button.addEventListener('click', () => {
+
+    confirmButton?.addEventListener('click', () => {
+      if (!attachedLocation || !normalizeAddress(pickupInput.value)) return;
+      attachedLocation.confirmed = true;
+      attachedLocation.requiresConfirmation = false;
+      attachedLocation.address = smartNormalizeTaiwanAddress(pickupInput.value);
+      setLocationReview('', false);
+      setLocationStatus('地址已確認，定位會一併附上。', 'success');
+    });
+
+    button.addEventListener('click', async () => {
       if (!navigator.geolocation) {
         setLocationStatus(COMMON['定位不支援'] || '此裝置不支援定位，請直接輸入地址。', 'error');
         return;
       }
       const requestToken = ++locationRequestToken;
+      const previousPickup = smartNormalizeTaiwanAddress(pickupInput.value);
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
-      setLocationStatus(COMMON['定位權限提醒'] || '請允許手機存取目前位置。');
-      navigator.geolocation.getCurrentPosition(position => {
+      setLocationReview('', false);
+      setLocationStatus('正在取得較精準的位置，通常只需要幾秒…');
+
+      try {
+        const position = await getBestCurrentPosition();
         if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
         const latitude = Number(position.coords.latitude);
         const longitude = Number(position.coords.longitude);
         const accuracy = Number(position.coords.accuracy);
+        const finiteAccuracy = Number.isFinite(accuracy) ? accuracy : null;
+        const canSendMap = finiteAccuracy !== null && finiteAccuracy <= LOCATION_REVIEW_ACCURACY_M;
+
         attachedLocation = {
           latitude,
           longitude,
-          accuracy: Number.isFinite(accuracy) ? accuracy : null,
+          accuracy: finiteAccuracy,
           address: '',
+          generatedAddress: '',
+          manualAddress: '',
+          confirmed: false,
+          requiresConfirmation: false,
+          sendMap: canSendMap,
+          settingInput: false,
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
-        pickupInput.value = LOCATION_MARKER;
-        pickupInput.classList.remove('invalid');
-        document.getElementById('pickupError')?.classList.remove('show');
-        pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
         button.disabled = false;
         button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
 
-        if (!Number.isFinite(accuracy) || accuracy > LOCATION_ADDRESS_MAX_ACCURACY_M) {
-          setLocationStatus('目前定位已附加，為避免地址誤判，實際位置以地圖定位為準。', 'success');
+        if (!canSendMap) {
+          attachedLocation.settingInput = true;
+          pickupInput.value = previousPickup || '';
+          attachedLocation.settingInput = false;
+          if (previousPickup) {
+            attachedLocation.address = previousPickup;
+            attachedLocation.manualAddress = previousPickup;
+            attachedLocation.confirmed = true;
+          }
+          setLocationStatus(previousPickup
+            ? `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，已保留原本輸入的地址；為避免跑錯地點，本次不附上不精準定位。`
+            : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入上車地址。`, 'error');
           return;
         }
 
-        setLocationStatus('目前定位已附加，正在辨識文字地址…', 'success');
-        reverseGeocodeCurrentLocation(latitude, longitude).then(address => {
-          if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
-          if (!attachedLocation || attachedLocation.latitude !== latitude || attachedLocation.longitude !== longitude) return;
-          if (!address) {
-            setLocationStatus(COMMON['定位成功'] || '目前定位已附加，送出時會一併傳到聊天室。', 'success');
-            return;
+        setLocationStatus('定位已取得，正在辨識文字地址…', 'success');
+        const address = await reverseGeocodeCurrentLocation(latitude, longitude);
+        if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
+        if (!attachedLocation || attachedLocation.latitude !== latitude || attachedLocation.longitude !== longitude) return;
+
+        if (!address) {
+          attachedLocation.settingInput = true;
+          pickupInput.value = previousPickup || '';
+          attachedLocation.settingInput = false;
+          if (previousPickup) {
+            attachedLocation.address = previousPickup;
+            attachedLocation.manualAddress = previousPickup;
+            attachedLocation.confirmed = true;
+            attachedLocation.sendMap = false;
+            setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
+          } else {
+            setLocationStatus('已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際上車地址。', 'error');
           }
-          attachedLocation.address = address;
-          pickupInput.value = address;
-          pickupInput.classList.remove('invalid');
-          document.getElementById('pickupError')?.classList.remove('show');
-          pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
-          setLocationStatus('已取得定位與文字地址，實際位置仍以地圖定位為準。', 'success');
-        });
-      }, error => {
+          return;
+        }
+
+        attachedLocation.address = address;
+        attachedLocation.generatedAddress = address;
+        attachedLocation.settingInput = true;
+        pickupInput.value = address;
+        pickupInput.classList.remove('invalid');
+        document.getElementById('pickupError')?.classList.remove('show');
+        pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
+        attachedLocation.settingInput = false;
+
+        // V9.5.2 safety: GPS-generated text is always shown to the rider for one-tap confirmation.
+        // This keeps current-location convenient while preventing a plausible-but-wrong door number
+        // from becoming the dispatch address without the rider seeing it first.
+        attachedLocation.requiresConfirmation = true;
+        if (finiteAccuracy <= LOCATION_AUTO_ACCEPT_ACCURACY_M) {
+          setLocationStatus('已取得定位與文字地址，請確認門牌是否正確。', 'success');
+        } else {
+          setLocationStatus(`已辨識到附近地址（定位約 ±${Math.round(finiteAccuracy)}m）。`, 'success');
+        }
+        setLocationReview('正確只要按一下「✓ 地址正確」；不對可直接修改上車地址。', true);
+      } catch (error) {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
         const denied = error?.code === 1;
+        setLocationReview('', false);
         setLocationStatus(denied
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
         button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
-      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+      }
     });
     updateLocationVisibility();
   }
@@ -897,6 +1203,7 @@
           const address = loadRecentAddresses()[Number(useButton.dataset.index)];
           const input = document.getElementById(targetId);
           if (address && input) {
+            if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
             input.value = address;
             input.classList.remove('invalid');
             const error = document.getElementById(`${targetId}Error`);
@@ -1105,23 +1412,27 @@
   function renderFare(cfg) {
     attachedLocation = null;
     document.title = cfg['頁面標題'];
+    const guideTitle = cfg['頁面引導標題'] || '想快速知道車資？可先自行試算';
+    const assistText = cfg['人工協助提示'] || '若不方便自行試算，也可填寫上下車地址，由小編協助估價。';
     app.innerHTML = `
       ${renderBrand()}
-      <section class="form-card">
-        <div class="form-head">
+      <section class="form-card gc-fare-card">
+        <div class="form-head gc-fare-head">
           <h1>${escapeHtml(cfg['頁面標題'])}</h1>
-          <p>${escapeHtml(cfg['頁面說明'])}</p>
+          <p class="gc-fare-guide-title">${escapeHtml(guideTitle)}</p>
+          <p class="gc-fare-guide-copy">${escapeHtml(cfg['頁面說明'])}</p>
         </div>
-        <form class="form-body" id="serviceForm" novalidate>
+        <form class="form-body gc-fare-body" id="serviceForm" novalidate>
           ${preview ? `<div class="notice preview-notice"><p>${escapeHtml(COMMON['預覽模式提醒'])}</p></div>` : ''}
           <div id="globalError" class="global-error"></div>
+          ${renderReminderNotice(cfg, 'gc-fare-selfcalc')}
+          <div class="gc-fare-assist">${escapeHtml(assistText)}</div>
           ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
           ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
           <details class="optional-box">
             <summary>${escapeHtml(cfg['備註標題'])}</summary>
             <div class="optional-content">${fieldTextarea('notes', '', cfg['備註提示'])}</div>
           </details>
-          ${renderReminderNotice(cfg)}
           <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
         </form>
         ${renderConfirmationModal()}
@@ -1308,6 +1619,7 @@
     bindFavoriteTrips();
     bindFavoriteSaveModal();
     bindCurrentLocation(mode);
+    bindSmartAddressInputs();
     bindConfirmationModal();
     bindRecentClearModal();
 
@@ -1328,6 +1640,8 @@
       event.preventDefault();
       if (sending) return;
       clearErrors();
+      normalizeAddressInput('pickup');
+      normalizeAddressInput('destination');
 
       const serviceType = checked('serviceType');
       const pickup = value('pickup');
@@ -1346,8 +1660,13 @@
         showFieldError('time', cfg['錯誤_時間']);
         valid = false;
       }
-      if (!pickup) {
+      if (!pickup || pickup === LOCATION_MARKER) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
+        valid = false;
+      }
+      if (serviceType === 'instant' && attachedLocation?.requiresConfirmation && !attachedLocation.confirmed) {
+        showFieldError('pickup', '請先確認定位地址是否正確，或直接修改上車地址。');
+        setLocationReview('請確認門牌是否為實際上車地點；不對可直接修改。', true);
         valid = false;
       }
       if (!valid) return;
@@ -1388,7 +1707,7 @@
         vehicle: value('vehicle'),
         parking: value('parking'),
         notes: value('notes'),
-        location: attachedLocation ? [attachedLocation.latitude.toFixed(5), attachedLocation.longitude.toFixed(5)] : null
+        location: attachedLocation?.sendMap !== false && attachedLocation ? [attachedLocation.latitude.toFixed(5), attachedLocation.longitude.toFixed(5)] : null
       });
       if (isDuplicateSubmission(signature)) {
         showGlobalError(duplicateMessage());
@@ -1405,7 +1724,7 @@
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(checked('direction') ? [{ label: cfg['訊息欄位_方向'], value: checked('direction') }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
-        ...(attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+        ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
 
       if (mode === 'driver') {
@@ -1426,9 +1745,9 @@
         setSending(true, cfg);
         try {
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
-          await sendFormMessages(lines.join('\n'), serviceType === 'instant' ? attachedLocation : null);
+          await sendFormMessages(lines.join('\n'), serviceType === 'instant' && attachedLocation?.sendMap !== false ? attachedLocation : null);
           if (!preview) markSubmission(signature);
-          const generatedLocationAddress = attachedLocation?.address || '';
+          const generatedLocationAddress = attachedLocation?.generatedAddress || '';
           rememberRecentAddresses([destination, pickup].filter(address => address && address !== LOCATION_MARKER && address !== generatedLocationAddress));
           renderSuccess(cfg, serviceType === 'reserve');
         } catch (error) {
@@ -1444,6 +1763,7 @@
     bindRecentAddressControls();
     bindSmallDisclosureTriggers();
     installVerticalOnlyTouchGuard();
+    bindSmartAddressInputs();
     bindConfirmationModal();
     bindRecentClearModal();
 
@@ -1452,6 +1772,8 @@
       event.preventDefault();
       if (sending) return;
       clearErrors();
+      normalizeAddressInput('pickup');
+      normalizeAddressInput('destination');
 
       const pickup = value('pickup');
       const destination = value('destination');

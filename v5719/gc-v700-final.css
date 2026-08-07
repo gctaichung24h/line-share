@@ -671,3 +671,88 @@ body.gc-sheet-open{
 
 /* GC V9.1 low-risk final: fare notice section spacing only */
 .form-body>.notice:not(.preview-notice) p:nth-child(6){margin-top:14px!important}
+
+
+/* GC V9.4 fare-only hierarchy — isolated from call/driver */
+.gc-fare-card .gc-fare-head{padding-bottom:18px!important}
+.gc-fare-card .gc-fare-head .gc-fare-guide-title{
+  margin:10px 0 0!important;
+  color:#274f70!important;
+  font-size:16px!important;
+  font-weight:760!important;
+  line-height:1.42!important;
+  letter-spacing:-.015em!important;
+}
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{
+  margin:5px 0 0!important;
+  color:#526f86!important;
+  font-size:13.75px!important;
+  font-weight:570!important;
+  line-height:1.62!important;
+  letter-spacing:-.006em!important;
+}
+.gc-fare-body>.gc-fare-selfcalc{
+  margin:0 0 14px!important;
+  padding:13px 14px!important;
+  border:1px solid #d8e5ee!important;
+  border-left:3px solid #5e8fb8!important;
+  border-radius:13px!important;
+  background:#f4f8fb!important;
+  color:#465f74!important;
+  font-size:13.5px!important;
+  font-weight:550!important;
+  line-height:1.58!important;
+  box-shadow:none!important;
+}
+.gc-fare-body>.gc-fare-selfcalc p{margin:0!important}
+.gc-fare-body>.gc-fare-selfcalc p+p{margin-top:5px!important}
+.gc-fare-body>.gc-fare-selfcalc p:first-child{
+  margin-bottom:8px!important;
+  color:#244f72!important;
+  font-size:15px!important;
+  font-weight:780!important;
+}
+.gc-fare-body>.gc-fare-selfcalc p:nth-child(5){
+  margin-top:10px!important;
+  color:#405f77!important;
+  font-weight:650!important;
+}
+.gc-fare-body>.gc-fare-selfcalc p:nth-child(6){
+  margin-top:15px!important;
+  color:#244f72!important;
+  font-size:14px!important;
+  font-weight:780!important;
+}
+.gc-fare-body>.gc-fare-selfcalc p:nth-child(n+7){font-weight:600!important}
+.gc-fare-assist{
+  margin:0 0 14px;
+  padding:10px 12px;
+  border:1px solid #e1e8ee;
+  border-radius:11px;
+  background:#fbfcfd;
+  color:#556d80;
+  font-size:13px;
+  font-weight:600;
+  line-height:1.5;
+}
+@media(max-width:360px){
+  .gc-fare-card .gc-fare-head .gc-fare-guide-title{font-size:15.5px!important}
+  .gc-fare-card .gc-fare-head .gc-fare-guide-copy{font-size:13.25px!important}
+  .gc-fare-body>.gc-fare-selfcalc{padding:12px 12px!important;font-size:13px!important}
+  .gc-fare-body>.gc-fare-selfcalc p:first-child{font-size:14.5px!important}
+  .gc-fare-assist{font-size:12.75px}
+}
+
+
+/* GC V9.5 smart address + safer current-location flow */
+.gc-address-suggest{margin-top:7px;border:1px solid #d7e3ec;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(31,70,103,.10);overflow:hidden;position:relative;z-index:12}
+.gc-address-suggest.hidden{display:none!important}
+.gc-address-suggest-item{display:flex;width:100%;min-height:42px;padding:9px 11px;border:0;border-bottom:1px solid #edf2f6;background:#fff;color:#29465f;text-align:left;font-size:13px;line-height:1.45;cursor:pointer}
+.gc-address-suggest-item:last-child{border-bottom:0}
+.gc-address-suggest-item:active{background:#f3f8fc}
+.location-review{margin-top:8px;padding:9px 10px;border:1px solid #d7e4ee;border-radius:11px;background:#f7fbfe;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#4f687d;font-size:12.5px;line-height:1.45}
+.location-review.hidden{display:none!important}
+.location-review>span{min-width:0;flex:1}
+.location-confirm-btn{flex:0 0 auto;min-height:32px;padding:6px 10px;border:1px solid #b9cedf;border-radius:9px;background:#fff;color:#2f638d;font-size:12px;font-weight:700;white-space:nowrap}
+.location-confirm-btn:active{background:#edf5fa}
+@media(max-width:360px){.location-review{align-items:flex-start;flex-direction:column}.location-confirm-btn{align-self:flex-end}}
