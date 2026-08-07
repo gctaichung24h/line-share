@@ -1,0 +1,36 @@
+/* GC V5.7.32 UI graduation — visual hierarchy only */
+.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px;margin-bottom:6px}
+.field-label-row>label{min-width:0;margin:0}
+.field-inline-action{display:inline-flex;align-items:center;margin:0}.field-inline-action.hidden{display:none!important}.field-inline-action .location-status{display:none}
+.field-inline-btn,.field-inline-action .location-btn{width:auto;min-width:0;min-height:28px;margin:0;padding:5px 9px;border:1px solid #d3dee8;border-radius:9px;color:#4d6980;background:#f7fafc;box-shadow:none;font-size:11.5px;font-weight:700;line-height:1.2;white-space:nowrap;cursor:pointer}
+.graduation-favorite-box{margin-top:-7px;background:#fbfdff}.graduation-favorite-box>summary{display:none}.graduation-favorite-box:not([open]){display:none}.graduation-favorite-box[open]{display:block}
+.gc-select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,#73879a 50%),linear-gradient(135deg,#73879a 50%,transparent 50%);background-position:calc(100% - 18px) 21px,calc(100% - 13px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px}
+.gc-pet-row{grid-template-columns:repeat(3,1fr)}.gc-pet-row .choice span{min-height:42px;padding:8px 6px;font-size:13px}
+/* 第一眼：讓主要叫車欄位成為主角 */
+.form-body>.field,.form-body>.schedule-grid{margin-bottom:14px}
+.address-field>.input{min-height:52px;border-color:#c5d4e0;font-size:15px}
+.address-field>.hint{margin-top:5px;color:#8795a3;font-size:11.5px;line-height:1.35}
+.gc-vehicle-field{margin-bottom:14px!important}
+.gc-vehicle-field>label{font-size:14px!important;font-weight:700!important}
+.gc-vehicle-field .input{min-height:46px;background-color:#fff}
+/* 說明保留，但預設收合降低視覺壓力 */
+.gc-info-disclosure{margin:6px 0 0;border:0;background:transparent}
+.gc-info-disclosure summary{display:inline-flex;align-items:center;min-height:28px;padding:2px 0;color:#718394;font-size:11.5px;font-weight:650;cursor:pointer;list-style:none}
+.gc-info-disclosure summary::-webkit-details-marker{display:none}
+.gc-info-disclosure-body{margin-top:4px;padding:9px 10px;border:1px solid #e2eaf0;border-radius:10px;background:#f8fafc;color:#617487;font-size:11.5px;line-height:1.5}
+.gc-info-disclosure-body p{margin:0}.gc-info-disclosure-body p+p{margin-top:3px}
+/* 價格只在有選擇時出現，一行快速讀 */
+.gc-price-notice{margin-top:6px;padding:7px 9px;border:1px solid #ecdba9;border-radius:9px;color:#755a1c;background:#fffaf0;font-size:11.5px;font-weight:650;line-height:1.4}
+.gc-price-notice p{margin:0}.gc-price-notice p+p{margin-top:2px}
+/* 其他需求預設收合 */
+.gc-secondary-box{margin:5px 0 14px!important;border-color:#e1e8ee!important;background:#fbfcfd!important}
+.gc-secondary-box>summary{padding:12px 13px!important;color:#536b80!important;font-size:13px!important;font-weight:700!important}
+.gc-secondary-box .optional-content{padding:0 13px 1px!important;background:#fff;border-top-color:#edf1f4!important}
+.gc-secondary-box .field{margin-bottom:13px}.gc-secondary-box .field:first-child{margin-top:13px}
+.gc-secondary-box .field>label,.gc-secondary-box .field-label{font-size:13.5px;color:#334f69;font-weight:700}
+.gc-secondary-box .hint{font-size:11.5px;color:#8996a3}
+/* 底部提醒退居輔助層 */
+.form-body>.notice:not(.preview-notice){margin:2px 0 13px;padding:8px 10px;border:0;border-radius:9px;background:#f5f8fa;color:#788998;font-size:11.5px;line-height:1.4}
+/* 主按鈕更明確，但不誇張 */
+.submit-btn{min-height:50px;border-radius:13px}
+@media(max-width:360px){.field-label-row{gap:6px}.field-inline-btn,.field-inline-action .location-btn{padding-inline:7px;font-size:11px}}
