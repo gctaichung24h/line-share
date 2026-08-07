@@ -96,6 +96,7 @@
     const locationAction = document.getElementById('locationAction');
     const locationStatus = document.getElementById('locationStatus');
     if (pickup) {
+      pickup.classList.add('gc-primary-address', 'gc-pickup-address');
       if (locationAction) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
@@ -105,6 +106,7 @@
       } else makeLabelRow(pickup, null);
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
+    if (destination) destination.classList.add('gc-primary-address', 'gc-destination-address');
     createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
   }
 
@@ -179,6 +181,19 @@
     field.querySelectorAll('input').forEach(input => input.addEventListener('change', updateNotices));
   }
 
+  function forcePassengerPublicPosition() {
+    if (!isCall) return;
+    const passenger = fieldById('passengers');
+    const destination = fieldById('destination');
+    if (!passenger || !destination) return;
+    passenger.classList.add('gc-passenger-public');
+    if (passenger.parentElement?.classList.contains('optional-content')) {
+      destination.after(passenger);
+    } else if (destination.nextElementSibling !== passenger) {
+      destination.after(passenger);
+    }
+  }
+
   function restructureCallDetails() {
     const form = document.getElementById('serviceForm');
     if (!form) return;
@@ -227,27 +242,28 @@
     const vn = document.getElementById('gcVehicleNotice');
     const pn = document.getElementById('gcPeopleNotice');
     const petn = document.getElementById('gcPetNotice');
+    const feeBase = Math.max(vf, pf);
 
     if (vn) {
       let lines = [];
       if (v) {
-        lines.push('⚠️ 指定車型可能增加等候時間，並降低媒合成功率。');
-        lines.push(vf > 0 ? `${v.label}加價 NT$${vf}。` : '休旅車不加價。');
+        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能增加等候時間，並降低媒合成功率。</strong>');
+        lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
       vn.classList.toggle('hidden', lines.length === 0);
     }
     if (pn) {
       const lines = [];
-      if (pf > 0) lines.push(`${passengerCount()}位乘客加價 NT$${pf}。`);
-      if (vf > 0 && pf > 0) lines.push(`車型與人數加價取較高者，本次為 NT$${Math.max(vf, pf)}，不重複累加。`);
+      if (pf > 0) lines.push(`<span class="gc-fee-line">加價資訊 <b>${passengerCount()}位乘客 +NT$${pf}</b></span>`);
+      if (vf > 0 && pf > 0) lines.push('<span class="gc-fee-rule">車型與人數加價取較高者，不重複累加。</span>');
       pn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
       pn.classList.toggle('hidden', lines.length === 0);
     }
     if (petn) {
-      const text = petRaw() === 'uncaged' ? '無籠寵物加價 NT$50。' : '';
-      petn.textContent = text;
-      petn.classList.toggle('hidden', !text);
+      const show = petRaw() === 'uncaged';
+      petn.innerHTML = show ? '<p><span class="gc-fee-line">加價資訊 <b>無籠寵物 +NT$50</b></span></p>' : '';
+      petn.classList.toggle('hidden', !show);
     }
   }
 
@@ -275,6 +291,18 @@
     };
     addRow('指定車型', selectedVehicle()?.label || '', true);
     addRow('寵物同行', petText());
+
+    const vehicleFee = selectedVehicle()?.fee || 0;
+    const peopleFee = passengerFee();
+    const petFee = petRaw() === 'uncaged' ? 50 : 0;
+    const extraTotal = Math.max(vehicleFee, peopleFee) + petFee;
+    if (extraTotal > 0) {
+      const row = document.createElement('div');
+      row.className = 'confirm-row gc-confirm-extra-total';
+      row.dataset.gcV7Extra = '1';
+      row.innerHTML = `<span>本次車資以外加價合計</span><strong>NT$${extraTotal}</strong>`;
+      summary.appendChild(row);
+    }
   }
 
   function transformMessage(text) {
@@ -311,7 +339,10 @@
       addVehicleField();
       replacePassengersAndExpose();
       restructureCallDetails();
+      forcePassengerPublicPosition();
       updateNotices();
+      setTimeout(forcePassengerPublicPosition, 0);
+      setTimeout(forcePassengerPublicPosition, 160);
     } else if (isDriver) {
       restructureDriver();
     } else if (isFare) {
