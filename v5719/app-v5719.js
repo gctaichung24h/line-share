@@ -6,7 +6,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_V9_5_5_FARE_DUAL_PATH';
+  const RELEASE_MARKER = 'GC_V9_5_6_FARE_CALCULATOR';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1573,32 +1573,125 @@
     bindRideLike(mode, cfg);
   }
 
+  function fareNumber(cfg, key, fallback) {
+    const parsed = Number(String(cfg[key] ?? '').replace(/,/g, '').trim());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function fareRules(cfg) {
+    return {
+      start: fareNumber(cfg, '計價_起跳', 70),
+      perMinute: fareNumber(cfg, '計價_每分鐘', 3),
+      perKm: fareNumber(cfg, '計價_每公里', 15),
+      extraFromKm: fareNumber(cfg, '計價_加成起始公里', 21),
+      extraPerKm: fareNumber(cfg, '計價_加成每公里', 10),
+      minimum: fareNumber(cfg, '計價_最低消費', 100),
+      range: fareNumber(cfg, '計價_預估浮動', 30),
+      longDistanceKm: fareNumber(cfg, '計價_長途門檻', 45)
+    };
+  }
+
+  function calculateFareEstimate(distanceKm, durationMinutes, cfg) {
+    const km = Number(distanceKm);
+    const minutes = Number(durationMinutes);
+    if (!Number.isFinite(km) || !Number.isFinite(minutes) || km <= 0 || minutes <= 0) return null;
+    if (km > 999 || minutes > 1440) return { invalid: true };
+
+    const rules = fareRules(cfg);
+    const extraDistance = Math.max(km - (rules.extraFromKm - 1), 0);
+    const raw = rules.start + (km * rules.perKm) + (extraDistance * rules.extraPerKm) + (minutes * rules.perMinute);
+    const roundedRaw = Math.round(raw);
+    const baseline = Math.max(rules.minimum, roundedRaw);
+    const minimumApplied = roundedRaw < rules.minimum;
+    const lower = Math.max(rules.minimum, baseline - rules.range);
+    const upper = baseline + rules.range;
+
+    return {
+      invalid: false,
+      km,
+      minutes,
+      baseline,
+      minimumApplied,
+      lower,
+      upper,
+      longDistance: km >= rules.longDistanceKm,
+      rules
+    };
+  }
+
+  function formatFareMoney(value) {
+    return Math.round(Number(value) || 0).toLocaleString('en-US');
+  }
+
+  function renderFareCalculator(cfg) {
+    return `
+      <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
+        <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 快速車資試算')}</div>
+        <div class="gc-fare-calc-grid">
+          <label class="gc-fare-calc-field" for="fareKm">
+            <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
+            <div class="gc-fare-calc-input-wrap">
+              <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 40')}" autocomplete="off">
+              <b>公里</b>
+            </div>
+          </label>
+          <label class="gc-fare-calc-field" for="fareMinutes">
+            <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
+            <div class="gc-fare-calc-input-wrap">
+              <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 50')}" autocomplete="off">
+              <b>分鐘</b>
+            </div>
+          </label>
+        </div>
+        <div class="gc-fare-calc-result is-waiting" id="fareCalcResult" aria-live="polite">
+          <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '輸入公里數與時間後自動試算')}</span>
+          <strong class="gc-fare-result-price" id="fareResultPrice"></strong>
+          <small class="gc-fare-result-base" id="fareResultBase"></small>
+          <p class="gc-fare-result-note" id="fareResultNote1"></p>
+          <p class="gc-fare-result-note" id="fareResultNote2"></p>
+          <p class="gc-fare-long-distance hidden" id="fareLongDistance">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</p>
+        </div>
+      </section>`;
+  }
+
+  function renderFareRateSummary(cfg) {
+    const rateLines = [1, 2, 3, 4, 5, 6].map(index => cfg[`費率${index}`]).filter(Boolean);
+    return `
+      <section class="gc-fare-rates">
+        <div class="gc-fare-rates-title">${escapeHtml(cfg['費率標題'] || '▍中部地區費率')}</div>
+        <div class="gc-fare-rates-lines">${rateLines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}</div>
+        <div class="gc-fare-rates-long">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</div>
+      </section>`;
+  }
+
   function renderFare(cfg) {
     attachedLocation = null;
     document.title = cfg['頁面標題'];
-    const guideTitle = cfg['頁面引導標題'] || '想快速知道車資？可先自行試算';
-    const assistText = cfg['人工協助提示'] || '若不方便自行試算，也可填寫上下車地址，由小編協助估價。';
     app.innerHTML = `
       ${renderBrand()}
       <section class="form-card gc-fare-card">
         <div class="form-head gc-fare-head">
           <h1>${escapeHtml(cfg['頁面標題'])}</h1>
-          <p class="gc-fare-guide-title">${escapeHtml(guideTitle)}</p>
           <p class="gc-fare-guide-copy">${escapeHtml(cfg['頁面說明'])}</p>
         </div>
-        <form class="form-body gc-fare-body" id="serviceForm" novalidate>
+        <div class="form-body gc-fare-body">
           ${preview ? `<div class="notice preview-notice"><p>${escapeHtml(COMMON['預覽模式提醒'])}</p></div>` : ''}
-          <div id="globalError" class="global-error"></div>
-          ${renderReminderNotice(cfg, 'gc-fare-selfcalc')}
-          <div class="gc-fare-assist">${escapeHtml(assistText)}</div>
-          ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
-          ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
-          <details class="optional-box">
-            <summary>${escapeHtml(cfg['備註標題'])}</summary>
-            <div class="optional-content">${fieldTextarea('notes', '', cfg['備註提示'])}</div>
-          </details>
-          <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
-        </form>
+          ${renderFareCalculator(cfg)}
+          ${renderFareRateSummary(cfg)}
+          <div class="gc-fare-or" aria-hidden="true"><span>或</span></div>
+          <section class="gc-fare-manual">
+            <div class="gc-fare-manual-head">
+              <strong>${escapeHtml(cfg['人工協助標題'] || '不方便自行試算？')}</strong>
+              <span>${escapeHtml(cfg['人工協助提示'] || '填寫上下車地址，由客服協助估價。')}</span>
+            </div>
+            <form class="gc-fare-manual-form" id="serviceForm" novalidate>
+              <div id="globalError" class="global-error"></div>
+              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
+              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
+              <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
+            </form>
+          </section>
+        </div>
         ${renderConfirmationModal()}
         ${renderRecentClearModal()}
       </section>`;
@@ -1923,7 +2016,73 @@
     });
   }
 
+  function bindFareCalculator(cfg) {
+    const kmInput = document.getElementById('fareKm');
+    const minuteInput = document.getElementById('fareMinutes');
+    const result = document.getElementById('fareCalcResult');
+    const label = document.getElementById('fareResultLabel');
+    const price = document.getElementById('fareResultPrice');
+    const base = document.getElementById('fareResultBase');
+    const note1 = document.getElementById('fareResultNote1');
+    const note2 = document.getElementById('fareResultNote2');
+    const longDistance = document.getElementById('fareLongDistance');
+    if (!kmInput || !minuteInput || !result || !label || !price || !base || !note1 || !note2 || !longDistance) return;
+
+    const reset = () => {
+      result.classList.add('is-waiting');
+      result.classList.remove('is-invalid', 'is-ready');
+      label.textContent = cfg['計算器等待'] || '輸入公里數與時間後自動試算';
+      price.textContent = '';
+      base.textContent = '';
+      note1.textContent = '';
+      note2.textContent = '';
+      longDistance.classList.add('hidden');
+    };
+
+    const update = () => {
+      const kmText = kmInput.value.trim();
+      const minuteText = minuteInput.value.trim();
+      if (!kmText || !minuteText) {
+        reset();
+        return;
+      }
+
+      const estimate = calculateFareEstimate(kmText, minuteText, cfg);
+      if (!estimate || estimate.invalid) {
+        result.classList.remove('is-waiting', 'is-ready');
+        result.classList.add('is-invalid');
+        label.textContent = '請確認公里數與預估時間。';
+        price.textContent = '';
+        base.textContent = '';
+        note1.textContent = '';
+        note2.textContent = '';
+        longDistance.classList.add('hidden');
+        return;
+      }
+
+      result.classList.remove('is-waiting', 'is-invalid');
+      result.classList.add('is-ready');
+      label.textContent = cfg['結果標題'] || '預估車資';
+      price.textContent = estimate.minimumApplied
+        ? `約 NT$${formatFareMoney(estimate.baseline)}`
+        : `約 NT$${formatFareMoney(estimate.lower)}～${formatFareMoney(estimate.upper)}`;
+      base.textContent = estimate.minimumApplied
+        ? `${cfg['低消結果提示'] || '最低消費'} NT$${formatFareMoney(estimate.rules.minimum)}`
+        : `${cfg['基準標題'] || '基準試算'} NT$${formatFareMoney(estimate.baseline)}`;
+      note1.textContent = cfg['結果說明1'] || '依最短路線試算｜實際依路況、等候時間及跳錶為準。';
+      note2.textContent = cfg['結果說明2'] || '想節省車資，可上車告知司機優先走最短路線。';
+      longDistance.classList.toggle('hidden', !estimate.longDistance);
+    };
+
+    kmInput.addEventListener('input', update);
+    minuteInput.addEventListener('input', update);
+    kmInput.addEventListener('change', update);
+    minuteInput.addEventListener('change', update);
+    reset();
+  }
+
   function bindFare(cfg) {
+    bindFareCalculator(cfg);
     bindRecentAddressControls();
     bindSmallDisclosureTriggers();
     installVerticalOnlyTouchGuard();
@@ -1941,6 +2100,7 @@
 
       const pickup = value('pickup');
       const destination = value('destination');
+      const estimateMethod = cfg['訊息內容_估價方式'] || '請客服協助估價';
       let valid = true;
       if (!pickup) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
@@ -1954,20 +2114,20 @@
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
+      appendLine(lines, cfg['訊息欄位_估價方式'] || '估價方式', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
-      appendLine(lines, cfg['訊息欄位_備註'], value('notes'));
 
-      const signature = submissionSignature({ mode: 'fare', pickup, destination, notes: value('notes') });
+      const signature = submissionSignature({ mode: 'fare', estimateMethod, pickup, destination });
       if (isDuplicateSubmission(signature)) {
         showGlobalError(duplicateMessage());
         return;
       }
 
       const rows = [
+        { label: cfg['訊息欄位_估價方式'] || '估價方式', value: estimateMethod },
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
-        { label: cfg['訊息欄位_下車'], value: destination, emphasis: true },
-        ...(meaningfulOptionalText(value('notes')) ? [{ label: cfg['訊息欄位_備註'], value: meaningfulOptionalText(value('notes')) }] : [])
+        { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
       ];
 
       openConfirmation(COMMON['確認標題_估價'] || '請確認估價資料', rows, async () => {

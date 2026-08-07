@@ -783,3 +783,127 @@ body.gc-sheet-open{
   color:#405f77!important;
   font-weight:700!important;
 }
+
+
+/* GC V9.5.6 fare calculator — fare-only, whitespace-first, no impact on call/driver */
+.gc-fare-card .gc-fare-head{padding-bottom:17px!important}
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{
+  margin:7px 0 0!important;
+  color:#526f86!important;
+  font-size:13.75px!important;
+  font-weight:570!important;
+  line-height:1.6!important;
+}
+.gc-fare-body{padding-top:18px!important}
+.gc-fare-calc{
+  margin:0;
+  padding:16px 14px 14px;
+  border:1px solid #d8e5ee;
+  border-radius:15px;
+  background:#f8fbfd;
+}
+.gc-fare-calc-title{
+  margin:0 0 13px;
+  color:#173f61;
+  font-size:16px;
+  font-weight:800;
+  line-height:1.35;
+}
+.gc-fare-calc-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.gc-fare-calc-field{display:block;min-width:0}
+.gc-fare-calc-field>span{
+  display:block;
+  margin:0 0 6px;
+  color:#31536d;
+  font-size:13px;
+  font-weight:700;
+}
+.gc-fare-calc-input-wrap{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  min-height:48px;
+  border:1px solid #cbd9e5;
+  border-radius:12px;
+  background:#fff;
+  overflow:hidden;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.gc-fare-calc-input-wrap:focus-within{border-color:#2e6fb2;box-shadow:0 0 0 3px rgba(46,111,178,.11)}
+.gc-fare-calc-input{
+  width:100%;
+  min-width:0;
+  min-height:46px;
+  padding:10px 4px 10px 12px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#1e3447;
+  font-size:16px;
+  font-weight:750;
+}
+.gc-fare-calc-input-wrap b{
+  flex:0 0 auto;
+  padding:0 10px 0 4px;
+  color:#6b8192;
+  font-size:12px;
+  font-weight:650;
+}
+.gc-fare-calc-input::-webkit-outer-spin-button,.gc-fare-calc-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.gc-fare-calc-input[type=number]{-moz-appearance:textfield}
+.gc-fare-calc-result{
+  margin-top:13px;
+  padding:13px 12px;
+  border-top:1px solid #e3ebf1;
+  color:#526b7f;
+}
+.gc-fare-calc-result.is-waiting{padding-bottom:1px;text-align:center}
+.gc-fare-calc-result.is-invalid{padding-bottom:1px;color:#a03a3a;text-align:center}
+.gc-fare-result-label{display:block;font-size:12.5px;font-weight:700;line-height:1.4}
+.gc-fare-calc-result.is-ready .gc-fare-result-label{color:#526b7f;text-align:left}
+.gc-fare-result-price{
+  display:block;
+  margin-top:3px;
+  color:#173f61;
+  font-size:24px;
+  font-weight:850;
+  line-height:1.2;
+  letter-spacing:-.025em;
+}
+.gc-fare-result-base{display:block;margin-top:5px;color:#587186;font-size:12.5px;font-weight:650}
+.gc-fare-result-note{margin:9px 0 0;color:#536d82;font-size:12.25px;font-weight:560;line-height:1.5}
+.gc-fare-result-note+.gc-fare-result-note{margin-top:3px}
+.gc-fare-long-distance{margin:10px 0 0;padding-top:9px;border-top:1px solid #e5edf3;color:#244f72;font-size:13px;font-weight:800;line-height:1.45}
+.gc-fare-rates{
+  margin:14px 0 0;
+  padding:13px 14px;
+  border:1px solid #e1e8ee;
+  border-radius:13px;
+  background:#fff;
+}
+.gc-fare-rates-title{color:#244f72;font-size:13.5px;font-weight:800;line-height:1.4}
+.gc-fare-rates-lines{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px;color:#556d80;font-size:12.25px;font-weight:620;line-height:1.45}
+.gc-fare-rates-lines span{white-space:nowrap}
+.gc-fare-rates-long{margin-top:9px;padding-top:8px;border-top:1px solid #edf2f6;color:#405f77;font-size:12.75px;font-weight:760;line-height:1.45}
+.gc-fare-or{display:flex;align-items:center;gap:10px;margin:19px 0;color:#91a3b2;font-size:11px;font-weight:700}
+.gc-fare-or::before,.gc-fare-or::after{content:"";height:1px;flex:1;background:#e5ebf0}
+.gc-fare-manual{margin:0}
+.gc-fare-manual-head{margin:0 0 14px}
+.gc-fare-manual-head strong{display:block;color:#244f72;font-size:15px;font-weight:800;line-height:1.4}
+.gc-fare-manual-head span{display:block;margin-top:3px;color:#647b8d;font-size:12.75px;font-weight:560;line-height:1.5}
+.gc-fare-manual-form{margin:0;padding:0}
+.gc-fare-manual-form .field{margin-bottom:15px}
+.gc-fare-manual-form .submit-btn{margin-top:2px}
+@media(max-width:360px){
+  .gc-fare-body{padding-left:13px!important;padding-right:13px!important}
+  .gc-fare-calc{padding:14px 12px 13px}
+  .gc-fare-calc-grid{gap:8px}
+  .gc-fare-calc-input{padding-left:10px;font-size:16px}
+  .gc-fare-calc-input-wrap b{padding-right:8px;font-size:11.5px}
+  .gc-fare-result-price{font-size:22px}
+  .gc-fare-rates-lines{gap:4px 9px}
+}
