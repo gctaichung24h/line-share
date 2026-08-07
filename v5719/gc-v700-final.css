@@ -756,3 +756,30 @@ body.gc-sheet-open{
 .location-confirm-btn{flex:0 0 auto;min-height:32px;padding:6px 10px;border:1px solid #b9cedf;border-radius:9px;background:#fff;color:#2f638d;font-size:12px;font-weight:700;white-space:nowrap}
 .location-confirm-btn:active{background:#edf5fa}
 @media(max-width:360px){.location-review{align-items:flex-start;flex-direction:column}.location-confirm-btn{align-self:flex-end}}
+
+/* V9.5.4 中彰投行政區智慧地址：候選分成行政區＋地址兩層，避免同名道路誤選 */
+.gc-address-suggest-item{flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px}
+.gc-address-suggest-admin{display:block;font-size:12px;line-height:1.35;font-weight:700;color:#173f61;letter-spacing:.01em}
+.gc-address-suggest-detail{display:block;font-size:14px;line-height:1.45;font-weight:600;color:#29465f;overflow-wrap:anywhere}
+@media (max-width:360px){.gc-address-suggest-admin{font-size:11.5px}.gc-address-suggest-detail{font-size:13.5px}}
+
+
+/* GC V9.5.5 fare dual-path service expectation — fare-only order/spacing */
+.gc-fare-body.form-body>.gc-fare-selfcalc.notice:not(.preview-notice) p:nth-child(5){
+  margin-top:15px!important;
+  color:#244f72!important;
+  font-size:14px!important;
+  font-weight:780!important;
+}
+.gc-fare-body.form-body>.gc-fare-selfcalc.notice:not(.preview-notice) p:nth-child(6){
+  margin-top:5px!important;
+  color:#465f74!important;
+  font-size:inherit!important;
+  font-weight:600!important;
+}
+.gc-fare-body>.gc-fare-selfcalc p:nth-child(n+6){font-weight:600!important}
+.gc-fare-body.form-body>.gc-fare-selfcalc.notice:not(.preview-notice) p:nth-child(10){
+  margin-top:12px!important;
+  color:#405f77!important;
+  font-weight:700!important;
+}

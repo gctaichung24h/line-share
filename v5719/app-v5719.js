@@ -6,7 +6,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_V5719_VEHICLE_PARKING_LOCATION';
+  const RELEASE_MARKER = 'GC_V9_5_5_FARE_DUAL_PATH';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -18,9 +18,18 @@
   const LOCATION_REVIEW_ACCURACY_M = 100;
   const LOCATION_SAMPLE_WINDOW_MS = 3200;
   const LOCATION_REVERSE_GEOCODE_TIMEOUT_MS = 3500;
-  const ADDRESS_SUGGEST_DEBOUNCE_MS = 420;
+  const ADDRESS_SUGGEST_DEBOUNCE_MS = 320;
   const ADDRESS_SUGGEST_TIMEOUT_MS = 3000;
   const ADDRESS_BIAS_LOCATION = '120.6736,24.1477';
+  const ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT = '119.85,21.75,122.15,25.45';
+  const ADDRESS_PRIMARY_REGIONS = [
+    { name: '台中市', location: '120.6736,24.1477', score: 400 },
+    { name: '彰化縣', location: '120.5440,24.0756', score: 330 },
+    { name: '南投縣', location: '120.6850,23.9157', score: 310 }
+  ];
+  const ADDRESS_TAIWAN_COUNTIES = ['台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市','新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣','台東縣','澎湖縣','金門縣','連江縣'];
+  const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
+  const addressSuggestionCache = new Map();
   let pendingConfirmAction = null;
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
@@ -268,64 +277,222 @@
 
   function cleanSuggestedAddress(value) {
     return normalizeAddress(String(value || '')
-      .replace(/,\s*Taiwan$/i, '')
-      .replace(/,\s*/g, ' '));
+      .replace(/臺/g, '台')
+      .replace(/(?:,|\s)+(?:Taiwan|TWN|台灣|臺灣)$/i, '')
+      .replace(/,\s*/g, ' ')
+      .replace(/\s+\d{3}(?:\d{2,3})?$/, ''));
+  }
+
+  function isClearlyOutsideTaiwanSuggestion(value) {
+    const text = String(value || '');
+    return /(中國|中国|中華人民共和國|中华人民共和国|福建省|廣東省|广东省|浙江省|江蘇省|江苏省|江西省|安徽省|山東省|山东省|河南省|河北省|湖北省|湖南省|四川省|貴州省|贵州省|雲南省|云南省|海南省|遼寧省|辽宁省|吉林省|黑龍江省|黑龙江省|陝西省|陕西省|山西省|甘肅省|甘肃省|青海省|北京市|上海市|天津市|重慶市|重庆市|香港|澳門|澳门|Xiamen|Fujian|Guangdong|Zhejiang|Jiangsu|Shanghai|Beijing|China)/i.test(text);
+  }
+
+  function canonicalTaiwanCounty(value) {
+    const text = String(value || '').replace(/臺/g, '台');
+    return ADDRESS_TAIWAN_COUNTIES.find(county => text.includes(county)) || '';
+  }
+
+  function explicitTaiwanCountyFromQuery(value) {
+    const text = String(value || '').replace(/臺/g, '台');
+    const direct = canonicalTaiwanCounty(text);
+    if (direct) return direct;
+    const aliases = [
+      ['台北市', /(?:^|\s)台北(?:市)?/], ['新北市', /新北(?:市)?/], ['桃園市', /桃園(?:市)?/],
+      ['台中市', /台中(?:市)?/], ['台南市', /台南(?:市)?/], ['高雄市', /高雄(?:市)?/],
+      ['新竹縣', /新竹縣/], ['新竹市', /新竹市/], ['苗栗縣', /苗栗(?:縣)?/],
+      ['彰化縣', /彰化(?:縣)?/], ['南投縣', /南投(?:縣)?/], ['雲林縣', /雲林(?:縣)?/],
+      ['嘉義縣', /嘉義縣/], ['嘉義市', /嘉義市/], ['屏東縣', /屏東(?:縣)?/],
+      ['宜蘭縣', /宜蘭(?:縣)?/], ['花蓮縣', /花蓮(?:縣)?/], ['台東縣', /台東(?:縣)?/],
+      ['基隆市', /基隆(?:市)?/], ['澎湖縣', /澎湖(?:縣)?/], ['金門縣', /金門(?:縣)?/], ['連江縣', /連江(?:縣)?/]
+    ];
+    return aliases.find(([, pattern]) => pattern.test(text))?.[0] || '';
+  }
+
+  function splitTaiwanSuggestionAddress(value) {
+    const text = cleanSuggestedAddress(value).replace(/臺/g, '台');
+    const county = canonicalTaiwanCounty(text);
+    let remainder = text;
+    if (county) remainder = remainder.replace(county, ' ').replace(/\s+/g, ' ').trim();
+
+    let district = '';
+    const districtMatch = remainder.match(/(?:^|\s)([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))(?:\s|$)/) ||
+      remainder.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))/);
+    if (districtMatch) {
+      district = districtMatch[1];
+      remainder = remainder.replace(districtMatch[0], ' ').replace(/\s+/g, ' ').trim();
+    } else if (county) {
+      const countyIndex = text.indexOf(county);
+      const afterCounty = text.slice(countyIndex + county.length).trim();
+      const compactMatch = afterCounty.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))/);
+      if (compactMatch) {
+        district = compactMatch[1];
+        remainder = afterCounty.slice(district.length).trim();
+      }
+    }
+
+    if (!remainder) remainder = text;
+    return { county, district, detail: remainder, full: text };
+  }
+
+  function isTaiwanSuggestion(value) {
+    if (!value || isClearlyOutsideTaiwanSuggestion(value)) return false;
+    return Boolean(canonicalTaiwanCounty(value) || /(台灣|臺灣|Taiwan|TWN)/i.test(String(value)));
+  }
+
+
+  function canonicalizeSuggestedAddress(value) {
+    const parts = splitTaiwanSuggestionAddress(value);
+    if (!parts.county) return smartNormalizeTaiwanAddress(cleanSuggestedAddress(value));
+    const admin = `${parts.county}${parts.district || ''}`;
+    const detail = normalizeAddress(parts.detail || '');
+    return smartNormalizeTaiwanAddress(`${admin}${detail}`);
+  }
+
+  function taiwanSuggestionScore(value, query, sourceRegion = '') {
+    const text = String(value || '').replace(/臺/g, '台');
+    const q = String(query || '').replace(/臺/g, '台');
+    const parts = splitTaiwanSuggestionAddress(text);
+    const explicitCounty = explicitTaiwanCountyFromQuery(q);
+    let score = 0;
+
+    const region = ADDRESS_PRIMARY_REGIONS.find(item => item.name === parts.county);
+    if (region) score += region.score;
+    else if (parts.county) score += 100;
+
+    if (sourceRegion && parts.county === sourceRegion) score += 80;
+    if (parts.district) score += 90;
+    if (/[路街道巷弄]\s*\d+(?:[-之]\d+)?號/.test(text)) score += 25;
+    if (q && text.includes(q)) score += 25;
+    if (explicitCounty && parts.county === explicitCounty) score += 600;
+    if (explicitCounty && parts.county && parts.county !== explicitCounty) score -= 600;
+
+    const qDistrict = q.match(/([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))/)?.[1] || '';
+    if (qDistrict && parts.district === qDistrict) score += 140;
+    if (/[路街道巷弄]/.test(q) && !parts.district) score -= 70;
+    return score;
+  }
+
+  function renderAddressSuggestion(item, index) {
+    const parts = splitTaiwanSuggestionAddress(item.text);
+    const admin = [parts.county, parts.district].filter(Boolean).join('｜');
+    const detail = parts.detail && parts.detail !== parts.full ? parts.detail : parts.full;
+    if (!admin) {
+      return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option"><span class="gc-address-suggest-detail">${escapeHtml(detail)}</span></button>`;
+    }
+    return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option">
+      <span class="gc-address-suggest-admin">${escapeHtml(admin)}</span>
+      <span class="gc-address-suggest-detail">${escapeHtml(detail)}</span>
+    </button>`;
+  }
+
+  async function fetchArcgisSuggest(text, locationBias, controller) {
+    const params = new URLSearchParams({
+      f: 'json',
+      text,
+      countryCode: 'TWN',
+      langCode: 'zh-TW',
+      location: locationBias || ADDRESS_BIAS_LOCATION,
+      searchExtent: ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT,
+      preferredLabelValues: 'localCity',
+      returnCollections: 'false',
+      maxSuggestions: '6'
+    });
+    const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params.toString()}`, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (!data || data.error || !Array.isArray(data.suggestions)) return [];
+    return data.suggestions;
+  }
+
+  function cacheAddressSuggestions(key, suggestions) {
+    if (!key) return suggestions;
+    if (addressSuggestionCache.size >= ADDRESS_SUGGEST_CACHE_LIMIT) {
+      const firstKey = addressSuggestionCache.keys().next().value;
+      if (firstKey) addressSuggestionCache.delete(firstKey);
+    }
+    addressSuggestionCache.set(key, suggestions);
+    return suggestions;
   }
 
   async function fetchAddressSuggestions(query) {
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
-    try {
-      const params = new URLSearchParams({
-        f: 'json',
-        text: query,
-        countryCode: 'TWN',
-        langCode: 'zh-TW',
-        location: ADDRESS_BIAS_LOCATION,
-        distance: '80000',
-        maxSuggestions: '5'
-      });
-      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params.toString()}`, {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
-      });
-      if (!response.ok) return [];
-      const data = await response.json();
-      if (!data || data.error || !Array.isArray(data.suggestions)) return [];
-      return data.suggestions
-        .map(item => ({ text: cleanSuggestedAddress(item.text), magicKey: item.magicKey || '' }))
-        .filter(item => item.text)
-        .slice(0, 5);
-    } catch (_) {
-      return [];
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
+    const cacheKey = normalizeAddress(query).replace(/臺/g, '台').toLocaleLowerCase();
+    if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
 
-  async function resolveAddressSuggestion(item) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
     try {
-      const params = new URLSearchParams({
-        f: 'json',
-        SingleLine: item.text,
-        countryCode: 'TWN',
-        langCode: 'zh-TW',
-        location: ADDRESS_BIAS_LOCATION,
-        maxLocations: '1',
-        forStorage: 'false',
-        outFields: 'Match_addr,LongLabel,ShortLabel,Addr_type,Address,District,City,Subregion,Region,Postal'
-      });
-      if (item.magicKey) params.set('magicKey', item.magicKey);
-      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
-      });
-      if (!response.ok) return item.text;
-      const data = await response.json();
-      const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
-      return cleanSuggestedAddress(candidate?.address || candidate?.attributes?.Match_addr || item.text);
+      const explicitCounty = explicitTaiwanCountyFromQuery(query);
+      const currentLocationBias = attachedLocation &&
+        Number.isFinite(attachedLocation.longitude) &&
+        Number.isFinite(attachedLocation.latitude) &&
+        Number(attachedLocation.accuracy) <= LOCATION_REVIEW_ACCURACY_M
+          ? `${attachedLocation.longitude},${attachedLocation.latitude}`
+          : ADDRESS_BIAS_LOCATION;
+
+      const seen = new Set();
+      const merged = [];
+      const addResults = (items, sourceRegion = '') => {
+        items.forEach((raw, order) => {
+          if (!raw?.text || isClearlyOutsideTaiwanSuggestion(raw.text)) return;
+          const cleaned = canonicalizeSuggestedAddress(raw.text);
+          if (!cleaned || !isTaiwanSuggestion(cleaned)) return;
+
+          const county = canonicalTaiwanCounty(cleaned);
+          if (explicitCounty && county !== explicitCounty) return;
+          if (sourceRegion && county && county !== sourceRegion) return;
+
+          const dedupeKey = cleaned.replace(/\s+/g, '').toLocaleLowerCase();
+          if (seen.has(dedupeKey)) return;
+          seen.add(dedupeKey);
+
+          merged.push({
+            text: cleaned,
+            magicKey: raw.magicKey || '',
+            sourceRegion,
+            _order: order,
+            _score: taiwanSuggestionScore(cleaned, query, sourceRegion)
+          });
+        });
+      };
+
+      // Fast path: one Taiwan-only request with a Taichung/current-location bias.
+      // Most normal road/landmark searches finish here, keeping typing responsive.
+      const primaryLocation = explicitCounty
+        ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
+        : currentLocationBias;
+      addResults(await fetchArcgisSuggest(query, primaryLocation, controller), explicitCounty || '');
+
+      // Only enrich when the first response did not already give enough safe,
+      // district-labelled Central Taiwan choices. This keeps 中彰投 prominent
+      // without making every keystroke fire four network requests.
+      const centralDistrictCount = merged.filter(item => {
+        const parts = splitTaiwanSuggestionAddress(item.text);
+        return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
+      }).length;
+
+      if (!explicitCounty && centralDistrictCount < 4) {
+        const enrichedSets = await Promise.all(ADDRESS_PRIMARY_REGIONS.map(async region => {
+          try {
+            const items = await fetchArcgisSuggest(`${region.name} ${query}`, region.location, controller);
+            return { items, region: region.name };
+          } catch (_) {
+            return { items: [], region: region.name };
+          }
+        }));
+        enrichedSets.forEach(result => addResults(result.items, result.region));
+      }
+
+      const suggestions = merged
+        .sort((a, b) => (b._score - a._score) || (a._order - b._order))
+        .slice(0, 6)
+        .map(({ text, magicKey }) => ({ text, magicKey }));
+
+      return cacheAddressSuggestions(cacheKey, suggestions);
     } catch (_) {
-      return item.text;
+      return cacheAddressSuggestions(cacheKey, []);
     } finally {
       clearTimeout(timeoutId);
     }
@@ -358,10 +525,7 @@
           const suggestions = await fetchAddressSuggestions(query);
           if (localToken !== token || normalizeAddress(input.value) !== query) return;
           if (!suggestions.length) { hideAddressSuggestions(id); return; }
-          box.innerHTML = suggestions.map((item, index) => `
-            <button type="button" class="gc-address-suggest-item" data-index="${index}" role="option">
-              <span>${escapeHtml(item.text)}</span>
-            </button>`).join('');
+          box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
           box._gcSuggestions = suggestions;
           box.classList.remove('hidden');
         }, ADDRESS_SUGGEST_DEBOUNCE_MS);
@@ -380,7 +544,7 @@
         if (!button) return;
         const item = box._gcSuggestions?.[Number(button.dataset.index)];
         if (!item) return;
-        const selected = smartNormalizeTaiwanAddress(await resolveAddressSuggestion(item));
+        const selected = smartNormalizeTaiwanAddress(cleanSuggestedAddress(item.text));
         if (!selected) return;
         input.value = selected;
         input.dataset.gcSkipSuggestOnce = '1';
@@ -992,7 +1156,7 @@
         pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
         attachedLocation.settingInput = false;
 
-        // V9.5.2 safety: GPS-generated text is always shown to the rider for one-tap confirmation.
+        // V9.5.3 safety: GPS-generated text is always shown to the rider for one-tap confirmation.
         // This keeps current-location convenient while preventing a plausible-but-wrong door number
         // from becoming the dispatch address without the rider seeing it first.
         attachedLocation.requiresConfirmation = true;
