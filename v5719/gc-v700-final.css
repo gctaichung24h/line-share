@@ -963,3 +963,234 @@ body.gc-sheet-open{
   .gc-fare-calc-input{font-size:17px}
   .gc-fare-result-price{font-size:23px}
 }
+
+
+/* GC V9.5.9 premium self-service hierarchy — one obvious action, calm secondary path */
+.gc-fare-card .gc-fare-head{padding-bottom:13px!important}
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{font-size:13px!important;font-weight:580!important;color:#5b7386!important;line-height:1.48!important;max-width:430px}
+.gc-fare-body{padding-top:14px!important}
+.gc-fare-calc{position:relative;padding:21px 17px 18px;border:1.5px solid #9fc5df;background:linear-gradient(180deg,#f5faff 0%,#fbfdff 100%);box-shadow:0 12px 30px rgba(24,72,108,.075)}
+.gc-fare-calc-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px}
+.gc-fare-calc-title{margin:0!important;font-size:19px!important;font-weight:880!important;color:#153f63!important;letter-spacing:-.015em}
+.gc-fare-fast-badge{flex:0 0 auto;padding:4px 9px;border-radius:999px;background:#e8f4fb;color:#24648f;font-size:11px;font-weight:800;letter-spacing:.04em}
+.gc-fare-calc-help{margin:0 0 16px;color:#698092;font-size:12px;font-weight:580;line-height:1.45}
+.gc-fare-calc-grid{gap:12px!important}
+.gc-fare-calc-field>span{font-size:13px!important;font-weight:760!important;color:#385e79!important}
+.gc-fare-calc-input-wrap{min-height:60px!important;border:1.5px solid #acc9dd!important;border-radius:15px!important;background:#fff!important;box-shadow:0 3px 10px rgba(35,76,105,.035)}
+.gc-fare-calc-input{min-height:58px!important;font-size:21px!important;font-weight:850!important;color:#163c5b!important;padding-left:14px!important}
+.gc-fare-calc-input::placeholder{font-size:18px!important;color:#9ca8b2!important;font-weight:650!important}
+.gc-fare-calc-input-wrap b{font-size:12px!important;color:#6e8394!important}
+.gc-fare-calc-result{margin-top:16px!important;padding:17px 14px 13px!important;border-top:1px solid #dce9f2!important}
+.gc-fare-calc-result.is-waiting{padding:14px 8px 3px!important;color:#557388!important;font-size:12.5px!important;font-weight:650!important}
+.gc-fare-calc-result.is-ready .gc-fare-result-label{font-size:12px!important;font-weight:760!important;color:#617b8e!important}
+.gc-fare-result-price{margin-top:2px!important;font-size:31px!important;line-height:1.12!important;letter-spacing:-.03em!important;color:#153f63!important}
+.gc-fare-result-base{display:none!important}
+.gc-fare-result-note{font-size:11.7px!important;line-height:1.45!important;color:#647d8f!important;font-weight:560!important}
+.gc-fare-long-distance{font-size:12.5px!important}
+.gc-fare-rates{margin-top:18px!important;padding:0!important;border:1px solid #e4ebf0!important;border-radius:14px!important;background:#fbfcfd!important;overflow:hidden!important}
+.gc-fare-rates-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;color:#557187;font-size:12.5px;font-weight:760}
+.gc-fare-rates-summary::-webkit-details-marker{display:none}
+.gc-fare-rates-summary::after{content:'＋';flex:0 0 auto;color:#7890a2;font-size:16px;font-weight:500}
+.gc-fare-rates[open] .gc-fare-rates-summary::after{content:'－'}
+.gc-fare-rates-summary small{margin-left:auto;color:#8496a4;font-size:10.5px;font-weight:620}
+.gc-fare-rates-content{padding:0 13px 12px;border-top:1px solid #edf2f5}
+.gc-fare-rates-title{display:none!important}
+.gc-fare-rates-lines{margin-top:10px!important;font-size:11.5px!important;color:#6b7f8e!important;gap:4px 9px!important}
+.gc-fare-rates-long{font-size:12px!important}
+.gc-fare-or{margin:30px 0 24px!important;color:#a4b1bb!important}
+.gc-fare-manual{padding-top:2px}
+.gc-fare-manual-head strong{font-size:14px!important;font-weight:760!important;color:#60798c!important}
+.gc-fare-manual-head span{font-size:11.8px!important;color:#8394a0!important}
+.gc-fare-manual-form .submit-btn{font-size:15px!important;min-height:52px!important}
+@media(max-width:360px){
+ .gc-fare-calc{padding:18px 12px 15px!important}
+ .gc-fare-calc-title{font-size:17.5px!important}
+ .gc-fare-fast-badge{padding:3px 7px;font-size:10px}
+ .gc-fare-calc-help{font-size:11.4px;margin-bottom:13px}
+ .gc-fare-calc-grid{gap:8px!important}
+ .gc-fare-calc-input-wrap{min-height:56px!important}
+ .gc-fare-calc-input{min-height:54px!important;font-size:19px!important}
+ .gc-fare-result-price{font-size:27px!important}
+ .gc-fare-rates-summary{padding:11px 10px;font-size:11.7px}
+ .gc-fare-rates-summary small{font-size:9.8px}
+}
+
+/* =========================================================
+   GC V9.5.9 FINAL PREMIUM WEIGHT PATCH
+   Visual-only layer: enterprise hierarchy, calm spacing, no functional change.
+   ========================================================= */
+:root{
+  --gc959-navy:#113a60;
+  --gc959-navy-2:#174f7f;
+  --gc959-blue:#2b73ac;
+  --gc959-ink:#173a57;
+  --gc959-muted:#6d8292;
+  --gc959-line:#d8e4ec;
+  --gc959-soft:#f5f8fb;
+  --gc959-soft-blue:#eef5fa;
+  --gc959-shadow:0 18px 48px rgba(24,52,76,.085);
+}
+html{-webkit-font-smoothing:antialiased!important;text-rendering:optimizeLegibility!important}
+body{
+  background:
+    radial-gradient(110% 48% at 50% 0%,rgba(222,236,247,.78) 0%,rgba(241,247,251,.44) 48%,rgba(246,249,251,0) 100%),
+    linear-gradient(180deg,#f5f8fb 0%,#f7f9fb 42%,#f4f7f9 100%)!important;
+  color:var(--gc959-ink)!important;
+}
+#app{max-width:600px!important;padding:14px 12px calc(30px + env(safe-area-inset-bottom))!important}
+.brand-header{
+  margin:0 3px 11px!important;
+  padding:2px 4px 12px!important;
+  gap:11px!important;
+  border-bottom:1px solid rgba(194,211,224,.72)!important;
+}
+.brand-avatar{width:46px!important;height:46px!important;flex-basis:46px!important;border-radius:14px!important;box-shadow:0 7px 18px rgba(15,45,72,.16)!important}
+.brand-copy strong{font-size:17px!important;font-weight:790!important;letter-spacing:-.025em!important;color:#12395c!important}
+.brand-copy span{margin-top:3px!important;font-size:11.5px!important;font-weight:540!important;letter-spacing:.025em!important;color:#748797!important}
+.form-card{
+  border:1px solid rgba(211,224,234,.96)!important;
+  border-radius:22px!important;
+  background:#fff!important;
+  box-shadow:var(--gc959-shadow)!important;
+  overflow:hidden!important;
+}
+.form-head{
+  position:relative!important;
+  padding:21px 20px 16px!important;
+  border-bottom:1px solid #e1e9ef!important;
+  background:linear-gradient(180deg,#fff 0%,#f8fbfd 100%)!important;
+}
+.form-head h1{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  margin:0!important;
+  font-size:25px!important;
+  line-height:1.18!important;
+  font-weight:800!important;
+  letter-spacing:-.035em!important;
+  color:#12395e!important;
+}
+.form-head h1::before{
+  content:''!important;
+  display:block!important;
+  flex:0 0 4px!important;
+  width:4px!important;
+  height:25px!important;
+  border-radius:999px!important;
+  background:linear-gradient(180deg,#1b558b 0%,#347fb7 100%)!important;
+  box-shadow:0 2px 6px rgba(26,87,137,.13)!important;
+}
+.form-head p{margin:8px 0 0 14px!important;font-size:12.8px!important;line-height:1.55!important;font-weight:500!important;color:#708494!important}
+.form-body{padding:19px 17px 22px!important}
+.field{margin-bottom:16px!important}
+.field>label,.field-label{font-size:14px!important;font-weight:690!important;color:#21445f!important;letter-spacing:-.01em!important}
+.input,textarea,.gc-select{
+  border-color:#cad9e4!important;
+  background:#fff!important;
+  box-shadow:inset 0 1px 0 rgba(23,58,87,.015)!important;
+}
+.input:focus,textarea:focus,.gc-select:focus{
+  border-color:#5b8db5!important;
+  box-shadow:0 0 0 3px rgba(46,111,178,.09)!important;
+}
+.segmented,.choice-row{gap:8px!important}
+.choice span{min-height:49px!important;border-radius:13px!important;border-color:#cad9e4!important;font-size:14px!important;font-weight:700!important;background:#fff!important;box-shadow:none!important}
+.choice input:checked+span{
+  border-color:#174f80!important;
+  background:linear-gradient(135deg,#123b62 0%,#1d5e94 62%,#2b76ae 100%)!important;
+  box-shadow:0 7px 18px rgba(21,72,113,.15)!important;
+}
+.gc-primary-address{
+  margin:4px 0 17px!important;
+  padding:13px 12px 14px!important;
+  border:1px solid #d7e3eb!important;
+  border-radius:17px!important;
+  background:linear-gradient(180deg,#fbfdff 0%,#f7fafc 100%)!important;
+  box-shadow:0 6px 18px rgba(29,65,94,.04)!important;
+}
+.gc-primary-address:before{width:3px!important;top:15px!important;bottom:15px!important;background:#2d73aa!important}
+.gc-destination-address:before{background:#7893a9!important}
+.gc-primary-address .field-label-row>label,.gc-primary-address>label{font-size:15px!important;font-weight:750!important;color:#153e60!important}
+.gc-primary-address .input{min-height:56px!important;border-color:#bdcedb!important;border-radius:13px!important;font-size:16px!important;font-weight:520!important;box-shadow:none!important}
+.gc-secondary-box,.optional-box{border-color:#dde6ed!important;border-radius:14px!important;background:#fbfcfd!important;box-shadow:none!important}
+.gc-secondary-box>summary,.optional-box>summary{padding:13px 14px!important;font-size:13.5px!important;font-weight:680!important;color:#35556d!important}
+.form-body>.notice:not(.preview-notice){background:#f3f7fa!important;border:1px solid #e3ebf1!important;color:#61798b!important}
+.submit-btn{
+  min-height:55px!important;
+  border-radius:15px!important;
+  font-size:15.5px!important;
+  font-weight:760!important;
+  letter-spacing:-.015em!important;
+  background:linear-gradient(135deg,#10395f 0%,#19598e 60%,#2c76ad 100%)!important;
+  box-shadow:0 10px 24px rgba(15,59,99,.19)!important;
+}
+.submit-btn:active{transform:translateY(1px)!important;box-shadow:0 6px 15px rgba(15,59,99,.16)!important}
+
+/* Fare page: calculator is the hero, human estimate is visibly secondary. */
+.gc-fare-card .gc-fare-head{padding-bottom:15px!important}
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{max-width:none!important;margin-left:14px!important;font-size:12.8px!important;font-weight:510!important;color:#667d8f!important}
+.gc-fare-body{padding-top:17px!important}
+.gc-fare-calc{
+  padding:20px 16px 17px!important;
+  border:1px solid #b7cfdf!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#f2f8fc 0%,#f8fbfd 100%)!important;
+  box-shadow:0 12px 28px rgba(23,67,99,.065)!important;
+}
+.gc-fare-calc-topline{margin-bottom:5px!important}
+.gc-fare-calc-title{font-size:18.5px!important;font-weight:840!important;color:#123e61!important;letter-spacing:-.02em!important}
+.gc-fare-fast-badge{padding:4px 9px!important;border:1px solid #c8dfed!important;background:#eaf4fa!important;color:#336b91!important;font-size:10.5px!important;font-weight:780!important;letter-spacing:.035em!important}
+.gc-fare-calc-help{margin-bottom:15px!important;font-size:11.8px!important;font-weight:560!important;color:#6d8292!important}
+.gc-fare-calc-grid{gap:10px!important}
+.gc-fare-calc-field>span{font-size:12.6px!important;font-weight:730!important;color:#3a5d75!important}
+.gc-fare-calc-input-wrap{min-height:58px!important;border:1px solid #b7ccda!important;border-radius:14px!important;background:#fff!important;box-shadow:0 2px 8px rgba(27,63,89,.025)!important}
+.gc-fare-calc-input-wrap:focus-within{border-color:#588bb4!important;box-shadow:0 0 0 3px rgba(45,112,166,.085)!important}
+.gc-fare-calc-input{min-height:56px!important;font-size:20px!important;font-weight:820!important;color:#173e5c!important}
+.gc-fare-calc-input::placeholder{font-size:16px!important;font-weight:600!important;color:#a0acb5!important}
+.gc-fare-calc-result{margin-top:15px!important;padding:16px 13px 11px!important;border-top:1px solid #dce7ee!important}
+.gc-fare-calc-result.is-waiting{padding:13px 6px 2px!important;font-size:12px!important;font-weight:620!important;color:#667f90!important}
+.gc-fare-calc-result.is-ready .gc-fare-result-label{font-size:11.7px!important;font-weight:720!important;color:#637b8d!important}
+.gc-fare-result-price{font-size:29px!important;font-weight:850!important;color:#123f63!important;letter-spacing:-.035em!important}
+.gc-fare-result-note{font-size:11.5px!important;line-height:1.48!important;color:#647b8d!important;font-weight:530!important}
+.gc-fare-rates{margin-top:16px!important;border-color:#e0e8ee!important;border-radius:13px!important;background:#fbfcfd!important}
+.gc-fare-rates-summary{padding:11px 12px!important;font-size:12px!important;font-weight:690!important;color:#587084!important}
+.gc-fare-rates-summary small{font-size:10.3px!important;font-weight:560!important;color:#8999a5!important}
+.gc-fare-rates-content{padding:0 12px 11px!important}
+.gc-fare-or{margin:22px 0 17px!important;color:#9aa9b4!important;font-size:10.5px!important}
+.gc-fare-manual{
+  margin:0!important;
+  padding:16px 14px 15px!important;
+  border:1px solid #e0e8ee!important;
+  border-radius:16px!important;
+  background:#fafbfd!important;
+}
+.gc-fare-manual-head{margin:0 0 14px!important}
+.gc-fare-manual-head strong{font-size:14px!important;font-weight:760!important;color:#365a74!important}
+.gc-fare-manual-head span{font-size:11.8px!important;font-weight:500!important;color:#7a8c99!important}
+.gc-fare-manual-form .field{margin-bottom:14px!important}
+.gc-fare-manual-form .input{min-height:51px!important;border-radius:13px!important;background:#fff!important}
+.gc-fare-manual-form .submit-btn{min-height:51px!important;margin-top:0!important;font-size:14.5px!important;box-shadow:0 7px 17px rgba(15,59,99,.13)!important}
+
+/* Final confirmation: cleaner editorial weighting. */
+.confirm-overlay{background:rgba(12,31,47,.46)!important;backdrop-filter:blur(5px)!important;-webkit-backdrop-filter:blur(5px)!important}
+.confirm-card{border:1px solid rgba(220,229,236,.95)!important;border-radius:22px!important;box-shadow:0 28px 80px rgba(9,28,44,.25)!important;background:#fff!important}
+.confirm-card h2{font-size:20.5px!important;font-weight:800!important;color:#143b5b!important}
+.confirm-row{padding:10px 12px!important;border-color:#e1e8ee!important;background:#fbfcfd!important}
+.confirm-row span{font-size:12px!important;font-weight:620!important;color:#748694!important}
+.confirm-row strong{font-size:13.8px!important;font-weight:690!important;color:#173d5b!important}
+.confirm-row-emphasis{border-color:#c7dbe9!important;background:#f4f8fb!important}
+.confirm-send{background:linear-gradient(135deg,#10395f 0%,#1a5a8f 62%,#2b75ac 100%)!important;box-shadow:0 7px 17px rgba(15,59,99,.14)!important}
+
+@media(max-width:380px){
+  #app{padding-left:10px!important;padding-right:10px!important}
+  .form-head{padding-left:17px!important;padding-right:17px!important}
+  .form-head h1{font-size:23.5px!important}
+  .form-head p,.gc-fare-card .gc-fare-head .gc-fare-guide-copy{margin-left:14px!important}
+  .form-body{padding-left:14px!important;padding-right:14px!important}
+  .gc-fare-calc{padding-left:12px!important;padding-right:12px!important}
+  .gc-fare-calc-grid{gap:8px!important}
+  .gc-fare-calc-input{font-size:18px!important;padding-left:10px!important}
+  .gc-fare-result-price{font-size:25px!important}
+}
+

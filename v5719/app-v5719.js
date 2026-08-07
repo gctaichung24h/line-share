@@ -1,12 +1,33 @@
 (() => {
   'use strict';
+  const GC_BUILD_VERSION = 'v959';
+  let gcLastVersionCheck = 0;
+  async function ensureLatestBuild(force = false) {
+    const now = Date.now();
+    if (!force && now - gcLastVersionCheck < 30000) return;
+    gcLastVersionCheck = now;
+    try {
+      const res = await fetch('version.json?t=' + now, { cache: 'no-store' });
+      if (!res.ok) return;
+      const info = await res.json();
+      if (info && info.version && info.version !== GC_BUILD_VERSION) {
+        const url = new URL(location.href);
+        url.searchParams.set('gcver', info.version);
+        url.searchParams.set('_r', String(now));
+        location.replace(url.toString());
+      }
+    } catch (_) {}
+  }
+  window.addEventListener('pageshow', () => ensureLatestBuild(true));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureLatestBuild(true); });
+
 
   const CONFIG = window.GC_FORM_CONFIG || {};
   const COMMON = CONFIG.common || {};
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_V9_5_7_FARE_CALCULATOR_FLOOR10';
+  const RELEASE_MARKER = 'GC_V9_5_9_FINAL_SAFE_PREMIUM';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -223,22 +244,6 @@
     return reminderLines.length ? `<div class="${className}">${reminderLines.join('')}</div>` : '';
   }
 
-  function directionChoices(cfg) {
-    return `
-      <div class="field">
-        <div class="field-label">${escapeHtml(cfg['行程方向標題'])}</div>
-        <div class="choice-row">
-          <label class="choice">
-            <input type="radio" name="direction" value="${escapeHtml(cfg['行程方向選項1'])}">
-            <span>${escapeHtml(cfg['行程方向選項1'])}</span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="direction" value="${escapeHtml(cfg['行程方向選項2'])}">
-            <span>${escapeHtml(cfg['行程方向選項2'])}</span>
-          </label>
-        </div>
-      </div>`;
-  }
 
   function normalizeAddress(address) {
     return String(address || '').replace(/\s+/g, ' ').trim();
@@ -1532,12 +1537,10 @@
     attachedLocation = null;
     const isDriver = mode === 'driver';
     const extraFields = isDriver
-      ? `${directionChoices(cfg)}
-         ${fieldText('vehicle', cfg['車輛資訊標題'], cfg['車輛資訊提示'])}
+      ? `${fieldText('vehicle', cfg['車輛資訊標題'], cfg['車輛資訊提示'])}
          ${fieldText('parking', cfg['停車位置標題'], cfg['停車位置提示'])}
          ${fieldTextarea('notes', cfg['備註標題'], cfg['備註提示'])}`
-      : `${directionChoices(cfg)}
-         ${fieldText('baggage', cfg['行李標題'], cfg['行李提示'])}
+      : `${fieldText('baggage', cfg['行李標題'], cfg['行李提示'])}
          ${fieldText('requirements', cfg['需求標題'], cfg['需求提示'])}
          ${fieldTextarea('notes', cfg['備註標題'], cfg['備註提示'])}`;
 
@@ -1627,7 +1630,11 @@
   function renderFareCalculator(cfg) {
     return `
       <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
-        <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算車資')}</div>
+        <div class="gc-fare-calc-topline">
+          <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
+          <span class="gc-fare-fast-badge">最快</span>
+        </div>
+        <div class="gc-fare-calc-help">Google 地圖看「最短路線」後，只填這兩格</div>
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareKm">
             <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
@@ -1647,7 +1654,6 @@
         <div class="gc-fare-calc-result is-waiting" id="fareCalcResult" aria-live="polite">
           <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '輸入公里數與時間後自動試算')}</span>
           <strong class="gc-fare-result-price" id="fareResultPrice"></strong>
-          <small class="gc-fare-result-base" id="fareResultBase"></small>
           <p class="gc-fare-result-note" id="fareResultNote1"></p>
           <p class="gc-fare-result-note" id="fareResultNote2"></p>
           <p class="gc-fare-long-distance hidden" id="fareLongDistance">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</p>
@@ -1658,11 +1664,16 @@
   function renderFareRateSummary(cfg) {
     const rateLines = [1, 2, 3, 4, 5, 6].map(index => cfg[`費率${index}`]).filter(Boolean);
     return `
-      <section class="gc-fare-rates">
-        <div class="gc-fare-rates-title">${escapeHtml(cfg['費率標題'] || '▍中部地區費率')}</div>
-        <div class="gc-fare-rates-lines">${rateLines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}</div>
-        <div class="gc-fare-rates-long">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</div>
-      </section>`;
+      <details class="gc-fare-rates">
+        <summary class="gc-fare-rates-summary">
+          <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
+          <small>24H同一費率｜最低 $100</small>
+        </summary>
+        <div class="gc-fare-rates-content">
+          <div class="gc-fare-rates-lines">${rateLines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}</div>
+          <div class="gc-fare-rates-long">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</div>
+        </div>
+      </details>`;
   }
 
   function renderFare(cfg) {
@@ -1939,7 +1950,6 @@
       }
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
-      appendLine(lines, cfg['訊息欄位_方向'], checked('direction'));
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
       if (mode === 'driver') {
@@ -1958,7 +1968,6 @@
         time: value('time'),
         pickup,
         destination,
-        direction: checked('direction'),
         passengers: mode === 'driver' ? '' : value('passengers'),
         baggage: baggageValue(),
         requirements: value('requirements'),
@@ -1980,7 +1989,6 @@
         ] : []),
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
-        ...(checked('direction') ? [{ label: cfg['訊息欄位_方向'], value: checked('direction') }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
@@ -2023,18 +2031,16 @@
     const result = document.getElementById('fareCalcResult');
     const label = document.getElementById('fareResultLabel');
     const price = document.getElementById('fareResultPrice');
-    const base = document.getElementById('fareResultBase');
     const note1 = document.getElementById('fareResultNote1');
     const note2 = document.getElementById('fareResultNote2');
     const longDistance = document.getElementById('fareLongDistance');
-    if (!kmInput || !minuteInput || !result || !label || !price || !base || !note1 || !note2 || !longDistance) return;
+    if (!kmInput || !minuteInput || !result || !label || !price || !note1 || !note2 || !longDistance) return;
 
     const reset = () => {
       result.classList.add('is-waiting');
       result.classList.remove('is-invalid', 'is-ready');
       label.textContent = cfg['計算器等待'] || '輸入公里數與時間後自動試算';
       price.textContent = '';
-      base.textContent = '';
       note1.textContent = '';
       note2.textContent = '';
       longDistance.classList.add('hidden');
@@ -2054,8 +2060,7 @@
         result.classList.add('is-invalid');
         label.textContent = '請確認公里數與預估時間。';
         price.textContent = '';
-        base.textContent = '';
-        note1.textContent = '';
+          note1.textContent = '';
         note2.textContent = '';
         longDistance.classList.add('hidden');
         return;
@@ -2067,9 +2072,6 @@
       price.textContent = estimate.minimumApplied
         ? `約 NT$${formatFareMoney(estimate.baseline)}`
         : `約 NT$${formatFareMoney(estimate.lower)}～${formatFareMoney(estimate.upper)}`;
-      base.textContent = estimate.minimumApplied
-        ? `${cfg['低消結果提示'] || '最低消費'} NT$${formatFareMoney(estimate.rules.minimum)}`
-        : `${cfg['基準標題'] || '基準試算'} NT$${formatFareMoney(estimate.baseline)}`;
       note1.textContent = cfg['結果說明1'] || '依最短路線試算｜實際依路況、等候時間及跳錶為準。';
       note2.textContent = cfg['結果說明2'] || '想節省車資，可上車告知司機優先走最短路線。';
       longDistance.classList.toggle('hidden', !estimate.longDistance);
