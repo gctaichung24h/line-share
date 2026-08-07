@@ -14,6 +14,8 @@
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
+  const LOCATION_ADDRESS_MAX_ACCURACY_M = 50;
+  const LOCATION_REVERSE_GEOCODE_TIMEOUT_MS = 3500;
   let pendingConfirmAction = null;
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
@@ -529,7 +531,10 @@
   function clearAttachedLocation(clearMarker = false) {
     locationRequestToken += 1;
     const pickupInput = document.getElementById('pickup');
-    if (clearMarker && pickupInput?.value === LOCATION_MARKER) pickupInput.value = '';
+    const generatedAddress = attachedLocation?.address || '';
+    if (clearMarker && pickupInput && (pickupInput.value === LOCATION_MARKER || (generatedAddress && pickupInput.value === generatedAddress))) {
+      pickupInput.value = '';
+    }
     attachedLocation = null;
     const status = document.getElementById('locationStatus');
     if (status) {
@@ -558,12 +563,91 @@
     if (!instant) clearAttachedLocation(true);
   }
 
+  function compactReverseAddressPart(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ');
+  }
+
+  function sameAddressPart(a, b) {
+    const normalize = value => compactReverseAddressPart(value).replace(/臺/g, '台').replace(/\s/g, '');
+    return normalize(a) && normalize(a) === normalize(b);
+  }
+
+  function formatReverseGeocodedAddress(rawAddress) {
+    if (!rawAddress || typeof rawAddress !== 'object') return '';
+    const type = compactReverseAddressPart(rawAddress.Addr_type);
+    const street = compactReverseAddressPart(rawAddress.Address || rawAddress.ShortLabel);
+    const addNum = compactReverseAddressPart(rawAddress.AddNum);
+    const hasHouseNumber = Boolean(addNum || /\d/.test(street));
+    const exactEnough = type === 'PointAddress' || type === 'Subaddress' || (type === 'StreetAddress' && hasHouseNumber);
+    if (!exactEnough || !street) return '';
+
+    const postal = compactReverseAddressPart(rawAddress.Postal);
+    const region = compactReverseAddressPart(rawAddress.Region);
+    const city = compactReverseAddressPart(rawAddress.City);
+    const district = compactReverseAddressPart(rawAddress.District);
+    const subregion = compactReverseAddressPart(rawAddress.Subregion);
+
+    let topAdmin = '';
+    if (/[市縣]$/.test(region) && !/台灣省|臺灣省/.test(region)) topAdmin = region;
+    if (!topAdmin && /[市縣]$/.test(city)) topAdmin = city;
+    if (!topAdmin && /[市縣]$/.test(subregion)) topAdmin = subregion;
+
+    let localAdmin = '';
+    for (const candidate of [district, city, subregion]) {
+      if (!candidate || sameAddressPart(candidate, topAdmin)) continue;
+      if (/[區鄉鎮市]$/.test(candidate)) {
+        localAdmin = candidate;
+        break;
+      }
+    }
+
+    const parts = [postal, topAdmin, localAdmin, street].filter(Boolean);
+    const unique = parts.filter((part, index, list) => !list.slice(0, index).some(prev => sameAddressPart(prev, part)));
+    if (unique.length >= 2) return unique.join(' ');
+
+    return compactReverseAddressPart(rawAddress.Match_addr || rawAddress.LongLabel).replace(/,\s*/g, ' ');
+  }
+
+  async function reverseGeocodeCurrentLocation(latitude, longitude) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = setTimeout(() => controller?.abort(), LOCATION_REVERSE_GEOCODE_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        f: 'json',
+        location: `${longitude},${latitude}`,
+        langCode: 'zh-TW',
+        featureTypes: 'PointAddress,StreetAddress',
+        locationType: 'street',
+        forStorage: 'false',
+        outFields: 'Match_addr,LongLabel,ShortLabel,Addr_type,AddNum,Address,District,City,Subregion,Region,Postal,CountryCode'
+      });
+      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?${params.toString()}`, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        signal: controller?.signal
+      });
+      if (!response.ok) return '';
+      const data = await response.json();
+      if (!data || data.error) return '';
+      return formatReverseGeocodedAddress(data.address);
+    } catch (_) {
+      return '';
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   function bindCurrentLocation(mode) {
     const button = document.getElementById('locationBtn');
     const pickupInput = document.getElementById('pickup');
     if (!button || !pickupInput) return;
     pickupInput.addEventListener('input', () => {
-      if (pickupInput.value !== LOCATION_MARKER) clearAttachedLocation(false);
+      const generatedAddress = attachedLocation?.address || '';
+      if (pickupInput.value !== LOCATION_MARKER && (!generatedAddress || pickupInput.value !== generatedAddress)) {
+        clearAttachedLocation(false);
+      }
     });
     button.addEventListener('click', () => {
       if (!navigator.geolocation) {
@@ -576,18 +660,43 @@
       setLocationStatus(COMMON['定位權限提醒'] || '請允許手機存取目前位置。');
       navigator.geolocation.getCurrentPosition(position => {
         if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
+        const latitude = Number(position.coords.latitude);
+        const longitude = Number(position.coords.longitude);
+        const accuracy = Number(position.coords.accuracy);
         attachedLocation = {
-          latitude: Number(position.coords.latitude),
-          longitude: Number(position.coords.longitude),
+          latitude,
+          longitude,
+          accuracy: Number.isFinite(accuracy) ? accuracy : null,
+          address: '',
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         pickupInput.value = LOCATION_MARKER;
         pickupInput.classList.remove('invalid');
         document.getElementById('pickupError')?.classList.remove('show');
         pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
-        setLocationStatus(COMMON['定位成功'] || '目前定位已附加，送出時會一併傳到聊天室。', 'success');
         button.disabled = false;
         button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
+
+        if (!Number.isFinite(accuracy) || accuracy > LOCATION_ADDRESS_MAX_ACCURACY_M) {
+          setLocationStatus('目前定位已附加，為避免地址誤判，實際位置以地圖定位為準。', 'success');
+          return;
+        }
+
+        setLocationStatus('目前定位已附加，正在辨識文字地址…', 'success');
+        reverseGeocodeCurrentLocation(latitude, longitude).then(address => {
+          if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
+          if (!attachedLocation || attachedLocation.latitude !== latitude || attachedLocation.longitude !== longitude) return;
+          if (!address) {
+            setLocationStatus(COMMON['定位成功'] || '目前定位已附加，送出時會一併傳到聊天室。', 'success');
+            return;
+          }
+          attachedLocation.address = address;
+          pickupInput.value = address;
+          pickupInput.classList.remove('invalid');
+          document.getElementById('pickupError')?.classList.remove('show');
+          pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
+          setLocationStatus('已取得定位與文字地址，實際位置仍以地圖定位為準。', 'success');
+        });
       }, error => {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
@@ -1110,7 +1219,7 @@
       messages.push({
         type: 'location',
         title: location.title || '目前位置',
-        address: '由 GC 表單傳送的目前定位',
+        address: location.address || '由 GC 表單傳送的目前定位',
         latitude: location.latitude,
         longitude: location.longitude
       });
@@ -1319,7 +1428,8 @@
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
           await sendFormMessages(lines.join('\n'), serviceType === 'instant' ? attachedLocation : null);
           if (!preview) markSubmission(signature);
-          rememberRecentAddresses([destination, pickup].filter(address => address && address !== LOCATION_MARKER));
+          const generatedLocationAddress = attachedLocation?.address || '';
+          rememberRecentAddresses([destination, pickup].filter(address => address && address !== LOCATION_MARKER && address !== generatedLocationAddress));
           renderSuccess(cfg, serviceType === 'reserve');
         } catch (error) {
           sending = false;
