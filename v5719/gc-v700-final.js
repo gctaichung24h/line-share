@@ -20,6 +20,7 @@
 
   let applied = false;
   let sendPatched = false;
+  let favoriteSheetScrollY = 0;
 
   const value = id => String(document.getElementById(id)?.value || '').trim();
   const selectedVehicle = () => VEHICLES[value('gcVehicle')] || null;
@@ -72,7 +73,15 @@
       sheet.setAttribute('aria-hidden', 'true');
       sheet.style.setProperty('display', 'none', 'important');
       document.body.classList.remove('gc-sheet-open');
+      document.documentElement.classList.remove('gc-sheet-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
       toggle.setAttribute('aria-expanded', 'false');
+      window.scrollTo(0, favoriteSheetScrollY);
     };
     const open = () => {
       const y = window.scrollY;
@@ -80,12 +89,20 @@
       if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) active.blur();
       const reveal = () => {
         favorite.open = true;
+        favoriteSheetScrollY = y;
         window.scrollTo(0, y);
         sheet.hidden = false;
         sheet.removeAttribute('aria-hidden');
         sheet.style.removeProperty('display');
         sheet.classList.remove('hidden');
+        document.documentElement.classList.add('gc-sheet-open');
         document.body.classList.add('gc-sheet-open');
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${y}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
         toggle.setAttribute('aria-expanded', 'true');
       };
       setTimeout(reveal, 180);
@@ -97,6 +114,7 @@
     sheet.addEventListener('click', event => {
       // V8.1: capture 階段先關 Sheet，再讓儲存 Dialog 開啟，杜絕雙層視窗。
       if (event.target.closest('#favoriteSaveBtn')) close();
+      if (event.target.closest('#favoriteClearBtn')) close();
       if (event.target.closest('.favorite-use')) setTimeout(close, 0);
     }, true);
 

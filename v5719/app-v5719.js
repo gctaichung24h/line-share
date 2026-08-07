@@ -10,7 +10,7 @@
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
-  const FAVORITE_LIMIT = 5;
+  const FAVORITE_LIMIT = 3;
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
@@ -291,8 +291,13 @@
       <details class="optional-box favorite-box" id="favoriteTripsBox">
         <summary>${escapeHtml(COMMON['常用行程標題'] || '⭐ 常用行程')}</summary>
         <div class="favorite-content">
-          <div class="favorite-list" id="favoriteTripsList"></div>
-          <button class="favorite-save-btn" id="favoriteSaveBtn" type="button">＋ ${escapeHtml(COMMON['常用行程儲存'] || '儲存目前行程')}</button>
+          <div class="favorite-list-viewport">
+            <div class="favorite-list" id="favoriteTripsList"></div>
+          </div>
+          <div class="favorite-actions">
+            <button class="favorite-clear" id="favoriteClearBtn" type="button">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>
+            <button class="favorite-save-btn" id="favoriteSaveBtn" type="button">＋ ${escapeHtml(COMMON['常用行程儲存'] || '儲存目前行程')}</button>
+          </div>
           <div class="favorite-status" id="favoriteStatus" aria-live="polite"></div>
         </div>
       </details>`;
@@ -329,6 +334,7 @@
   function refreshFavoriteTrips() {
     const list = document.getElementById('favoriteTripsList');
     const saveButton = document.getElementById('favoriteSaveBtn');
+    const clearButton = document.getElementById('favoriteClearBtn');
     if (!list || !saveButton) return;
     const trips = loadFavoriteTrips();
     if (!trips.length) {
@@ -341,13 +347,16 @@
             <span>${escapeHtml(trip.pickup)} → ${escapeHtml(trip.destination)}</span>
           </button>
           <button class="favorite-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
-        </div>`).join('') + `
-        <button class="favorite-clear" id="favoriteClearBtn" type="button">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>`;
+        </div>`).join('');
+    }
+    if (clearButton) {
+      clearButton.disabled = trips.length === 0;
+      clearButton.classList.toggle('is-empty', trips.length === 0);
     }
     const full = trips.length >= FAVORITE_LIMIT;
     saveButton.disabled = full;
     saveButton.textContent = full
-      ? (COMMON['常用行程已滿按鈕'] || '已達 5 組上限')
+      ? (COMMON['常用行程已滿按鈕'] || '已達 3 組上限')
       : `＋ ${COMMON['常用行程儲存'] || '儲存目前行程'}`;
   }
 
@@ -382,7 +391,7 @@
     }
     const trips = loadFavoriteTrips();
     if (trips.length >= FAVORITE_LIMIT) {
-      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 5 組，請先刪除一組。', 'error');
+      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 3 組，請先刪除一組。', 'error');
       return;
     }
     // V8.1: 儲存常用行程時強制關閉 Bottom Sheet，中央 Dialog 是唯一焦點。
