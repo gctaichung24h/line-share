@@ -473,3 +473,43 @@ body{position:relative;left:0!important;right:0!important}
 /* GC V8.4 — final two fixes only: iOS favorite-save zoom reset + disclosure visibility */
 #favoriteNameInput{font-size:16px!important;-webkit-text-size-adjust:100%!important}
 .gc-secondary-box>summary .gc-small-disclosure-trigger{display:inline-flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;z-index:3!important}
+
+/* =========================================================
+   V8.6 畢業版：常用行程視覺最終統一
+   - 叫車 / 酒後代駕使用完全相同的 Bottom Sheet 高度
+   - 以較精緻的矮版比例為標準，內容超出時只在 Sheet 內捲動
+   - 行程名稱提升為主標，地址降為副資訊
+   ========================================================= */
+.gc-sheet{
+  height:min(42vh,500px)!important;
+  height:min(42dvh,500px)!important;
+  max-height:min(42vh,500px)!important;
+  max-height:min(42dvh,500px)!important;
+  display:flex!important;
+  flex-direction:column!important;
+}
+.gc-sheet-head{flex:0 0 auto!important;}
+.gc-sheet-body{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+.gc-sheet-body .favorite-content{min-height:0!important;}
+.favorite-use strong{
+  display:block!important;
+  margin:0 0 6px!important;
+  font-size:18px!important;
+  line-height:1.18!important;
+  font-weight:800!important;
+  letter-spacing:-.015em!important;
+  color:#123b5d!important;
+}
+.favorite-use span{
+  display:block!important;
+  font-size:12px!important;
+  line-height:1.45!important;
+  font-weight:560!important;
+  color:#708496!important;
+}
