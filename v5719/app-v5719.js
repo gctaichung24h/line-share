@@ -6,7 +6,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_V9_5_6_FARE_CALCULATOR';
+  const RELEASE_MARKER = 'GC_V9_5_7_FARE_CALCULATOR_FLOOR10';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1600,9 +1600,10 @@
     const rules = fareRules(cfg);
     const extraDistance = Math.max(km - (rules.extraFromKm - 1), 0);
     const raw = rules.start + (km * rules.perKm) + (extraDistance * rules.extraPerKm) + (minutes * rules.perMinute);
-    const roundedRaw = Math.round(raw);
-    const baseline = Math.max(rules.minimum, roundedRaw);
-    const minimumApplied = roundedRaw < rules.minimum;
+    // GC actual collection rule: discard the ones digit (e.g. 149→140), then apply the NT$100 minimum.
+    const settledRaw = Math.floor(raw / 10) * 10;
+    const baseline = Math.max(rules.minimum, settledRaw);
+    const minimumApplied = settledRaw <= rules.minimum;
     const lower = Math.max(rules.minimum, baseline - rules.range);
     const upper = baseline + rules.range;
 
@@ -1626,19 +1627,19 @@
   function renderFareCalculator(cfg) {
     return `
       <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
-        <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 快速車資試算')}</div>
+        <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算車資')}</div>
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareKm">
             <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
             <div class="gc-fare-calc-input-wrap">
-              <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 40')}" autocomplete="off">
+              <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 8')}" autocomplete="off">
               <b>公里</b>
             </div>
           </label>
           <label class="gc-fare-calc-field" for="fareMinutes">
             <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
             <div class="gc-fare-calc-input-wrap">
-              <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 50')}" autocomplete="off">
+              <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 8')}" autocomplete="off">
               <b>分鐘</b>
             </div>
           </label>
