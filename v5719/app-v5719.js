@@ -1,12 +1,12 @@
-(() => {
+﻿(() => {
   'use strict';
 
   const CONFIG = window.GC_FORM_CONFIG || {};
   const COMMON = CONFIG.common || {};
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
-  const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png?v=5723';
-  const RELEASE_MARKER = 'GC_V5725_FORCE_REPAIR';
+  const brandAvatarUrl = `表格頭像_直接更換.png?v=${Date.now()}`;
+  const RELEASE_MARKER = 'GC_V5719_VEHICLE_PARKING_LOCATION';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -135,6 +135,23 @@
       if (text) reminderLines.push(`<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`);
     }
     return reminderLines.length ? `<div class="notice">${reminderLines.join('')}</div>` : '';
+  }
+
+  function directionChoices(cfg) {
+    return `
+      <div class="field">
+        <div class="field-label">${escapeHtml(cfg['行程方向標題'])}</div>
+        <div class="choice-row">
+          <label class="choice">
+            <input type="radio" name="direction" value="${escapeHtml(cfg['行程方向選項1'])}">
+            <span>${escapeHtml(cfg['行程方向選項1'])}</span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="direction" value="${escapeHtml(cfg['行程方向選項2'])}">
+            <span>${escapeHtml(cfg['行程方向選項2'])}</span>
+          </label>
+        </div>
+      </div>`;
   }
 
   function normalizeAddress(address) {
@@ -830,7 +847,15 @@
   function renderRideLike(mode, cfg) {
     attachedLocation = null;
     const isDriver = mode === 'driver';
-    const noteLabel = cfg['備註標題'] || '備註（選填）';
+    const extraFields = isDriver
+      ? `${directionChoices(cfg)}
+         ${fieldText('vehicle', cfg['車輛資訊標題'], cfg['車輛資訊提示'])}
+         ${fieldText('parking', cfg['停車位置標題'], cfg['停車位置提示'])}
+         ${fieldTextarea('notes', cfg['備註標題'], cfg['備註提示'])}`
+      : `${directionChoices(cfg)}
+         ${fieldText('baggage', cfg['行李標題'], cfg['行李提示'])}
+         ${fieldText('requirements', cfg['需求標題'], cfg['需求提示'])}
+         ${fieldTextarea('notes', cfg['備註標題'], cfg['備註提示'])}`;
 
     document.title = cfg['頁面標題'];
     app.innerHTML = `
@@ -849,7 +874,10 @@
           ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'])}
           ${renderFavoriteTripsBox()}
           ${isDriver ? '' : fieldText('passengers', cfg['人數標題'], cfg['人數提示'])}
-          ${fieldTextarea('notes', noteLabel, cfg['備註提示'])}
+          <details class="optional-box">
+            <summary>${escapeHtml(cfg['更多資訊標題'])}</summary>
+            <div class="optional-content">${extraFields}</div>
+          </details>
           ${renderReminderNotice(cfg)}
           <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
         </form>
@@ -876,6 +904,10 @@
           <div id="globalError" class="global-error"></div>
           ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
           ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
+          <details class="optional-box">
+            <summary>${escapeHtml(cfg['備註標題'])}</summary>
+            <div class="optional-content">${fieldTextarea('notes', '', cfg['備註提示'])}</div>
+          </details>
           ${renderReminderNotice(cfg)}
           <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
         </form>
@@ -1032,7 +1064,16 @@
       }
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
+      appendLine(lines, cfg['訊息欄位_方向'], checked('direction'));
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
+
+      if (mode === 'driver') {
+        appendLine(lines, cfg['訊息欄位_車輛'], value('vehicle'));
+        appendLine(lines, cfg['訊息欄位_停車'], value('parking'));
+      } else {
+        appendLine(lines, cfg['訊息欄位_行李'], value('baggage'));
+        appendLine(lines, cfg['訊息欄位_需求'], value('requirements'));
+      }
       appendLine(lines, cfg['訊息欄位_備註'], value('notes'));
 
       const signature = submissionSignature({
@@ -1042,7 +1083,12 @@
         time: value('time'),
         pickup,
         destination,
+        direction: checked('direction'),
         passengers: mode === 'driver' ? '' : value('passengers'),
+        baggage: value('baggage'),
+        requirements: value('requirements'),
+        vehicle: value('vehicle'),
+        parking: value('parking'),
         notes: value('notes'),
         location: attachedLocation ? [attachedLocation.latitude.toFixed(5), attachedLocation.longitude.toFixed(5)] : null
       });
@@ -1059,10 +1105,19 @@
         ] : []),
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        ...(checked('direction') ? [{ label: cfg['訊息欄位_方向'], value: checked('direction') }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
-        ...(value('notes') ? [{ label: cfg['訊息欄位_備註'], value: value('notes') }] : []),
         ...(attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
+
+      if (mode === 'driver') {
+        if (value('vehicle')) rows.push({ label: cfg['訊息欄位_車輛'], value: value('vehicle') });
+        if (value('parking')) rows.push({ label: cfg['訊息欄位_停車'], value: value('parking') });
+      } else {
+        if (value('baggage')) rows.push({ label: cfg['訊息欄位_行李'], value: value('baggage') });
+        if (value('requirements')) rows.push({ label: cfg['訊息欄位_需求'], value: value('requirements') });
+      }
+      if (value('notes')) rows.push({ label: cfg['訊息欄位_備註'], value: value('notes') });
 
       const confirmTitle = mode === 'driver'
         ? (COMMON['確認標題_代駕'] || '請確認代駕資料')
@@ -1114,8 +1169,9 @@
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
+      appendLine(lines, cfg['訊息欄位_備註'], value('notes'));
 
-      const signature = submissionSignature({ mode: 'fare', pickup, destination });
+      const signature = submissionSignature({ mode: 'fare', pickup, destination, notes: value('notes') });
       if (isDuplicateSubmission(signature)) {
         showGlobalError(duplicateMessage());
         return;
@@ -1123,7 +1179,8 @@
 
       const rows = [
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
-        { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
+        { label: cfg['訊息欄位_下車'], value: destination, emphasis: true },
+        ...(value('notes') ? [{ label: cfg['訊息欄位_備註'], value: value('notes') }] : [])
       ];
 
       openConfirmation(COMMON['確認標題_估價'] || '請確認估價資料', rows, async () => {
@@ -1185,8 +1242,6 @@
 
     if (!preview && mightBeLiff) {
       try {
-        if (window.GC_LIFF_SDK_READY) await window.GC_LIFF_SDK_READY;
-        if (!window.liff) throw new Error('LINE LIFF 元件載入失敗，請重新開啟表格。');
         await liff.init({ liffId: CONFIG.liffId });
       } catch (error) {
         renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');

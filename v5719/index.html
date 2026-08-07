@@ -1,42 +1,28 @@
 <!DOCTYPE html>
-<!-- GC_GRADUATION_V5729_CHAT_MARKER_INDEX -->
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
   <title>GC 台中白牌車隊 24H</title>
-  <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
-  <link rel="dns-prefetch" href="//static.line-scdn.net">
-  <link rel="preload" href="表格頭像_直接更換.png?v=5729_20260807A" as="image">
-  <link rel="stylesheet" href="style.css?v=5729_20260807A">
-  <link rel="stylesheet" href="graduation-v5726.css?v=5729_20260807A">
-  <link rel="stylesheet" href="vehicle-pricing-v5727.css?v=5729_20260807A">
+  <link rel="stylesheet" href="style.css?v=1786065101">
   <script>
-    (() => {
-      const isPreview = new URLSearchParams(location.search).get('preview') === '1';
-      window.GC_LIFF_SDK_READY = isPreview ? Promise.resolve() : new Promise((resolve, reject) => {
-        const sdk = document.createElement('script');
-        sdk.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-        sdk.async = true;
-        sdk.onload = resolve;
-        sdk.onerror = () => reject(new Error('LINE LIFF 元件載入失敗'));
-        document.head.appendChild(sdk);
-      });
-    })();
+    if (new URLSearchParams(location.search).get('preview') !== '1') {
+      document.write('<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"><\/script>');
+    }
   </script>
-  <script defer src="form-config.js?v=5729_20260807A"></script>
-  <script defer src="graduation-v5726.js?v=5729_20260807A"></script>
-  <script defer src="vehicle-pricing-v5727.js?v=5729_20260807A"></script>
-  <script defer src="qa-v5728.js?v=5729_20260807A"></script>
-  <script defer src="chat-vehicle-marker-v5729.js?v=5729_20260807A"></script>
-  <script defer src="app-v5719.js?v=5729_20260807A"></script>
+  <script src="form-config.js?v=1786065101"></script>
+  <script defer src="app-v5719.js?v=1786065101"></script>
+  <link rel="stylesheet" href="gc-v5730-final.css?v=1786065101">
+  <script defer src="gc-v5730-final.js?v=1786065101"></script>
 </head>
 <body>
   <main id="app" aria-live="polite">
     <section class="loading-card">
-      <img class="brand-avatar" src="表格頭像_直接更換.png?v=5729_20260807A" alt="GC 車隊頭像" fetchpriority="high">
+      <img class="brand-avatar" src="表格頭像_直接更換.png?v=1786065101" alt="GC 車隊頭像">
       <p id="loadingText">表格載入中，請稍候…</p>
     </section>
   </main>
