@@ -970,6 +970,13 @@
     return (document.getElementById(id)?.value || '').trim();
   }
 
+  function baggageValue() {
+    const raw = value('baggage');
+    const compact = raw.replace(/\s+/g, '');
+    if (!compact || /^[0０]+(?:(?:件|個)(?:行李)?|行李)?$/.test(compact)) return '';
+    return raw;
+  }
+
   function checked(name) {
     return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
   }
@@ -1071,7 +1078,7 @@
         appendLine(lines, cfg['訊息欄位_車輛'], value('vehicle'));
         appendLine(lines, cfg['訊息欄位_停車'], value('parking'));
       } else {
-        appendLine(lines, cfg['訊息欄位_行李'], value('baggage'));
+        appendLine(lines, cfg['訊息欄位_行李'], baggageValue());
         appendLine(lines, cfg['訊息欄位_需求'], value('requirements'));
       }
       appendLine(lines, cfg['訊息欄位_備註'], value('notes'));
@@ -1085,7 +1092,7 @@
         destination,
         direction: checked('direction'),
         passengers: mode === 'driver' ? '' : value('passengers'),
-        baggage: value('baggage'),
+        baggage: baggageValue(),
         requirements: value('requirements'),
         vehicle: value('vehicle'),
         parking: value('parking'),
@@ -1114,7 +1121,7 @@
         if (value('vehicle')) rows.push({ label: cfg['訊息欄位_車輛'], value: value('vehicle') });
         if (value('parking')) rows.push({ label: cfg['訊息欄位_停車'], value: value('parking') });
       } else {
-        if (value('baggage')) rows.push({ label: cfg['訊息欄位_行李'], value: value('baggage') });
+        if (baggageValue()) rows.push({ label: cfg['訊息欄位_行李'], value: baggageValue() });
         if (value('requirements')) rows.push({ label: cfg['訊息欄位_需求'], value: value('requirements') });
       }
       if (value('notes')) rows.push({ label: cfg['訊息欄位_備註'], value: value('notes') });
