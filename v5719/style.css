@@ -664,3 +664,10 @@ body.modal-open { overflow: hidden; }
   color: #fff;
   background: linear-gradient(135deg, var(--navy-deep), var(--blue));
 }
+
+
+/* GC V8.5 — favorite trips: multiple entries + stronger trip-name hierarchy */
+.favorite-row{gap:9px;}
+.favorite-use{padding:12px 13px;border-radius:12px;}
+.favorite-use strong{margin-bottom:5px!important;font-size:16.5px!important;font-weight:820!important;line-height:1.2!important;color:#173d5d!important;letter-spacing:-.01em;}
+.favorite-use span{font-size:11.75px!important;font-weight:560!important;line-height:1.45!important;color:#708496!important;}

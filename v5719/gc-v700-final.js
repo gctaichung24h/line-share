@@ -266,7 +266,12 @@
     if (details) {
       details.classList.add('gc-secondary-box');
       const summary = details.querySelector('summary');
-      if (summary) summary.textContent = '備註資訊（選填）';
+      if (summary) {
+        // V8.5: 保留右側小型展開／收合控制；不可用 textContent 把按鈕一起清掉。
+        const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
+        summary.textContent = '備註資訊（選填）';
+        if (disclosureTrigger) summary.appendChild(disclosureTrigger);
+      }
       if (notes) {
         const innerLabel = notes.querySelector(':scope > label, :scope > .field-label');
         if (innerLabel) innerLabel.remove();

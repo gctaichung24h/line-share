@@ -10,7 +10,7 @@
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
-  const FAVORITE_LIMIT = 3;
+  const FAVORITE_LIMIT = 5;
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
@@ -262,10 +262,8 @@
       for (const item of parsed) {
         const trip = normalizeFavoriteTrip(item);
         if (!trip) continue;
-        const key = `${trip.pickup.toLocaleLowerCase()}|${trip.destination.toLocaleLowerCase()}`;
-        if (!trips.some(existing => `${existing.pickup.toLocaleLowerCase()}|${existing.destination.toLocaleLowerCase()}` === key)) {
-          trips.push(trip);
-        }
+        // V8.5: 常用行程以「每筆命名」為獨立項目；即使上下車地址相同，也允許保存不同名稱。
+        trips.push(trip);
         if (trips.length >= FAVORITE_LIMIT) break;
       }
       return trips;
@@ -349,7 +347,7 @@
     const full = trips.length >= FAVORITE_LIMIT;
     saveButton.disabled = full;
     saveButton.textContent = full
-      ? (COMMON['常用行程已滿按鈕'] || '已達 3 組上限')
+      ? (COMMON['常用行程已滿按鈕'] || '已達 5 組上限')
       : `＋ ${COMMON['常用行程儲存'] || '儲存目前行程'}`;
   }
 
@@ -384,7 +382,7 @@
     }
     const trips = loadFavoriteTrips();
     if (trips.length >= FAVORITE_LIMIT) {
-      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 3 組，請先刪除一組。', 'error');
+      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 5 組，請先刪除一組。', 'error');
       return;
     }
     // V8.1: 儲存常用行程時強制關閉 Bottom Sheet，中央 Dialog 是唯一焦點。
@@ -426,10 +424,7 @@
       const name = String(input?.value || '').trim() || `常用行程 ${loadFavoriteTrips().length + 1}`;
       if (!pickup || !destination) return;
       const trips = loadFavoriteTrips();
-      const duplicateIndex = trips.findIndex(trip =>
-        trip.pickup.toLocaleLowerCase() === pickup.toLocaleLowerCase() &&
-        trip.destination.toLocaleLowerCase() === destination.toLocaleLowerCase());
-      if (duplicateIndex >= 0) trips.splice(duplicateIndex, 1);
+      // V8.5: 新增即新增，不再因相同路線覆蓋舊的常用行程。
       trips.unshift({ name: name.slice(0, 30), pickup, destination });
       saveFavoriteTrips(trips);
       closeFavoriteSaveModal();
