@@ -5,7 +5,7 @@
   const COMMON = CONFIG.common || {};
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
-  const brandAvatarUrl = `表格頭像_直接更換.png?v=${Date.now()}`;
+  const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
   const RELEASE_MARKER = 'GC_V5719_VEHICLE_PARKING_LOCATION';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
@@ -21,6 +21,39 @@
   let locationRequestToken = 0;
   let modalScrollY = 0;
   let modalLockDepth = 0;
+  let liffReadyPromise = null;
+
+  function loadLiffSdk() {
+    if (window.liff) return Promise.resolve(window.liff);
+    return new Promise((resolve, reject) => {
+      const finish = () => window.liff ? resolve(window.liff) : reject(new Error('LIFF SDK 載入失敗。'));
+      const fail = () => reject(new Error('LIFF SDK 載入失敗，請確認網路後重試。'));
+      const existing = document.querySelector('script[data-gc-liff-sdk="1"]');
+      if (existing) {
+        existing.addEventListener('load', finish, { once: true });
+        existing.addEventListener('error', fail, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+      script.async = true;
+      script.dataset.gcLiffSdk = '1';
+      script.addEventListener('load', finish, { once: true });
+      script.addEventListener('error', fail, { once: true });
+      document.head.appendChild(script);
+    });
+  }
+
+  function ensureLiffReady() {
+    if (preview) return Promise.resolve(null);
+    if (!liffReadyPromise) {
+      liffReadyPromise = loadLiffSdk().then(async sdk => {
+        await sdk.init({ liffId: CONFIG.liffId });
+        return sdk;
+      });
+    }
+    return liffReadyPromise;
+  }
 
   function lockViewport() {
     modalLockDepth += 1;
@@ -1068,7 +1101,8 @@
 
   async function sendFormMessages(text, location = null) {
     if (preview) return;
-    if (!window.liff || !liff.isInClient()) {
+    const sdk = await ensureLiffReady();
+    if (!sdk || !sdk.isInClient()) {
       throw new Error(COMMON['非LINE開啟提醒'] || '請從 LINE 聊天室開啟。');
     }
     const messages = [{ type: 'text', text }];
@@ -1081,7 +1115,7 @@
         longitude: location.longitude
       });
     }
-    await liff.sendMessages(messages);
+    await sdk.sendMessages(messages);
   }
 
   function setSending(sending, cfg) {
@@ -1430,7 +1464,10 @@
 
     if (!preview && mightBeLiff) {
       try {
-        await liff.init({ liffId: CONFIG.liffId });
+        // Keep LINE's required primary/secondary redirect flow unchanged.
+        // The SDK file itself is fetched without blocking HTML parsing, then init
+        // still completes before we read the final mode and render the form.
+        await ensureLiffReady();
       } catch (error) {
         renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
         return;

@@ -668,3 +668,6 @@ body.gc-sheet-open{
   .gc-sheet{height:min(58dvh,440px)!important;max-height:calc(100dvh - 88px)!important;}
   .favorite-row,.favorite-use,.favorite-delete{height:76px!important;min-height:76px!important;max-height:76px!important;}
 }
+
+/* GC V9.1 low-risk final: fare notice section spacing only */
+.form-body>.notice:not(.preview-notice) p:nth-child(6){margin-top:14px!important}
