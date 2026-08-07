@@ -1260,19 +1260,50 @@
       .filter(Boolean);
   }
 
+  function resetViewportAfterSubmit() {
+    // Submission may complete while the confirmation modal has the page locked
+    // with body{position:fixed; top:-scrollY}.  If that state survives a render,
+    // the new success page can be translated completely off-screen (blank page).
+    modalLockDepth = 0;
+    modalScrollY = 0;
+    document.documentElement.classList.remove('gc-modal-lock');
+    document.body.classList.remove('modal-open', 'gc-modal-lock', 'gc-sheet-open');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, 0);
+  }
+
   function renderSuccess(cfg, reservation = false) {
+    resetViewportAfterSubmit();
+    pendingConfirmAction = null;
+    confirmationBusy = false;
+
     const useReservation = reservation === true && Boolean(cfg['成功標題_預約']);
     const title = useReservation ? cfg['成功標題_預約'] : cfg['成功標題'];
+    app.classList.add('gc-success-mode');
     app.innerHTML = `
-      ${renderBrand()}
-      <section class="success-card">
-        <div class="success-icon">✓</div>
-        <h1>${escapeHtml(title)}</h1>
-        <div class="success-lines">
-          ${successLines(cfg, useReservation).map(line => `<p>${escapeHtml(line).replace(/\\n/g, '<br>')}</p>`).join('')}
-        </div>
-        <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
-      </section>`;
+      <main class="gc-success-screen">
+        <section class="success-card">
+          <div class="success-icon">✓</div>
+          <h1>${escapeHtml(title)}</h1>
+          <div class="success-lines">
+            ${successLines(cfg, useReservation).map(line => `<p>${escapeHtml(line).replace(/\\n/g, '<br>')}</p>`).join('')}
+          </div>
+          <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
+        </section>
+      </main>`;
+
+    // iOS WKWebView can restore the old scroll position one frame later.
+    // Force the completed state to remain at the top/center for two frames.
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
 
     document.getElementById('closeBtn').addEventListener('click', () => {
       if (preview) {
