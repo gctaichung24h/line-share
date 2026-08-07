@@ -344,6 +344,12 @@
       setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 3 組，請先刪除一組。', 'error');
       return;
     }
+    // V8: 儲存常用行程時，Bottom Sheet 必須先關閉，中央 Dialog 成為唯一焦點。
+    const favoriteSheet = document.getElementById('gcFavoriteSheet');
+    if (favoriteSheet) favoriteSheet.classList.add('hidden');
+    document.body.classList.remove('gc-sheet-open');
+    document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
+
     const overlay = document.getElementById('favoriteSaveOverlay');
     const input = document.getElementById('favoriteNameInput');
     const route = document.getElementById('favoriteSaveRoute');

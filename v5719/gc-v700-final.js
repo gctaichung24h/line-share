@@ -88,7 +88,18 @@
     toggle.addEventListener('click', open);
     sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
     sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
-    sheet.addEventListener('click', event => { if (event.target.closest('.favorite-use')) setTimeout(close, 80); });
+    sheet.addEventListener('click', event => {
+      // V8: 開啟中央「儲存常用行程」視窗前，先關閉 Bottom Sheet，避免雙層視窗搶焦點。
+      if (event.target.closest('#favoriteSaveBtn')) close();
+      if (event.target.closest('.favorite-use')) setTimeout(close, 80);
+    });
+
+    const saveOverlay = document.getElementById('favoriteSaveOverlay');
+    if (saveOverlay) {
+      new MutationObserver(() => {
+        if (!saveOverlay.classList.contains('hidden')) close();
+      }).observe(saveOverlay, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 
   function compactAddressActions() {
@@ -136,7 +147,21 @@
       </details>
       <div id="gcVehicleNotice" class="gc-price-notice hidden" aria-live="polite"></div>`;
     pickup.before(field);
-    field.querySelector('select')?.addEventListener('change', updateNotices);
+    const vehicleSelect = field.querySelector('select');
+    const disclosure = field.querySelector('.gc-info-disclosure');
+    const vehicleNotice = field.querySelector('#gcVehicleNotice');
+    vehicleSelect?.addEventListener('change', () => {
+      // V8: 切換車型時完整說明自動收起，只留該車型的精簡提示。
+      if (disclosure) disclosure.open = false;
+      updateNotices();
+    });
+    disclosure?.addEventListener('toggle', () => {
+      // V8: 同一時間只顯示一個資訊區，避免兩張說明卡堆疊。
+      if (vehicleNotice) {
+        if (disclosure.open) vehicleNotice.classList.add('gc-v8-suppressed');
+        else { vehicleNotice.classList.remove('gc-v8-suppressed'); updateNotices(); }
+      }
+    });
   }
 
   function replacePassengersAndExpose() {
@@ -252,7 +277,7 @@
     if (vn) {
       let lines = [];
       if (v) {
-        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能增加等候時間，並降低媒合成功率。</strong>');
+        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能影響媒合速度與成功率。</strong>');
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
@@ -301,11 +326,11 @@
     const peopleFee = passengerFee();
     const petFee = petRaw() === 'uncaged' ? 50 : 0;
     const extraTotal = Math.max(vehicleFee, peopleFee) + petFee;
-    if (extraTotal > 0) {
+    {
       const row = document.createElement('div');
       row.className = 'confirm-row gc-confirm-extra-total';
       row.dataset.gcV7Extra = '1';
-      row.innerHTML = `<span>本次車資以外加價合計</span><strong>NT$${extraTotal}</strong>`;
+      row.innerHTML = `<span>除車資外，另加收費用</span><strong>NT$${extraTotal}</strong>`;
       summary.appendChild(row);
     }
   }

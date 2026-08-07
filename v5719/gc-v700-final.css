@@ -203,3 +203,102 @@ body{
   .gc-primary-address .field-label-row>label,.gc-primary-address>label{font-size:15px!important}
   .gc-primary-address .input{font-size:15px!important}
 }
+
+
+/* =========================================================
+   GC V8.0 — 9.9/10 FINAL POLISH
+   Design goal: premium, calm, task-first, one focal point.
+   ========================================================= */
+:root{
+  --gc-v8-ink:#123754;
+  --gc-v8-muted:#6f8293;
+  --gc-v8-line:#d9e4ec;
+  --gc-v8-line-strong:#b8ccdc;
+  --gc-v8-surface:#ffffff;
+  --gc-v8-surface-soft:#f7f9fb;
+  --gc-v8-brand:#19558a;
+  --gc-v8-brand-2:#2b72ad;
+  --gc-v8-shadow:0 12px 34px rgba(24,55,83,.065);
+}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{color:var(--gc-v8-ink)}
+.form-card{border-color:#dce6ee!important;box-shadow:var(--gc-v8-shadow)!important}
+.form-head{padding:19px 20px 14px!important}
+.form-head h1{font-size:25px!important;font-weight:760!important;letter-spacing:-.035em!important;line-height:1.18!important}
+.form-head p{margin-top:7px!important;font-size:12.75px!important;font-weight:450!important;line-height:1.55!important;color:#718493!important}
+.form-body{padding-top:17px!important}
+.field{margin-bottom:15px}
+.field>label,.field-label{font-size:13.5px!important;font-weight:640!important;letter-spacing:-.012em!important}
+.input,.gc-select{border-width:1px!important;border-color:#cedce6!important;border-radius:14px!important;box-shadow:none!important}
+.input::placeholder,textarea::placeholder{color:#9eacb8!important;font-weight:430!important}
+
+/* Journey fields are the visual hero. */
+.gc-primary-address{
+  margin:5px -2px 18px!important;
+  padding:12px 11px 13px 14px!important;
+  border:1px solid #d7e3eb!important;
+  border-radius:17px!important;
+  background:#fbfdff!important;
+  box-shadow:0 7px 20px rgba(29,67,98,.045)!important;
+}
+.gc-primary-address:before{left:0!important;width:3px!important;top:15px!important;bottom:15px!important;border-radius:0 4px 4px 0!important;background:#2e79b6!important}
+.gc-destination-address:before{background:#7798b1!important}
+.gc-primary-address .field-label-row{margin-bottom:7px!important}
+.gc-primary-address .field-label-row>label,.gc-primary-address>label{font-size:16px!important;font-weight:720!important;letter-spacing:-.022em!important}
+.gc-primary-address .input{min-height:57px!important;border-color:#b8ccdc!important;border-radius:14px!important;background:#fff!important;font-size:15.5px!important;font-weight:500!important}
+.gc-primary-address .input:focus{border-color:#4c83b2!important;box-shadow:0 0 0 3px rgba(49,116,172,.095)!important}
+.field-inline-btn{border-color:#cedde8!important;background:#fff!important;box-shadow:none!important;font-weight:650!important}
+
+/* Secondary controls deliberately quieter. */
+.gc-vehicle-field,.gc-passenger-public{margin-bottom:16px!important}
+.gc-vehicle-field>label,.gc-passenger-public>label{font-size:13px!important;font-weight:620!important;color:#36536b!important}
+.gc-vehicle-field>.gc-select,.gc-passenger-public .input{min-height:47px!important;border-radius:13px!important;font-size:13.75px!important}
+.gc-secondary-box{border:1px solid #dbe6ed!important;border-radius:15px!important;background:#fcfdfe!important;box-shadow:none!important}
+.gc-secondary-box>summary{padding-block:13px!important;font-size:13.5px!important;font-weight:650!important;color:#244762!important}
+.gc-secondary-box .optional-content{border-top-color:#e7eef3!important}
+.gc-secondary-box .optional-content .field{margin-bottom:13px!important}
+
+/* Vehicle information: one visible information surface at a time. */
+.gc-info-disclosure>summary{font-size:11.5px!important;font-weight:620!important;color:#7b8d9d!important;padding:1px 0!important}
+.gc-info-disclosure-body{margin-top:7px!important;padding:10px 11px!important;border:1px solid #dce6ed!important;border-radius:11px!important;background:#f7f9fb!important;color:#5c7183!important;font-size:11.75px!important;line-height:1.55!important;box-shadow:none!important}
+.gc-info-disclosure-body strong{color:#365a75!important;font-weight:700!important}
+.gc-price-notice{margin-top:7px!important;padding:9px 11px!important;border:1px solid #dce6ed!important;border-left:3px solid #7ea0ba!important;border-radius:11px!important;background:#f7f9fb!important;color:#526b7e!important;box-shadow:none!important}
+.gc-price-notice.gc-v8-suppressed{display:none!important}
+.gc-price-notice p{margin:0!important;font-size:11.75px!important;line-height:1.5!important}
+.gc-price-notice p+p{margin-top:4px!important}
+.gc-notice-kicker{font-size:10.75px!important;font-weight:700!important;letter-spacing:.01em!important;margin-right:7px!important;color:#71889a!important}
+.gc-fee-line{display:flex!important;justify-content:space-between!important;gap:10px!important;align-items:baseline!important}
+.gc-fee-line b{font-weight:720!important;color:#173f61!important}
+.gc-fee-rule{font-size:10.75px!important;color:#7a8d9d!important}
+
+/* Frequent trip: one modal, one focal point. */
+.gc-sheet{box-shadow:0 -10px 32px rgba(22,48,70,.12)!important}
+.favorite-save-overlay{z-index:12000!important;background:rgba(18,34,49,.42)!important;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.favorite-save-card{width:min(calc(100% - 34px),420px)!important;border-radius:20px!important;padding:21px 20px 18px!important;border:1px solid rgba(214,225,234,.85)!important;box-shadow:0 24px 70px rgba(12,31,48,.24)!important;background:#fff!important}
+.favorite-save-brand{justify-content:center!important;gap:8px!important;margin-bottom:13px!important}
+.favorite-save-brand img{width:36px!important;height:36px!important;border-radius:10px!important}
+.favorite-save-brand strong{font-size:14.5px!important;font-weight:690!important;color:#24445f!important}
+.favorite-save-card h2{text-align:center!important;margin:0 0 17px!important;font-size:20px!important;font-weight:760!important;letter-spacing:-.025em!important;color:#173d5d!important}
+.favorite-save-card label{font-size:12.5px!important;font-weight:650!important;color:#395a72!important}
+.favorite-save-card .input{min-height:48px!important;font-size:14px!important}
+.favorite-save-route{position:relative;margin-top:12px!important;padding:11px 12px 11px 28px!important;border:1px solid #e0e8ee!important;border-radius:12px!important;background:#f7f9fb!important;color:#64798b!important;font-size:11.75px!important;line-height:1.5!important}
+.favorite-save-route:before{content:'行程';position:absolute;left:10px;top:11px;color:#8a9ba9;font-size:10px;font-weight:700}
+.favorite-save-actions{gap:9px!important;margin-top:16px!important}
+.favorite-save-cancel,.favorite-save-confirm{min-height:47px!important;border-radius:13px!important;font-size:13.5px!important;font-weight:700!important}
+.favorite-save-confirm{box-shadow:0 5px 14px rgba(19,68,111,.12)!important}
+
+/* CTA: quiet confidence, not banner-like. */
+.submit-btn{min-height:55px!important;border-radius:16px!important;font-size:15.5px!important;font-weight:700!important;letter-spacing:-.018em!important;box-shadow:0 6px 16px rgba(15,59,99,.12)!important}
+.form-body>.notice:not(.preview-notice){border-radius:13px!important;background:#f4f7f9!important;color:#647b8d!important;font-size:11.75px!important;font-weight:520!important}
+
+/* Final confirmation: editorial card style; fee is always explicit, including NT$0. */
+.gc-confirm-extra-total{margin-top:12px!important;padding:12px 13px!important;border:1px solid #d4e0e9!important;border-radius:13px!important;background:#f6f9fb!important}
+.gc-confirm-extra-total span{font-size:11.5px!important;font-weight:620!important;color:#5f7485!important}
+.gc-confirm-extra-total strong{font-size:17px!important;font-weight:780!important;color:#153f63!important;letter-spacing:-.02em!important}
+
+@media(max-width:380px){
+  .form-head h1{font-size:23.5px!important}
+  .gc-primary-address{padding-left:12px!important;padding-right:9px!important}
+  .gc-primary-address .field-label-row>label,.gc-primary-address>label{font-size:15.5px!important}
+  .favorite-save-card{width:calc(100% - 24px)!important;padding-left:16px!important;padding-right:16px!important}
+}
