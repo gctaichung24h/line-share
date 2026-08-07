@@ -676,6 +676,7 @@
     document.querySelectorAll('.recent-address-control').forEach(control => {
       const targetId = control.dataset.target;
       const toggle = control.querySelector('.recent-toggle');
+      const trigger = control.querySelector('.recent-chevron');
       const panel = control.querySelector('.recent-panel');
 
       let lastTouchToggleAt = 0;
@@ -689,11 +690,11 @@
         toggle.setAttribute('aria-expanded', String(willOpen));
       };
 
-      toggle?.addEventListener('touchstart', event => {
+      trigger?.addEventListener('touchstart', event => {
         event.preventDefault();
       }, { passive: false });
 
-      toggle?.addEventListener('touchend', event => {
+      trigger?.addEventListener('touchend', event => {
         event.preventDefault();
         event.stopPropagation();
         if (touchOpening) return;
@@ -713,7 +714,7 @@
         });
       }, { passive: false });
 
-      toggle?.addEventListener('click', event => {
+      trigger?.addEventListener('click', event => {
         if (Date.now() - lastTouchToggleAt < 700) {
           event.preventDefault();
           return;
@@ -1025,9 +1026,18 @@
     return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
   }
 
+  function meaningfulOptionalText(data) {
+    const raw = String(data ?? '').trim();
+    if (!raw) return '';
+    const normalized = raw.replace(/\s+/g, '').toLowerCase();
+    if (['0', '無', 'なし', 'none', 'null', 'undefined', '-', '－'].includes(normalized)) return '';
+    return raw;
+  }
+
   function appendLine(lines, label, data) {
     const symbol = COMMON['訊息欄位符號'] || '•';
-    if (data) lines.push(`${symbol} ${label}：${data}`);
+    const safe = meaningfulOptionalText(data);
+    if (safe) lines.push(`${symbol} ${label}：${safe}`);
   }
 
   async function sendFormMessages(text, location = null) {
@@ -1055,9 +1065,70 @@
     btn.textContent = sending ? (COMMON['傳送中文字'] || '傳送中…') : cfg['送出按鈕'];
   }
 
+  function bindSmallDisclosureTriggers() {
+    document.querySelectorAll('details.optional-box:not(.favorite-box)').forEach(details => {
+      const summary = details.querySelector(':scope > summary');
+      if (!summary || summary.dataset.gcSmallTriggerBound === '1') return;
+      summary.dataset.gcSmallTriggerBound = '1';
+
+      // Keep the row readable, but only the compact control at the far right opens it.
+      let trigger = summary.querySelector('.gc-small-disclosure-trigger');
+      if (!trigger) {
+        trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'gc-small-disclosure-trigger';
+        trigger.setAttribute('aria-label', '展開或收合');
+        trigger.innerHTML = '<span class="gc-small-trigger-label">展開</span><span aria-hidden="true">⌄</span>';
+        summary.appendChild(trigger);
+      }
+
+      const sync = () => {
+        trigger.setAttribute('aria-expanded', String(details.open));
+        const label = trigger.querySelector('.gc-small-trigger-label');
+        if (label) label.textContent = details.open ? '收合' : '展開';
+        const arrow = trigger.lastElementChild;
+        if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
+      };
+      sync();
+
+      summary.addEventListener('click', event => {
+        if (!event.target.closest('.gc-small-disclosure-trigger')) {
+          event.preventDefault();
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        details.open = !details.open;
+        sync();
+      });
+      details.addEventListener('toggle', sync);
+    });
+  }
+
+  function installVerticalOnlyTouchGuard() {
+    if (document.documentElement.dataset.gcVerticalGuard === '1') return;
+    document.documentElement.dataset.gcVerticalGuard = '1';
+    let startX = 0, startY = 0, axis = '';
+    document.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) return;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      axis = '';
+    }, { passive: true, capture: true });
+    document.addEventListener('touchmove', event => {
+      if (event.touches.length !== 1) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (!axis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis === 'x') event.preventDefault();
+    }, { passive: false, capture: true });
+  }
+
   function bindRideLike(mode, cfg) {
     setDateMinimum();
     bindRecentAddressControls();
+    bindSmallDisclosureTriggers();
+    installVerticalOnlyTouchGuard();
     bindFavoriteTrips();
     bindFavoriteSaveModal();
     bindCurrentLocation(mode);
@@ -1168,7 +1239,7 @@
         if (baggageValue()) rows.push({ label: cfg['訊息欄位_行李'], value: baggageValue() });
         if (value('requirements')) rows.push({ label: cfg['訊息欄位_需求'], value: value('requirements') });
       }
-      if (value('notes')) rows.push({ label: cfg['訊息欄位_備註'], value: value('notes') });
+      if (meaningfulOptionalText(value('notes'))) rows.push({ label: cfg['訊息欄位_備註'], value: meaningfulOptionalText(value('notes')) });
 
       const confirmTitle = mode === 'driver'
         ? (COMMON['確認標題_代駕'] || '請確認代駕資料')
@@ -1194,6 +1265,8 @@
 
   function bindFare(cfg) {
     bindRecentAddressControls();
+    bindSmallDisclosureTriggers();
+    installVerticalOnlyTouchGuard();
     bindConfirmationModal();
     bindRecentClearModal();
 
@@ -1231,7 +1304,7 @@
       const rows = [
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination, emphasis: true },
-        ...(value('notes') ? [{ label: cfg['訊息欄位_備註'], value: value('notes') }] : [])
+        ...(meaningfulOptionalText(value('notes')) ? [{ label: cfg['訊息欄位_備註'], value: meaningfulOptionalText(value('notes')) }] : [])
       ];
 
       openConfirmation(COMMON['確認標題_估價'] || '請確認估價資料', rows, async () => {
