@@ -19,6 +19,36 @@
   let pendingRecentClearAction = null;
   let attachedLocation = null;
   let locationRequestToken = 0;
+  let modalScrollY = 0;
+  let modalLockDepth = 0;
+
+  function lockViewport() {
+    modalLockDepth += 1;
+    if (modalLockDepth > 1) return;
+    modalScrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.classList.add('gc-modal-lock');
+    document.body.classList.add('modal-open', 'gc-modal-lock');
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${modalScrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+  }
+
+  function unlockViewport(force = false) {
+    if (force) modalLockDepth = 0;
+    else modalLockDepth = Math.max(0, modalLockDepth - 1);
+    if (modalLockDepth > 0) return;
+    const y = modalScrollY;
+    document.documentElement.classList.remove('gc-modal-lock');
+    document.body.classList.remove('modal-open', 'gc-modal-lock');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }
 
   const escapeHtml = (value = '') => String(value)
     .replaceAll('&', '&amp;')
@@ -324,8 +354,9 @@
   }
 
   function closeFavoriteSaveModal() {
-    document.getElementById('favoriteSaveOverlay')?.classList.add('hidden');
-    document.body.classList.remove('modal-open');
+    const overlay = document.getElementById('favoriteSaveOverlay');
+    if (overlay) overlay.classList.add('hidden');
+    unlockViewport();
   }
 
   function openFavoriteSaveModal() {
@@ -344,10 +375,16 @@
       setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 3 組，請先刪除一組。', 'error');
       return;
     }
-    // V8: 儲存常用行程時，Bottom Sheet 必須先關閉，中央 Dialog 成為唯一焦點。
+    // V8.1: 儲存常用行程時強制關閉 Bottom Sheet，中央 Dialog 是唯一焦點。
     const favoriteSheet = document.getElementById('gcFavoriteSheet');
-    if (favoriteSheet) favoriteSheet.classList.add('hidden');
+    if (favoriteSheet) {
+      favoriteSheet.classList.add('hidden');
+      favoriteSheet.hidden = true;
+      favoriteSheet.setAttribute('aria-hidden', 'true');
+      favoriteSheet.style.setProperty('display', 'none', 'important');
+    }
     document.body.classList.remove('gc-sheet-open');
+    document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
     document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
 
     const overlay = document.getElementById('favoriteSaveOverlay');
@@ -359,8 +396,8 @@
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;
     overlay.classList.remove('hidden');
-    document.body.classList.add('modal-open');
-    setTimeout(() => { input.focus(); input.select(); }, 0);
+    lockViewport();
+    // V8.1: 不自動叫出鍵盤，Dialog 開啟時保持正中央；使用者點名稱欄才進入編輯。
   }
 
   function bindFavoriteSaveModal() {
@@ -753,7 +790,7 @@
   function closeRecentClearModal() {
     const overlay = document.getElementById('recentClearOverlay');
     if (overlay) overlay.classList.add('hidden');
-    document.body.classList.remove('modal-open');
+    unlockViewport();
     pendingRecentClearAction = null;
   }
 
@@ -764,8 +801,8 @@
     const messageElement = document.getElementById('recentClearMessage');
     if (messageElement) messageElement.textContent = message || (COMMON['最近地址清除確認'] || '確定要清除全部最近使用地址嗎？');
     overlay.classList.remove('hidden');
-    document.body.classList.add('modal-open');
-    document.getElementById('recentClearCancelBtn')?.focus();
+    lockViewport();
+    document.getElementById('recentClearCancelBtn')?.focus({ preventScroll: true });
   }
 
   function bindRecentClearModal() {
@@ -784,7 +821,7 @@
   function closeConfirmation() {
     const overlay = document.getElementById('confirmOverlay');
     if (overlay) overlay.classList.add('hidden');
-    document.body.classList.remove('modal-open');
+    unlockViewport();
     pendingConfirmAction = null;
     confirmationBusy = false;
   }
@@ -815,8 +852,9 @@
     pendingConfirmAction = action;
     confirmationBusy = false;
     overlay.classList.remove('hidden');
-    document.body.classList.add('modal-open');
-    document.getElementById('confirmSendBtn')?.focus();
+    lockViewport();
+    document.querySelector('.confirm-card')?.scrollTo(0, 0);
+    document.getElementById('confirmSendBtn')?.focus({ preventScroll: true });
   }
 
   function bindConfirmationModal() {

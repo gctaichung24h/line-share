@@ -68,6 +68,9 @@
 
     const close = () => {
       sheet.classList.add('hidden');
+      sheet.hidden = true;
+      sheet.setAttribute('aria-hidden', 'true');
+      sheet.style.setProperty('display', 'none', 'important');
       document.body.classList.remove('gc-sheet-open');
       toggle.setAttribute('aria-expanded', 'false');
     };
@@ -78,6 +81,9 @@
       const reveal = () => {
         favorite.open = true;
         window.scrollTo(0, y);
+        sheet.hidden = false;
+        sheet.removeAttribute('aria-hidden');
+        sheet.style.removeProperty('display');
         sheet.classList.remove('hidden');
         document.body.classList.add('gc-sheet-open');
         toggle.setAttribute('aria-expanded', 'true');
@@ -89,10 +95,10 @@
     sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
     sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
     sheet.addEventListener('click', event => {
-      // V8: 開啟中央「儲存常用行程」視窗前，先關閉 Bottom Sheet，避免雙層視窗搶焦點。
+      // V8.1: capture 階段先關 Sheet，再讓儲存 Dialog 開啟，杜絕雙層視窗。
       if (event.target.closest('#favoriteSaveBtn')) close();
-      if (event.target.closest('.favorite-use')) setTimeout(close, 80);
-    });
+      if (event.target.closest('.favorite-use')) setTimeout(close, 0);
+    }, true);
 
     const saveOverlay = document.getElementById('favoriteSaveOverlay');
     if (saveOverlay) {
