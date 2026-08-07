@@ -355,8 +355,20 @@
 
   function closeFavoriteSaveModal() {
     const overlay = document.getElementById('favoriteSaveOverlay');
+    // iOS LIFF: close the keyboard/focus first, then restore the exact pre-modal viewport.
+    const active = document.activeElement;
+    if (active && typeof active.blur === 'function') active.blur();
     if (overlay) overlay.classList.add('hidden');
+    const restoreY = modalScrollY;
     unlockViewport();
+    const normalizeViewport = () => {
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+      window.scrollTo(0, restoreY);
+    };
+    requestAnimationFrame(normalizeViewport);
+    setTimeout(normalizeViewport, 80);
+    setTimeout(normalizeViewport, 320);
   }
 
   function openFavoriteSaveModal() {
@@ -1068,10 +1080,11 @@
   function bindSmallDisclosureTriggers() {
     document.querySelectorAll('details.optional-box:not(.favorite-box)').forEach(details => {
       const summary = details.querySelector(':scope > summary');
-      if (!summary || summary.dataset.gcSmallTriggerBound === '1') return;
-      summary.dataset.gcSmallTriggerBound = '1';
+      if (!summary) return;
+      const alreadyBound = summary.dataset.gcSmallTriggerBound === '1';
 
       // Keep the row readable, but only the compact control at the far right opens it.
+      // This function is intentionally re-entrant because the visual refinement script may rewrite summary text.
       let trigger = summary.querySelector('.gc-small-disclosure-trigger');
       if (!trigger) {
         trigger = document.createElement('button');
@@ -1083,27 +1096,33 @@
       }
 
       const sync = () => {
-        trigger.setAttribute('aria-expanded', String(details.open));
-        const label = trigger.querySelector('.gc-small-trigger-label');
+        const currentTrigger = summary.querySelector('.gc-small-disclosure-trigger');
+        if (!currentTrigger) return;
+        currentTrigger.setAttribute('aria-expanded', String(details.open));
+        const label = currentTrigger.querySelector('.gc-small-trigger-label');
         if (label) label.textContent = details.open ? '收合' : '展開';
-        const arrow = trigger.lastElementChild;
+        const arrow = currentTrigger.lastElementChild;
         if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
       };
       sync();
 
-      summary.addEventListener('click', event => {
-        if (!event.target.closest('.gc-small-disclosure-trigger')) {
+      if (!alreadyBound) {
+        summary.dataset.gcSmallTriggerBound = '1';
+        summary.addEventListener('click', event => {
+          if (!event.target.closest('.gc-small-disclosure-trigger')) {
+            event.preventDefault();
+            return;
+          }
           event.preventDefault();
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        details.open = !details.open;
-        sync();
-      });
-      details.addEventListener('toggle', sync);
+          event.stopPropagation();
+          details.open = !details.open;
+          sync();
+        });
+        details.addEventListener('toggle', sync);
+      }
     });
   }
+  window.GC_bindSmallDisclosureTriggers = bindSmallDisclosureTriggers;
 
   function installVerticalOnlyTouchGuard() {
     if (document.documentElement.dataset.gcVerticalGuard === '1') return;

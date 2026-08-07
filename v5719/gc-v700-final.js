@@ -238,7 +238,11 @@
     details.classList.add('gc-secondary-box');
     const summary = details.querySelector('summary');
     const content = details.querySelector('.optional-content');
-    if (summary) summary.textContent = '其他需求（選填）';
+    if (summary) {
+      const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
+      summary.textContent = '其他需求（選填）';
+      if (disclosureTrigger) summary.appendChild(disclosureTrigger);
+    }
     if (baggage) {
       relabel(baggage, '行李數量（選填）');
       baggage.querySelector('input')?.setAttribute('placeholder', '例如：1個30吋、1個26吋');
@@ -375,6 +379,9 @@
       addVehicleField();
       replacePassengersAndExpose();
       restructureCallDetails();
+      window.GC_bindSmallDisclosureTriggers?.();
+      setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 0);
+      setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 120);
       forcePassengerPublicPosition();
       updateNotices();
       setTimeout(forcePassengerPublicPosition, 0);
