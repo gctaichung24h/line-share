@@ -1276,3 +1276,246 @@ textarea{min-height:94px!important}
   .gc-fare-calc-input{font-size:19px!important}
   .gc-fare-result-price{font-size:29px!important}
 }
+
+
+/* GC_V9_5_9B_TYPE_REFINED_PATCH */
+/* V9.5.9B｜Retina typography refinement — clarity without oversized/heavy text */
+html{
+  -webkit-text-size-adjust:100%;
+  text-rendering:optimizeLegibility;
+}
+body{
+  font-feature-settings:"kern" 1;
+  font-kerning:normal;
+  letter-spacing:0;
+}
+
+/* Brand and page hierarchy: slightly calmer than 9.5.9A, still highly readable. */
+.brand-copy strong{
+  font-size:17.5px!important;
+  font-weight:780!important;
+  line-height:1.26!important;
+  letter-spacing:-.022em!important;
+}
+.brand-copy span{
+  font-size:12.2px!important;
+  font-weight:570!important;
+  line-height:1.4!important;
+  color:#708394!important;
+}
+.form-head h1{
+  font-size:27.5px!important;
+  font-weight:790!important;
+  line-height:1.2!important;
+  letter-spacing:-.028em!important;
+}
+.form-head p,
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{
+  font-size:14.4px!important;
+  font-weight:560!important;
+  line-height:1.6!important;
+  color:#617789!important;
+}
+
+/* Form labels: clear, but not visually shouty. */
+.field>label,.field-label{
+  font-size:15.4px!important;
+  font-weight:720!important;
+  line-height:1.38!important;
+  letter-spacing:-.008em!important;
+  color:#173f60!important;
+}
+.gc-primary-address .field-label-row>label,
+.gc-primary-address>label{
+  font-size:16.2px!important;
+  font-weight:750!important;
+  line-height:1.36!important;
+}
+.gc-passenger-public>label{
+  font-size:15.2px!important;
+  font-weight:700!important;
+}
+
+/* Controls: keep 16px+ for iPhone, improve contrast instead of brute-force size. */
+.input,textarea,.gc-select{
+  font-size:16.2px!important;
+  font-weight:530!important;
+  line-height:1.48!important;
+  color:#203d55!important;
+  border-color:#b9cddd!important;
+}
+.gc-primary-address .input{
+  font-size:16.5px!important;
+  font-weight:550!important;
+  border-color:#b2c8d8!important;
+}
+.input::placeholder,textarea::placeholder{
+  font-size:15.4px!important;
+  font-weight:500!important;
+  color:#8fa2b1!important;
+  opacity:1!important;
+}
+.choice span{
+  font-size:14.8px!important;
+  font-weight:720!important;
+  letter-spacing:-.006em!important;
+}
+.gc-vehicle-field>.gc-select,
+.gc-passenger-public .input{
+  font-size:15.8px!important;
+  font-weight:540!important;
+}
+
+/* Secondary copy: no more tiny/faint text. */
+.hint,.gc-help{
+  font-size:13.3px!important;
+  font-weight:540!important;
+  line-height:1.56!important;
+  color:#667d90!important;
+}
+.gc-info-disclosure>summary{
+  font-size:12.8px!important;
+  font-weight:650!important;
+  color:#688094!important;
+}
+.gc-info-disclosure-body{
+  font-size:12.9px!important;
+  font-weight:500!important;
+  line-height:1.58!important;
+  color:#60778b!important;
+}
+.gc-secondary-box>summary,.optional-box>summary{
+  font-size:14.5px!important;
+  font-weight:710!important;
+  line-height:1.4!important;
+}
+.gc-secondary-box>summary::after,.optional-box>summary::after{
+  font-size:12px!important;
+  font-weight:650!important;
+}
+.notice,.form-body>.notice:not(.preview-notice){
+  font-size:13.2px!important;
+  font-weight:530!important;
+  line-height:1.58!important;
+  color:#5b7488!important;
+}
+.field-inline-btn,.field-inline-action .location-btn{
+  font-size:12.4px!important;
+  font-weight:680!important;
+}
+
+/* Primary actions: strong, but less blocky than the 4K-large patch. */
+.submit-btn{
+  min-height:57px!important;
+  font-size:16.5px!important;
+  font-weight:770!important;
+  line-height:1.25!important;
+  letter-spacing:-.012em!important;
+}
+
+/* Fare calculator: maintain hero status with a cleaner editorial scale. */
+.gc-fare-calc-title{
+  font-size:19.5px!important;
+  font-weight:820!important;
+  letter-spacing:-.018em!important;
+}
+.gc-fare-fast-badge{
+  font-size:11px!important;
+  font-weight:760!important;
+}
+.gc-fare-calc-help{
+  font-size:12.8px!important;
+  font-weight:560!important;
+  line-height:1.52!important;
+  color:#657d90!important;
+}
+.gc-fare-calc-field>span{
+  font-size:13.4px!important;
+  font-weight:720!important;
+}
+.gc-fare-calc-input{
+  font-size:20px!important;
+  font-weight:780!important;
+}
+.gc-fare-calc-input::placeholder{
+  font-size:16.5px!important;
+  font-weight:570!important;
+  color:#94a5b1!important;
+}
+.gc-fare-calc-result.is-waiting{
+  font-size:12.8px!important;
+  font-weight:600!important;
+}
+.gc-fare-calc-result.is-ready .gc-fare-result-label{
+  font-size:12.6px!important;
+  font-weight:700!important;
+}
+.gc-fare-result-price{
+  font-size:31px!important;
+  font-weight:830!important;
+  letter-spacing:-.028em!important;
+}
+.gc-fare-result-note{
+  font-size:12.5px!important;
+  font-weight:520!important;
+  line-height:1.54!important;
+}
+.gc-fare-rates-summary{
+  font-size:13.1px!important;
+  font-weight:690!important;
+}
+.gc-fare-rates-summary small{
+  font-size:11px!important;
+  font-weight:560!important;
+}
+.gc-fare-rates-content{
+  font-size:12.8px!important;
+  line-height:1.58!important;
+}
+.gc-fare-or{
+  font-size:11.5px!important;
+  font-weight:650!important;
+}
+.gc-fare-manual-head strong{
+  font-size:15.4px!important;
+  font-weight:750!important;
+}
+.gc-fare-manual-head span{
+  font-size:12.8px!important;
+  font-weight:530!important;
+}
+.gc-fare-manual-form .submit-btn{
+  font-size:15.5px!important;
+}
+
+/* Confirmation screen typography follows the same hierarchy. */
+.confirm-card h2{
+  font-size:21px!important;
+  font-weight:790!important;
+}
+.confirm-intro{
+  font-size:14px!important;
+  font-weight:500!important;
+}
+.confirm-row span{
+  font-size:12.7px!important;
+  font-weight:650!important;
+}
+.confirm-row strong{
+  font-size:14.3px!important;
+  font-weight:690!important;
+}
+
+@media(max-width:380px){
+  .form-head h1{font-size:25.5px!important}
+  .form-head p,.gc-fare-card .gc-fare-head .gc-fare-guide-copy{font-size:13.9px!important}
+  .field>label,.field-label{font-size:15px!important}
+  .gc-primary-address .field-label-row>label,.gc-primary-address>label{font-size:15.8px!important}
+  .input,textarea,.gc-select{font-size:16px!important}
+  .input::placeholder,textarea::placeholder{font-size:15px!important}
+  .choice span{font-size:14.4px!important}
+  .submit-btn{font-size:16px!important}
+  .gc-fare-calc-title{font-size:18.7px!important}
+  .gc-fare-calc-help{font-size:12.4px!important}
+  .gc-fare-result-price{font-size:28px!important}
+}
