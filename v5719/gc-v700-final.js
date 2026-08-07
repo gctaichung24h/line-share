@@ -129,7 +129,8 @@
       <details class="gc-info-disclosure">
         <summary>ⓘ 車型與加價說明</summary>
         <div class="gc-info-disclosure-body">
-          <p><strong>不指定最快，指定車型可能增加等候時間並降低媒合成功率。</strong></p>
+          <p><strong>僅指定車型｜品牌／車款隨機媒合。</strong></p>
+          <p><strong>不指定最快｜指定可能影響媒合速度與成功率。</strong></p>
           <p>休旅車不加價｜進口車 +200｜六、七人座 +100｜九人座 +250。</p>
         </div>
       </details>
@@ -231,7 +232,11 @@
       details.classList.add('gc-secondary-box');
       const summary = details.querySelector('summary');
       if (summary) summary.textContent = '備註資訊（選填）';
-      if (notes) relabel(notes, '備註資訊（選填）');
+      if (notes) {
+        const innerLabel = notes.querySelector(':scope > label, :scope > .field-label');
+        if (innerLabel) innerLabel.remove();
+        notes.classList.add('gc-driver-note-field');
+      }
     }
   }
 
