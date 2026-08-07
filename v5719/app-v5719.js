@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   'use strict';
 
   const CONFIG = window.GC_FORM_CONFIG || {};
@@ -130,7 +130,7 @@
 
   function renderReminderNotice(cfg) {
     const reminderLines = [];
-    for (let i = 1; i <= 8; i += 1) {
+    for (let i = 1; i <= 12; i += 1) {
       const text = cfg[`表格提醒${i}`];
       if (text) reminderLines.push(`<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`);
     }
