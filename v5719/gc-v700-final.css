@@ -513,3 +513,7 @@ body{position:relative;left:0!important;right:0!important}
   font-weight:560!important;
   color:#708496!important;
 }
+
+
+/* V8.7 畢業版：清除確認必須高於所有 Bottom Sheet / Modal；Sheet 由 JS 先收起。 */
+.recent-clear-overlay{z-index:15000!important}

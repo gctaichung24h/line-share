@@ -466,6 +466,16 @@
         return;
       }
       if (event.target.closest('#favoriteClearBtn')) {
+        // V8.7: 清除常用行程前先完整收起 Bottom Sheet，確認視窗成為唯一焦點。
+        const sheet = document.getElementById('gcFavoriteSheet');
+        if (sheet) {
+          sheet.classList.add('hidden');
+          sheet.hidden = true;
+          sheet.setAttribute('aria-hidden', 'true');
+          sheet.style.setProperty('display', 'none', 'important');
+        }
+        document.body.classList.remove('gc-sheet-open');
+        document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
         openRecentClearModal(clearFavoriteTrips, COMMON['常用行程清除確認'] || '確定要清除全部常用行程嗎？');
         return;
       }
