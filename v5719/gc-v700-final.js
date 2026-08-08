@@ -237,33 +237,32 @@
   function forcePassengerPublicPosition() {
     if (!isCall) return;
     const passenger = fieldById('passengers');
-    const destination = fieldById('destination');
     const vehicle = document.getElementById('gcVehicle')?.closest('.field');
-    const anchor = vehicle || destination;
-    if (!passenger || !anchor) return;
+    const details = [...document.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const content = details?.querySelector('.optional-content');
+    if (!passenger || !content) return;
     passenger.classList.add('gc-passenger-public');
-    if (passenger.parentElement?.classList.contains('optional-content')) {
-      anchor.after(passenger);
-    } else if (anchor.nextElementSibling !== passenger) {
-      anchor.after(passenger);
-    }
+    if (passenger.parentElement !== content) content.appendChild(passenger);
+    if (vehicle && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
   }
 
   function restructureCallDetails() {
     const form = document.getElementById('serviceForm');
     if (!form) return;
     const details = [...form.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const passenger = fieldById('passengers');
     const baggage = fieldById('baggage');
     const requirements = fieldById('requirements');
     const notes = fieldById('notes');
     requirements?.remove();
     if (!details) return;
-    details.classList.add('gc-secondary-box');
+    details.classList.add('gc-secondary-box', 'gc-call-needs-box');
     const summary = details.querySelector('summary');
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '其他需求';
+      summary.textContent = '車型・5人以上・行李・寵物';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
@@ -276,7 +275,8 @@
     }
     addPetField(baggage || notes);
     const pet = document.getElementById('gcPetField');
-    [pet, baggage, notes].forEach(field => { if (field && content && field.parentNode !== content) content.appendChild(field); });
+    [vehicle, passenger, pet, baggage, notes].forEach(field => { if (field && content) content.appendChild(field); });
+    if (vehicle && passenger && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
   }
 
   function restructureDriver() {

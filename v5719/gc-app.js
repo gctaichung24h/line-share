@@ -136,7 +136,7 @@ window.GC_FORM_CONFIG = {
     "fare":  {
                  "頁面標題":  "車資試算",
                  "頁面引導標題":  "",
-                 "頁面說明":  "查路線 → 填分鐘＋公里 → 看預估車資",
+                 "頁面說明":  "查路線 → 填分鐘＋公里",
                  "路線步驟標題":  "① 查 Google 路線",
                  "路線步驟說明":  "",
                  "路線重點標題":  "想省車資",
@@ -163,7 +163,7 @@ window.GC_FORM_CONFIG = {
                  "結果標題":  "預估車資",
                  "低消結果提示":  "最低消費",
                  "結果依據標題":  "本次試算",
-                 "結果說明1":  "依本次輸入的分鐘＋公里試算。",
+                 "結果說明1":  "",
                  "結果說明2":  "預估與實際車資可能約有 ±NT${浮動} 元差異。",
                  "乘車提醒標題":  "路線有偏好？上車直接告知司機即可",
                  "乘車提醒主句":  "",
@@ -1880,22 +1880,17 @@ window.GC_FORM_CONFIG = {
 
   function renderFareCalculator(cfg) {
     return `
-      <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
-        <div class="gc-fare-calc-topline">
-          <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
-          ${String(cfg['計算器徽章'] ?? '').trim() ? `<span class="gc-fare-fast-badge">${escapeHtml(String(cfg['計算器徽章']).trim())}</span>` : ''}
-        </div>
-        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] ?? '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
+      <section class="gc-fare-calc" aria-label="填入分鐘與公里">
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareMinutes">
-            <span><em class="gc-fare-input-order">先填</em>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
+            <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
             <div class="gc-fare-calc-input-wrap">
               <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 21')}" autocomplete="off">
               <b>分鐘</b>
             </div>
           </label>
           <label class="gc-fare-calc-field" for="fareKm">
-            <span><em class="gc-fare-input-order is-second">再填</em>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
+            <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
             <div class="gc-fare-calc-input-wrap">
               <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 7.9')}" autocomplete="off">
               <b>公里</b>
@@ -2400,7 +2395,7 @@ window.GC_FORM_CONFIG = {
       // GC_MASTER_FARE_BASELINE_PRIMARY
       price.textContent = `約 NT$${formatFareMoney(estimate.baseline)}`;
       basis.textContent = `${cfg['結果依據標題'] || '本次試算'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
-      note1.textContent = cfg['結果說明1'] || '依填入的時間＋公里試算；實際依行駛路線、路況與等候時間為準。';
+      note1.textContent = String(cfg['結果說明1'] ?? '').trim();
       note2.textContent = fareTextTemplate(cfg['結果說明2'] || '預估與實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
       longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
       longDistance.classList.toggle('hidden', !estimate.longDistance);
@@ -2831,33 +2826,32 @@ window.GC_FORM_CONFIG = {
   function forcePassengerPublicPosition() {
     if (!isCall) return;
     const passenger = fieldById('passengers');
-    const destination = fieldById('destination');
     const vehicle = document.getElementById('gcVehicle')?.closest('.field');
-    const anchor = vehicle || destination;
-    if (!passenger || !anchor) return;
+    const details = [...document.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const content = details?.querySelector('.optional-content');
+    if (!passenger || !content) return;
     passenger.classList.add('gc-passenger-public');
-    if (passenger.parentElement?.classList.contains('optional-content')) {
-      anchor.after(passenger);
-    } else if (anchor.nextElementSibling !== passenger) {
-      anchor.after(passenger);
-    }
+    if (passenger.parentElement !== content) content.appendChild(passenger);
+    if (vehicle && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
   }
 
   function restructureCallDetails() {
     const form = document.getElementById('serviceForm');
     if (!form) return;
     const details = [...form.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const passenger = fieldById('passengers');
     const baggage = fieldById('baggage');
     const requirements = fieldById('requirements');
     const notes = fieldById('notes');
     requirements?.remove();
     if (!details) return;
-    details.classList.add('gc-secondary-box');
+    details.classList.add('gc-secondary-box', 'gc-call-needs-box');
     const summary = details.querySelector('summary');
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '其他需求';
+      summary.textContent = '車型・5人以上・行李・寵物';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
@@ -2870,7 +2864,8 @@ window.GC_FORM_CONFIG = {
     }
     addPetField(baggage || notes);
     const pet = document.getElementById('gcPetField');
-    [pet, baggage, notes].forEach(field => { if (field && content && field.parentNode !== content) content.appendChild(field); });
+    [vehicle, passenger, pet, baggage, notes].forEach(field => { if (field && content) content.appendChild(field); });
+    if (vehicle && passenger && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
   }
 
   function restructureDriver() {
@@ -3037,20 +3032,20 @@ window.GC_FORM_CONFIG = {
   const placePassenger = () => {
     tries += 1;
     const passengerInput = document.getElementById('passengers');
-    const destinationInput = document.getElementById('destination');
     const vehicleInput = document.getElementById('gcVehicle');
     const passengerField = passengerInput?.closest('.field');
-    const destinationField = destinationInput?.closest('.field');
     const vehicleField = vehicleInput?.closest('.field');
-    const anchor = vehicleField || destinationField;
-    if (!passengerField || !anchor) {
+    const details = [...document.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const content = details?.querySelector('.optional-content');
+    if (!passengerField || !content) {
       if (tries < 120) setTimeout(placePassenger, 50);
       return;
     }
     passengerField.classList.add('gc-passenger-public');
     passengerField.style.display = 'block';
     passengerField.style.visibility = 'visible';
-    if (anchor.nextElementSibling !== passengerField) anchor.after(passengerField);
+    if (passengerField.parentElement !== content) content.appendChild(passengerField);
+    if (vehicleField && vehicleField.parentElement === content && vehicleField.nextElementSibling !== passengerField) vehicleField.after(passengerField);
     const label = passengerField.querySelector(':scope > label');
     if (label) label.textContent = '5人以上請選人數';
   };
@@ -3297,28 +3292,12 @@ window.GC_FORM_CONFIG = {
     const routeStep = document.createElement('section');
     routeStep.className = 'gc-fare-route-step';
     routeStep.id = 'gcFareRouteStep';
-    const routeIntro = trim(cfg()['路線步驟說明']);
     routeStep.innerHTML = `
-      <div class="gc-fare-step-head">
-        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
-        ${routeIntro ? `<p>${escapeHtml(routeIntro)}</p>` : ''}
-      </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
-      <div class="gc-fare-route-quick" aria-label="路線選擇提示">
-        <div class="gc-fare-route-quick-row">
-          <b>${escapeHtml(cfg()['路線重點標題'] || '想省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
-        </div>
-        <div class="gc-fare-route-quick-row">
-          <b>${escapeHtml(cfg()['路線快速_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
-        </div>
-        <div class="gc-fare-route-quick-foot">${escapeHtml(cfg()['路線返回提醒'] || '路線距離較長時，車資可能增加。')}</div>
-        <details class="gc-fare-route-how">
-          <summary>${escapeHtml(cfg()['路線教學按鈕'] || '怎麼看？')}</summary>
-          <div class="gc-fare-route-how-body">
-            <div><span>${escapeHtml(cfg()['路線範例1'] || '16 分｜10.2 km')}</span><b>${escapeHtml(cfg()['路線範例1標籤'] || '時間較短')}</b></div>
-            <div><span>${escapeHtml(cfg()['路線範例2'] || '21 分｜7.9 km')}</span><b>${escapeHtml(cfg()['路線範例2標籤'] || '距離較短')}</b></div>
-          </div>
-        </details>
+      <div class="gc-fare-route-inline" aria-label="路線選擇提示">
+        <span><b>${escapeHtml(cfg()['乘車偏好_省標題'] || '省車資')}</b> → ${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
+        <i aria-hidden="true">｜</i>
+        <span><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b> → ${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
       </div>
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);

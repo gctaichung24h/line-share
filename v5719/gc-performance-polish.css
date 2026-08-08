@@ -1,4 +1,4 @@
-﻿/* GC_MASTER_STABLE_2026_08R10_PREMIUM_POLISH
+/* GC_MASTER_STABLE_2026_08R10_PREMIUM_POLISH
    R10 封版視覺：低視覺雜訊、高對比、克制品牌藍、統一間距與微互動。
    純 CSS；不新增框架／字型／圖片／網路請求，不改費率與 LINE 訊息邏輯。 */
 :root{
@@ -158,4 +158,140 @@ body{
   .gc-loading-dots span{animation:none!important}
   .optional-content,.gc-fare-manual-inner,.gc-fare-calc-result.is-ready{animation:none!important}
   .submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition:none!important}
+}
+
+
+/* GC_MASTER_STABLE_2026_08R10_FINAL_REFINEMENT
+   Final user-tested refinement: selected state contrast, true fare-page reduction,
+   and progressive disclosure for special ride needs. No new dependency or request. */
+.choice input:checked+span{
+  color:#fff!important;
+  text-shadow:0 1px 0 rgba(0,0,0,.08)!important;
+}
+
+/* Call: the default path is service -> pickup -> destination -> submit.
+   Special needs remain discoverable but are collapsed by default. */
+.gc-call-needs-box{margin-top:4px!important;margin-bottom:15px!important}
+.gc-call-needs-box>summary{
+  min-height:50px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:13px 14px!important;
+  color:#274a63!important;
+  background:#fbfcfd!important;
+}
+.gc-call-needs-box .optional-content{padding-top:4px!important}
+.gc-call-needs-box .gc-vehicle-field,
+.gc-call-needs-box .gc-passenger-public{margin-top:0!important;margin-bottom:15px!important}
+.gc-call-needs-box .gc-info-disclosure{margin-top:7px!important}
+.gc-call-needs-box .gc-info-disclosure>summary::after{content:'＋'!important;float:right!important;color:#7890a1!important}
+.gc-call-needs-box .gc-info-disclosure[open]>summary::after{content:'－'!important}
+
+/* Fare: one continuous tool instead of nested teaching cards. */
+.gc-fare-card .gc-fare-head{padding-bottom:13px!important}
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{font-weight:580!important;color:#657c8c!important}
+.gc-fare-body{padding-top:14px!important}
+.gc-fare-route-step{
+  margin:0 0 12px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-route-fields .gc-primary-address{
+  margin:0 0 13px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-route-fields .gc-primary-address:before{display:none!important}
+.gc-fare-route-fields .gc-primary-address .field-label-row{margin-bottom:7px!important;min-height:0!important}
+.gc-fare-route-fields .gc-primary-address .field-label-row>label,
+.gc-fare-route-fields .gc-primary-address>label{
+  font-size:15.5px!important;
+  font-weight:780!important;
+  color:#163d5b!important;
+}
+.gc-fare-route-fields .gc-primary-address .input{
+  min-height:55px!important;
+  border:1px solid #c4d3dd!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.gc-fare-route-inline{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:3px 8px;
+  margin:2px 2px 11px;
+  color:#60798a;
+  font-size:12.2px;
+  font-weight:650;
+  line-height:1.4;
+  text-align:center;
+}
+.gc-fare-route-inline span{white-space:nowrap}
+.gc-fare-route-inline b{color:#245574;font-weight:790}
+.gc-fare-route-inline i{color:#a6b5bf;font-style:normal;font-weight:500}
+.gc-fare-map-btn{min-height:51px!important;margin:0!important;box-shadow:0 7px 17px rgba(17,58,91,.14)!important}
+.gc-fare-calc{
+  margin:0!important;
+  padding:14px 0 0!important;
+  border:0!important;
+  border-top:1px solid #e1e8ed!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-calc-grid{gap:10px!important}
+.gc-fare-calc-field>span{
+  margin-bottom:6px!important;
+  font-size:13.5px!important;
+  font-weight:760!important;
+  color:#34566f!important;
+}
+.gc-fare-calc-input-wrap{min-height:56px!important;box-shadow:none!important}
+.gc-fare-calc-input{min-height:54px!important;font-size:19px!important}
+.gc-fare-calc-result.is-waiting{display:none!important}
+.gc-fare-calc-result.is-invalid,
+.gc-fare-calc-result.is-ready{display:block!important}
+.gc-fare-calc-result.is-ready{
+  margin-top:13px!important;
+  padding:14px 12px 13px!important;
+}
+.gc-fare-result-note:empty{display:none!important}
+.gc-fare-rates{margin-top:12px!important}
+.gc-fare-manual-details{margin-top:12px!important;padding-top:10px!important}
+.gc-fare-manual-details>summary{min-height:45px!important;padding:8px 1px!important}
+@media(max-width:360px){
+  .gc-call-needs-box>summary{font-size:13.8px!important;padding-left:12px!important;padding-right:12px!important}
+  .gc-fare-route-step{padding:0!important}
+  .gc-fare-route-inline{font-size:11.7px;gap:2px 6px}
+  .gc-fare-route-inline i{display:none}
+  .gc-fare-calc{padding-left:0!important;padding-right:0!important}
+  .gc-fare-calc-grid{gap:8px!important}
+  .gc-fare-calc-field>span{font-size:12.9px!important}
+}
+
+/* R10 FINAL: service selection must become readable immediately, including iOS LIFF screenshots taken right after tapping. */
+.segmented .choice span{
+  transition:background .12s ease,border-color .12s ease,box-shadow .12s ease,transform .08s ease!important;
+}
+.segmented .choice input:checked+span{color:#fff!important}
+
+
+/* GC_MASTER_STABLE_2026_08R10_FINAL_VALIDATION_CONTRAST
+   Error + focus is one semantic state: keep only the red focus cue, never blue+red together. */
+.field.gc-validation-error .input:focus-visible,
+.field.gc-validation-error textarea:focus-visible,
+.field.gc-validation-error .gc-select:focus-visible{
+  outline:none!important;
+  border-color:#b42318!important;
+  box-shadow:0 0 0 3px rgba(180,35,24,.12)!important;
 }

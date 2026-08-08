@@ -7,20 +7,20 @@
   const placePassenger = () => {
     tries += 1;
     const passengerInput = document.getElementById('passengers');
-    const destinationInput = document.getElementById('destination');
     const vehicleInput = document.getElementById('gcVehicle');
     const passengerField = passengerInput?.closest('.field');
-    const destinationField = destinationInput?.closest('.field');
     const vehicleField = vehicleInput?.closest('.field');
-    const anchor = vehicleField || destinationField;
-    if (!passengerField || !anchor) {
+    const details = [...document.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const content = details?.querySelector('.optional-content');
+    if (!passengerField || !content) {
       if (tries < 120) setTimeout(placePassenger, 50);
       return;
     }
     passengerField.classList.add('gc-passenger-public');
     passengerField.style.display = 'block';
     passengerField.style.visibility = 'visible';
-    if (anchor.nextElementSibling !== passengerField) anchor.after(passengerField);
+    if (passengerField.parentElement !== content) content.appendChild(passengerField);
+    if (vehicleField && vehicleField.parentElement === content && vehicleField.nextElementSibling !== passengerField) vehicleField.after(passengerField);
     const label = passengerField.querySelector(':scope > label');
     if (label) label.textContent = '5人以上請選人數';
   };

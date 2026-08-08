@@ -236,28 +236,12 @@
     const routeStep = document.createElement('section');
     routeStep.className = 'gc-fare-route-step';
     routeStep.id = 'gcFareRouteStep';
-    const routeIntro = trim(cfg()['路線步驟說明']);
     routeStep.innerHTML = `
-      <div class="gc-fare-step-head">
-        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
-        ${routeIntro ? `<p>${escapeHtml(routeIntro)}</p>` : ''}
-      </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
-      <div class="gc-fare-route-quick" aria-label="路線選擇提示">
-        <div class="gc-fare-route-quick-row">
-          <b>${escapeHtml(cfg()['路線重點標題'] || '想省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
-        </div>
-        <div class="gc-fare-route-quick-row">
-          <b>${escapeHtml(cfg()['路線快速_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
-        </div>
-        <div class="gc-fare-route-quick-foot">${escapeHtml(cfg()['路線返回提醒'] || '路線距離較長時，車資可能增加。')}</div>
-        <details class="gc-fare-route-how">
-          <summary>${escapeHtml(cfg()['路線教學按鈕'] || '怎麼看？')}</summary>
-          <div class="gc-fare-route-how-body">
-            <div><span>${escapeHtml(cfg()['路線範例1'] || '16 分｜10.2 km')}</span><b>${escapeHtml(cfg()['路線範例1標籤'] || '時間較短')}</b></div>
-            <div><span>${escapeHtml(cfg()['路線範例2'] || '21 分｜7.9 km')}</span><b>${escapeHtml(cfg()['路線範例2標籤'] || '距離較短')}</b></div>
-          </div>
-        </details>
+      <div class="gc-fare-route-inline" aria-label="路線選擇提示">
+        <span><b>${escapeHtml(cfg()['乘車偏好_省標題'] || '省車資')}</b> → ${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
+        <i aria-hidden="true">｜</i>
+        <span><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b> → ${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
       </div>
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);

@@ -1662,22 +1662,17 @@
 
   function renderFareCalculator(cfg) {
     return `
-      <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
-        <div class="gc-fare-calc-topline">
-          <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
-          ${String(cfg['計算器徽章'] ?? '').trim() ? `<span class="gc-fare-fast-badge">${escapeHtml(String(cfg['計算器徽章']).trim())}</span>` : ''}
-        </div>
-        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] ?? '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
+      <section class="gc-fare-calc" aria-label="填入分鐘與公里">
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareMinutes">
-            <span><em class="gc-fare-input-order">先填</em>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
+            <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
             <div class="gc-fare-calc-input-wrap">
               <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 21')}" autocomplete="off">
               <b>分鐘</b>
             </div>
           </label>
           <label class="gc-fare-calc-field" for="fareKm">
-            <span><em class="gc-fare-input-order is-second">再填</em>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
+            <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
             <div class="gc-fare-calc-input-wrap">
               <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 7.9')}" autocomplete="off">
               <b>公里</b>
@@ -2182,7 +2177,7 @@
       // GC_MASTER_FARE_BASELINE_PRIMARY
       price.textContent = `約 NT$${formatFareMoney(estimate.baseline)}`;
       basis.textContent = `${cfg['結果依據標題'] || '本次試算'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
-      note1.textContent = cfg['結果說明1'] || '依填入的時間＋公里試算；實際依行駛路線、路況與等候時間為準。';
+      note1.textContent = String(cfg['結果說明1'] ?? '').trim();
       note2.textContent = fareTextTemplate(cfg['結果說明2'] || '預估與實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
       longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
       longDistance.classList.toggle('hidden', !estimate.longDistance);
