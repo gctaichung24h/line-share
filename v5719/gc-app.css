@@ -2502,18 +2502,165 @@ body{
 }
 
 
-/* GC_MASTER_STABLE_2026_08R9_SPEED_POLISH
-   只做載入感受與互動回饋；不改欄位、功能、費率、文案邏輯。 */
-.loading-card{margin-top:14vh!important;padding:28px 24px!important;min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.loading-card .brand-avatar{width:58px!important;height:58px!important;flex-basis:58px!important;border-radius:18px!important}
-.loading-card p{margin:15px 0 0;color:#60778b;font-size:13px;font-weight:600;letter-spacing:.01em}
-.gc-loading-dots{display:flex;gap:6px;margin-top:13px;height:7px;align-items:center}
-.gc-loading-dots span{display:block;width:6px;height:6px;border-radius:50%;background:#6f96b7;opacity:.34;animation:gcLoadingDot 1.05s ease-in-out infinite}
-.gc-loading-dots span:nth-child(2){animation-delay:.14s}.gc-loading-dots span:nth-child(3){animation-delay:.28s}
-@keyframes gcLoadingDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-2px)}}
-.submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition-property:transform,box-shadow,border-color,background-color,color,opacity;transition-duration:.12s;transition-timing-function:ease-out}
+/* GC_MASTER_STABLE_2026_08R10_PREMIUM_POLISH
+   R10 封版視覺：低視覺雜訊、高對比、克制品牌藍、統一間距與微互動。
+   純 CSS；不新增框架／字型／圖片／網路請求，不改費率與 LINE 訊息邏輯。 */
+:root{
+  --r10-navy:#103a5e;
+  --r10-navy-2:#1e5f8d;
+  --r10-text:#203b50;
+  --r10-muted:#687e8e;
+  --r10-line:#dbe5ec;
+  --r10-page:#f7f9fb;
+  --r10-soft:#f5f8fa;
+  --r10-white:#fff;
+}
+body{
+  background:linear-gradient(180deg,#eef5fa 0,#f7f9fb 210px,#f7f9fb 100%)!important;
+  color:var(--r10-text)!important;
+}
+.loading-card,.form-card,.success-card,.error-card,.qr-page{
+  border:1px solid #dce5ec!important;
+  box-shadow:0 14px 34px rgba(18,54,83,.085)!important;
+}
+.brand-header{gap:11px!important;padding:5px 5px 15px!important}
+.brand-avatar{box-shadow:inset 0 0 0 1px rgba(255,255,255,.28),0 7px 18px rgba(16,53,83,.16)!important}
+.brand-copy strong{color:#103553!important}
+.brand-copy span{color:#708390!important}
+.form-head{
+  padding-top:23px!important;
+  padding-bottom:17px!important;
+  border-bottom:1px solid #e3eaf0!important;
+  background:linear-gradient(135deg,#fff 0%,#f8fafc 100%)!important;
+}
+.form-head h1{color:#103553!important;letter-spacing:-.025em!important}
+.form-head p,.gc-fare-card .gc-fare-head .gc-fare-guide-copy{color:#667d8d!important}
+.form-body{background:#fff!important}
+.field{margin-bottom:17px!important}
+.field>label,.field-label,.field-label-row>label{color:#183e5d!important}
+.input,textarea,.gc-select{
+  border-color:#c8d6e0!important;
+  background:#fff!important;
+  color:#203c52!important;
+  box-shadow:inset 0 1px 0 rgba(16,53,83,.018)!important;
+}
+.input::placeholder,textarea::placeholder{color:#9cabb6!important;opacity:1!important}
+.input:focus,textarea:focus,.gc-select:focus{
+  border-color:#4e83aa!important;
+  box-shadow:0 0 0 3px rgba(36,95,142,.105)!important;
+}
+.choice span{border-color:#c9d7e1!important;background:#fff!important;color:#173e5f!important;box-shadow:none!important}
+.choice input:checked+span{
+  border-color:#1f5a87!important;
+  background:linear-gradient(135deg,#123d63 0%,#1f608f 100%)!important;
+  box-shadow:0 7px 17px rgba(23,79,120,.16)!important;
+}
+.field-inline-btn,.field-inline-action .location-btn{
+  color:#315a78!important;background:#f6f9fb!important;border-color:#cedce5!important;
+}
+.gc-primary-address{
+  border-color:#dce6ed!important;
+  background:#fbfcfd!important;
+  box-shadow:none!important;
+}
+.gc-primary-address:before{background:#2b688f!important;opacity:.72!important}
+.gc-primary-address .input{border-color:#c4d3de!important;box-shadow:none!important}
+.gc-vehicle-field{margin-top:1px!important;margin-bottom:15px!important}
+.gc-vehicle-field>label,.gc-passenger-public>label{font-weight:720!important;color:#244862!important}
+.gc-passenger-public{margin-top:0!important;margin-bottom:16px!important}
+.gc-info-disclosure>summary{color:#697f90!important;text-decoration:none!important}
+.gc-info-disclosure-body{font-size:12px!important;border-color:#e0e8ee!important;background:#f8fafc!important;color:#607687!important}
+.gc-price-notice{border-color:#e6d7ae!important;background:#fffaf0!important;color:#72591f!important;box-shadow:none!important}
+.optional-box,.gc-secondary-box{border-color:#dfe7ed!important;background:#fbfcfd!important;box-shadow:none!important}
+.optional-box>summary,.gc-secondary-box>summary{color:#294b63!important}
+.notice,.form-body>.notice:not(.preview-notice){background:#f5f8fa!important;border-color:#e3eaef!important;color:#607586!important}
+.submit-btn,.gc-fare-map-btn,.gc-fare-call-btn{
+  border:1px solid rgba(12,52,83,.12)!important;
+  background:linear-gradient(135deg,#103b61 0%,#1e5c89 100%)!important;
+  box-shadow:0 9px 20px rgba(17,58,91,.17)!important;
+}
+.submit-btn:focus-visible,.gc-fare-map-btn:focus-visible,.gc-fare-call-btn:focus-visible,.back-btn:focus-visible,
+.input:focus-visible,textarea:focus-visible,.gc-select:focus-visible,summary:focus-visible{
+  outline:2px solid #4f84ab!important;outline-offset:2px!important;
+}
+
+/* Fare: first glance is route → minutes/km → price. */
+.gc-fare-route-step{
+  padding:16px 15px 15px!important;
+  border:1px solid #d8e3ea!important;
+  background:#fbfcfd!important;
+  box-shadow:none!important;
+}
+.gc-fare-route-quick{border-color:#e2e9ee!important;background:#fff!important}
+.gc-fare-route-quick-row b{color:#17496d!important}
+.gc-fare-route-quick-row span{color:#3e6178!important}
+.gc-fare-route-quick-foot{color:#748895!important}
+.gc-fare-route-how>summary{color:#3e6682!important;text-decoration:none!important}
+.gc-fare-route-how-body>div{background:#f7f9fb!important}
+.gc-fare-calc{
+  padding:18px 16px 17px!important;
+  border:1px solid #d7e2ea!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.gc-fare-calc-topline{margin-bottom:11px!important}
+.gc-fare-calc-title{color:#153f61!important}
+.gc-fare-fast-badge:empty{display:none!important}
+.gc-fare-calc-input-wrap{border-color:#c7d6e0!important;background:#fff!important}
+.gc-fare-calc-input:focus{box-shadow:none!important}
+.gc-fare-calc-input-wrap:focus-within{border-color:#4e83aa!important;box-shadow:0 0 0 3px rgba(36,95,142,.105)!important}
+.gc-fare-calc-result.is-ready{
+  margin-top:14px!important;
+  padding:15px 12px 13px!important;
+  border:1px solid #d9e5ed!important;
+  border-radius:14px!important;
+  background:#f8fafc!important;
+  animation:gcR10ResultIn .18s ease-out both;
+}
+.gc-fare-result-price{color:#103c60!important}
+.gc-fare-result-basis{color:#506d81!important;background:#f2f6f9!important}
+.gc-fare-result-note{color:#708491!important}
+.gc-fare-ride-reminder{
+  margin-top:12px!important;
+  padding:11px 12px!important;
+  border:1px solid #dbe5ec!important;
+  background:#fff!important;
+  box-shadow:none!important;
+}
+.gc-fare-ride-reminder>strong{color:#17496c!important}
+.gc-fare-preference-row{border-color:#e4eaef!important;background:#fafbfd!important}
+.gc-fare-preference-note{color:#5f7686!important}
+.gc-fare-result-actions{margin-top:12px!important}
+.gc-fare-maps-again{color:#426982!important}
+.gc-fare-rates{margin-top:14px!important;border-color:#e1e8ed!important;background:#fbfcfd!important}
+.gc-fare-rates-summary{color:#31566f!important}
+.gc-fare-manual-details{margin-top:15px!important;padding-top:12px!important;border-top:1px solid #e7edf1!important}
+.gc-fare-manual-details>summary{color:#506b7e!important}
+.gc-fare-manual-details>summary strong{color:#3d6078!important;font-weight:710!important}
+.gc-fare-manual-inner{padding-top:5px!important}
+.gc-fare-manual-extra{border-color:#e3e9ee!important;background:#f8fafb!important;color:#627988!important}
+.gc-fare-manual-form .submit-btn{box-shadow:0 7px 16px rgba(17,58,91,.13)!important}
+
+/* Motion = feedback only. */
+.submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{
+  transition-property:transform,box-shadow,border-color,background-color,color,opacity;
+  transition-duration:.14s;transition-timing-function:ease-out;
+}
+.optional-content,.gc-fare-manual-inner{animation:gcR10Reveal .18s ease-out both}
 .submit-btn:active,.back-btn:active,.gc-fare-map-btn:active,.gc-fare-call-btn:active,.gc-fare-maps-again:active,.field-inline-btn:active,.location-btn:active,.gc-sheet-close:active{transform:translateY(1px) scale(.995)}
 .choice input:active+span{transform:scale(.992)}
-.gc-fare-route-how>summary:active,.gc-fare-manual-details>summary:active,.optional-box>summary:active{opacity:.72}
-@media(prefers-reduced-motion:reduce){.gc-loading-dots span{animation:none!important}.submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition:none!important}}
+.gc-fare-route-how>summary:active,.gc-fare-manual-details>summary:active,.optional-box>summary:active{opacity:.74}
+@keyframes gcR10Reveal{from{opacity:.72;transform:translateY(-2px)}to{opacity:1;transform:none}}
+@keyframes gcR10ResultIn{from{opacity:.70;transform:translateY(2px)}to{opacity:1;transform:none}}
+@media(max-width:360px){
+  #app{padding-left:10px!important;padding-right:10px!important}
+  .form-head{padding-left:17px!important;padding-right:17px!important}
+  .gc-fare-route-step{padding-left:12px!important;padding-right:12px!important}
+  .gc-fare-ride-reminder{padding-left:10px!important;padding-right:10px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .gc-loading-dots span{animation:none!important}
+  .optional-content,.gc-fare-manual-inner,.gc-fare-calc-result.is-ready{animation:none!important}
+  .submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition:none!important}
+}
 

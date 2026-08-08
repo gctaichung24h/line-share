@@ -1,5 +1,6 @@
-(() => {
+﻿(() => {
   'use strict';
+  // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -152,9 +153,9 @@
     const field = document.createElement('div');
     field.className = 'field gc-vehicle-field';
     field.innerHTML = `
-      <label for="gcVehicle">指定車型（選填）</label>
+      <label for="gcVehicle">指定車型</label>
       <select class="input gc-select" id="gcVehicle" name="gcVehicle">
-        <option value="">不指定（隨機派車）</option>
+        <option value="">不指定車型</option>
         <option value="suv">休旅車</option>
         <option value="imported">進口車</option>
         <option value="six">六人座</option>
@@ -165,12 +166,12 @@
         <summary>ⓘ 車型與加價說明</summary>
         <div class="gc-info-disclosure-body">
           <p><strong>僅指定車型｜品牌／車款隨機媒合。</strong></p>
-          <p><strong>不指定最快｜指定可能影響媒合速度與成功率。</strong></p>
           <p>休旅車不加價｜進口車 +200｜六、七人座 +100｜九人座 +250。</p>
         </div>
       </details>
       <div id="gcVehicleNotice" class="gc-price-notice hidden" aria-live="polite"></div>`;
-    pickup.before(field);
+    const destination = fieldById('destination');
+    if (destination) destination.after(field); else pickup.after(field);
     const vehicleSelect = field.querySelector('select');
     const disclosure = field.querySelector('.gc-info-disclosure');
     const vehicleNotice = field.querySelector('#gcVehicleNotice');
@@ -198,12 +199,12 @@
       select.id = 'passengers';
       select.name = 'passengers';
       select.className = `${old.className || 'input'} gc-select`;
-      select.innerHTML = '<option value="">請選擇實際乘客人數</option>' +
-        Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}人">${i + 1}人</option>`).join('');
       old.replaceWith(select);
     }
+    select.innerHTML = '<option value="">1～4人免選</option>' +
+      [5, 6, 7, 8].map(n => `<option value="${n}人">${n}人</option>`).join('');
     const field = select.closest('.field');
-    relabel(field, '搭乘人數（選填）');
+    relabel(field, '5人以上請選人數');
     if (!document.getElementById('gcPeopleNotice')) {
       const notice = document.createElement('div');
       notice.id = 'gcPeopleNotice';
@@ -213,7 +214,9 @@
     select.addEventListener('change', updateNotices);
 
     const destination = fieldById('destination');
-    if (field && destination && field.previousElementSibling !== destination) destination.after(field);
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const anchor = vehicle || destination;
+    if (field && anchor && field.previousElementSibling !== anchor) anchor.after(field);
   }
 
   function addPetField(anchor) {
@@ -221,7 +224,7 @@
     const field = document.createElement('div');
     field.className = 'field';
     field.id = 'gcPetField';
-    field.innerHTML = `<div class="field-label">寵物同行（選填）</div>
+    field.innerHTML = `<div class="field-label">寵物同行</div>
       <div class="choice-row gc-pet-row">
         <label class="choice"><input type="radio" name="gcPet" value="none"><span>無</span></label>
         <label class="choice"><input type="radio" name="gcPet" value="caged"><span>有籠</span></label>
@@ -235,12 +238,14 @@
     if (!isCall) return;
     const passenger = fieldById('passengers');
     const destination = fieldById('destination');
-    if (!passenger || !destination) return;
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const anchor = vehicle || destination;
+    if (!passenger || !anchor) return;
     passenger.classList.add('gc-passenger-public');
     if (passenger.parentElement?.classList.contains('optional-content')) {
-      destination.after(passenger);
-    } else if (destination.nextElementSibling !== passenger) {
-      destination.after(passenger);
+      anchor.after(passenger);
+    } else if (anchor.nextElementSibling !== passenger) {
+      anchor.after(passenger);
     }
   }
 
@@ -258,15 +263,15 @@
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '其他需求（選填）';
+      summary.textContent = '其他需求';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
-      relabel(baggage, '行李數量（選填）');
+      relabel(baggage, '行李數量');
       baggage.querySelector('input')?.setAttribute('placeholder', '例如：1個30吋、1個26吋');
     }
     if (notes) {
-      relabel(notes, '備註資訊（選填）');
+      relabel(notes, '備註資訊');
       notes.querySelector('textarea')?.setAttribute('placeholder', '其他需要小編或司機留意的資訊');
     }
     addPetField(baggage || notes);
@@ -287,7 +292,7 @@
       if (summary) {
         // V8.5: 保留右側小型展開／收合控制；不可用 textContent 把按鈕一起清掉。
         const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-        summary.textContent = '備註資訊（選填）';
+        summary.textContent = '備註資訊';
         if (disclosureTrigger) summary.appendChild(disclosureTrigger);
       }
       if (notes) {
@@ -310,7 +315,6 @@
     if (vn) {
       let lines = [];
       if (v) {
-        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能影響媒合速度與成功率。</strong>');
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');

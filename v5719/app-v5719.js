@@ -1,6 +1,6 @@
 ﻿(() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r9';
+  const GC_BUILD_VERSION = 'master202608r10';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R9_SPEED_LOCKED_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_PREMIUM_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1665,7 +1665,7 @@
       <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
         <div class="gc-fare-calc-topline">
           <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
-          <span class="gc-fare-fast-badge">${escapeHtml(cfg['計算器徽章'] || '立即試算')}</span>
+          ${String(cfg['計算器徽章'] ?? '').trim() ? `<span class="gc-fare-fast-badge">${escapeHtml(String(cfg['計算器徽章']).trim())}</span>` : ''}
         </div>
         <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] ?? '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
         <div class="gc-fare-calc-grid">

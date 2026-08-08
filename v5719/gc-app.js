@@ -51,16 +51,16 @@ window.GC_FORM_CONFIG = {
                  "時間標題":  "用車時間",
                  "上車標題":  "上車地址",
                  "上車提示":  "請輸入完整地址或明確地標",
-                 "下車標題":  "下車地址（選填）",
+                 "下車標題":  "下車地址",
                  "下車提示":  "偏鄉、跨縣市、長途請填目的地",
-                 "人數標題":  "搭乘人數（選填）",
-                 "人數提示":  "請選擇實際乘客人數",
-                 "更多資訊標題":  "其他需求（選填）",
-                 "行李標題":  "行李數量（選填）",
+                 "人數標題":  "5人以上請選人數",
+                 "人數提示":  "1～4人免選，5人以上請選擇",
+                 "更多資訊標題":  "其他需求",
+                 "行李標題":  "行李數量",
                  "行李提示":  "例如：1個30吋、1個26吋",
-                 "需求標題":  "寵物同行（選填）",
+                 "需求標題":  "寵物同行",
                  "需求提示":  "請選擇無、有籠或無籠",
-                 "備註標題":  "備註資訊（選填）",
+                 "備註標題":  "備註資訊",
                  "備註提示":  "其他需要小編或司機留意的資訊",
                  "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                  "表格提醒2":  "",
@@ -91,21 +91,21 @@ window.GC_FORM_CONFIG = {
              },
     "driver":  {
                    "頁面標題":  "酒後代駕",
-                   "頁面說明":  "填寫代駕地點與服務類型後即可快速送出。",
+                   "頁面說明":  "填寫代駕地址與服務類型後即可快速送出。",
                    "即時選項":  "即時代駕",
                    "預約選項":  "預約代駕",
                    "日期標題":  "用車日期",
                    "時間標題":  "用車時間",
-                   "上車標題":  "代駕地點",
+                   "上車標題":  "代駕地址",
                    "上車提示":  "請輸入車輛目前位置或明確地標",
-                   "下車標題":  "送達地點（選填）",
+                   "下車標題":  "送達地點",
                    "下車提示":  "偏鄉、跨縣市、長途請填目的地",
-                   "更多資訊標題":  "備註資訊（選填）",
+                   "更多資訊標題":  "備註資訊",
                    "車輛資訊標題":  "車輛資訊",
                    "車輛資訊提示":  "例如：黑色 Toyota、自排、車牌 ABC-1234",
                    "停車位置標題":  "車輛停放位置",
                    "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
-                   "備註標題":  "備註資訊（選填）",
+                   "備註標題":  "備註資訊",
                    "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
                    "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                    "表格提醒2":  "",
@@ -136,14 +136,14 @@ window.GC_FORM_CONFIG = {
     "fare":  {
                  "頁面標題":  "車資試算",
                  "頁面引導標題":  "",
-                 "頁面說明":  "查路線 → 填分鐘＋公里 → 立即看預估車資",
+                 "頁面說明":  "查路線 → 填分鐘＋公里 → 看預估車資",
                  "路線步驟標題":  "① 查 Google 路線",
                  "路線步驟說明":  "",
                  "路線重點標題":  "想省車資",
                  "路線重點說明1":  "看公里數較少",
                  "路線範例1":  "16 分｜10.2 km",
                  "路線範例2":  "21 分｜7.9 km",
-                 "路線返回提醒":  "路線距離較長時，車資可能增加。",
+                 "路線返回提醒":  "距離較長時，車資可能增加。",
                  "路線快速_快標題":  "趕時間",
                  "路線快速_快內容":  "看時間較短",
                  "路線教學按鈕":  "怎麼看？",
@@ -153,9 +153,9 @@ window.GC_FORM_CONFIG = {
                  "已知數字捷徑":  "",
                  "錯誤_情境缺資料":  "請填寫資料。",
                  "計算器標題":  "② 填入分鐘＋公里",
-                 "計算器徽章":  "立即試算",
+                 "計算器徽章":  "",
                  "計算器說明":  "",
-                 "計算器等待":  "填完兩格，立即顯示預估車資",
+                 "計算器等待":  "輸入後即時顯示",
                  "公里標題":  "公里數",
                  "公里提示":  "例如 7.9",
                  "時間標題":  "預估時間",
@@ -163,9 +163,9 @@ window.GC_FORM_CONFIG = {
                  "結果標題":  "預估車資",
                  "低消結果提示":  "最低消費",
                  "結果依據標題":  "本次試算",
-                 "結果說明1":  "依填入的時間＋公里試算；實際依行駛路線、路況與等候時間為準。",
+                 "結果說明1":  "依本次輸入的分鐘＋公里試算。",
                  "結果說明2":  "預估與實際車資可能約有 ±NT${浮動} 元差異。",
-                 "乘車提醒標題":  "路線有偏好？上車告知司機即可",
+                 "乘車提醒標題":  "路線有偏好？上車直接告知司機即可",
                  "乘車提醒主句":  "",
                  "乘車提醒補充1":  "",
                  "乘車提醒補充2":  "",
@@ -173,22 +173,22 @@ window.GC_FORM_CONFIG = {
                  "乘車偏好_省內容":  "較短距離",
                  "乘車偏好_快標題":  "趕時間",
                  "乘車偏好_快內容":  "較快路線",
-                 "乘車偏好_補充":  "較快路線若里程較長，車資可能增加。",
-                 "叫車按鈕":  "價格可以・立即叫車",
-                 "重新查看路線按鈕":  "重新查看 Google 地圖路線",
+                 "乘車偏好_補充":  "實際車資依行駛路線、路況及等候時間為準。",
+                 "叫車按鈕":  "立即叫車",
+                 "重新查看路線按鈕":  "重新查看路線",
                  "費率標題":  "▍中部地區費率",
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
-                 "人工協助標題":  "需要客服協助？",
+                 "人工協助標題":  "不方便自行試算？客服協助估價",
                  "人工協助提示":  "",
-                 "人工協助補充":  "請填寫上下車地點，客服將依序協助估價。",
-                 "自助上車標題":  "上車地點",
-                 "自助下車標題":  "下車地點",
+                 "人工協助補充":  "請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。",
+                 "自助上車標題":  "上車地址",
+                 "自助下車標題":  "下車地址",
                  "上車標題":  "上車地址",
                  "上車提示":  "請輸入完整地址或明確地標",
                  "下車標題":  "下車地址",
                  "下車提示":  "請輸入完整地址或明確地標",
-                 "送出按鈕":  "仍需客服協助估價",
+                 "送出按鈕":  "送出估價需求",
                  "錯誤_上車地址":  "請填寫資料。",
                  "錯誤_下車地址":  "請填寫資料。",
                  "訊息標題":  "💰 我要【客服協助估價】",
@@ -199,7 +199,7 @@ window.GC_FORM_CONFIG = {
                  "訊息欄位_下車":  "下車地址",
                  "訊息欄位_備註":  "",
                  "成功標題":  "✅ 估價需求已送出",
-                 "成功內容1":  "客服將依序協助估價，繁忙時可能需要稍候。",
+                 "成功內容1":  "客服將依序協助估價；繁忙時可能先提供快速試算，請稍候小編協助。",
                  "成功內容2":  "本次僅為車資試算，尚未建立叫車或預約需求。",
                  "成功內容3":  "",
                  "返回按鈕":  "返回 LINE 聊天室",
@@ -218,7 +218,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r9';
+  const GC_BUILD_VERSION = 'master202608r10';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -245,7 +245,7 @@ window.GC_FORM_CONFIG = {
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R9_SPEED_LOCKED_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_PREMIUM_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1883,7 +1883,7 @@ window.GC_FORM_CONFIG = {
       <section class="gc-fare-calc" aria-labelledby="fareCalcTitle">
         <div class="gc-fare-calc-topline">
           <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
-          <span class="gc-fare-fast-badge">${escapeHtml(cfg['計算器徽章'] || '立即試算')}</span>
+          ${String(cfg['計算器徽章'] ?? '').trim() ? `<span class="gc-fare-fast-badge">${escapeHtml(String(cfg['計算器徽章']).trim())}</span>` : ''}
         </div>
         <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] ?? '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
         <div class="gc-fare-calc-grid">
@@ -2594,6 +2594,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
+  // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -2746,9 +2747,9 @@ window.GC_FORM_CONFIG = {
     const field = document.createElement('div');
     field.className = 'field gc-vehicle-field';
     field.innerHTML = `
-      <label for="gcVehicle">指定車型（選填）</label>
+      <label for="gcVehicle">指定車型</label>
       <select class="input gc-select" id="gcVehicle" name="gcVehicle">
-        <option value="">不指定（隨機派車）</option>
+        <option value="">不指定車型</option>
         <option value="suv">休旅車</option>
         <option value="imported">進口車</option>
         <option value="six">六人座</option>
@@ -2759,12 +2760,12 @@ window.GC_FORM_CONFIG = {
         <summary>ⓘ 車型與加價說明</summary>
         <div class="gc-info-disclosure-body">
           <p><strong>僅指定車型｜品牌／車款隨機媒合。</strong></p>
-          <p><strong>不指定最快｜指定可能影響媒合速度與成功率。</strong></p>
           <p>休旅車不加價｜進口車 +200｜六、七人座 +100｜九人座 +250。</p>
         </div>
       </details>
       <div id="gcVehicleNotice" class="gc-price-notice hidden" aria-live="polite"></div>`;
-    pickup.before(field);
+    const destination = fieldById('destination');
+    if (destination) destination.after(field); else pickup.after(field);
     const vehicleSelect = field.querySelector('select');
     const disclosure = field.querySelector('.gc-info-disclosure');
     const vehicleNotice = field.querySelector('#gcVehicleNotice');
@@ -2792,12 +2793,12 @@ window.GC_FORM_CONFIG = {
       select.id = 'passengers';
       select.name = 'passengers';
       select.className = `${old.className || 'input'} gc-select`;
-      select.innerHTML = '<option value="">請選擇實際乘客人數</option>' +
-        Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}人">${i + 1}人</option>`).join('');
       old.replaceWith(select);
     }
+    select.innerHTML = '<option value="">1～4人免選</option>' +
+      [5, 6, 7, 8].map(n => `<option value="${n}人">${n}人</option>`).join('');
     const field = select.closest('.field');
-    relabel(field, '搭乘人數（選填）');
+    relabel(field, '5人以上請選人數');
     if (!document.getElementById('gcPeopleNotice')) {
       const notice = document.createElement('div');
       notice.id = 'gcPeopleNotice';
@@ -2807,7 +2808,9 @@ window.GC_FORM_CONFIG = {
     select.addEventListener('change', updateNotices);
 
     const destination = fieldById('destination');
-    if (field && destination && field.previousElementSibling !== destination) destination.after(field);
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const anchor = vehicle || destination;
+    if (field && anchor && field.previousElementSibling !== anchor) anchor.after(field);
   }
 
   function addPetField(anchor) {
@@ -2815,7 +2818,7 @@ window.GC_FORM_CONFIG = {
     const field = document.createElement('div');
     field.className = 'field';
     field.id = 'gcPetField';
-    field.innerHTML = `<div class="field-label">寵物同行（選填）</div>
+    field.innerHTML = `<div class="field-label">寵物同行</div>
       <div class="choice-row gc-pet-row">
         <label class="choice"><input type="radio" name="gcPet" value="none"><span>無</span></label>
         <label class="choice"><input type="radio" name="gcPet" value="caged"><span>有籠</span></label>
@@ -2829,12 +2832,14 @@ window.GC_FORM_CONFIG = {
     if (!isCall) return;
     const passenger = fieldById('passengers');
     const destination = fieldById('destination');
-    if (!passenger || !destination) return;
+    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
+    const anchor = vehicle || destination;
+    if (!passenger || !anchor) return;
     passenger.classList.add('gc-passenger-public');
     if (passenger.parentElement?.classList.contains('optional-content')) {
-      destination.after(passenger);
-    } else if (destination.nextElementSibling !== passenger) {
-      destination.after(passenger);
+      anchor.after(passenger);
+    } else if (anchor.nextElementSibling !== passenger) {
+      anchor.after(passenger);
     }
   }
 
@@ -2852,15 +2857,15 @@ window.GC_FORM_CONFIG = {
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '其他需求（選填）';
+      summary.textContent = '其他需求';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
-      relabel(baggage, '行李數量（選填）');
+      relabel(baggage, '行李數量');
       baggage.querySelector('input')?.setAttribute('placeholder', '例如：1個30吋、1個26吋');
     }
     if (notes) {
-      relabel(notes, '備註資訊（選填）');
+      relabel(notes, '備註資訊');
       notes.querySelector('textarea')?.setAttribute('placeholder', '其他需要小編或司機留意的資訊');
     }
     addPetField(baggage || notes);
@@ -2881,7 +2886,7 @@ window.GC_FORM_CONFIG = {
       if (summary) {
         // V8.5: 保留右側小型展開／收合控制；不可用 textContent 把按鈕一起清掉。
         const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-        summary.textContent = '備註資訊（選填）';
+        summary.textContent = '備註資訊';
         if (disclosureTrigger) summary.appendChild(disclosureTrigger);
       }
       if (notes) {
@@ -2904,7 +2909,6 @@ window.GC_FORM_CONFIG = {
     if (vn) {
       let lines = [];
       if (v) {
-        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能影響媒合速度與成功率。</strong>');
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
@@ -3026,6 +3030,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
+  // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
   const params = new URLSearchParams(location.search);
   if (params.get('mode') !== 'call') return;
   let tries = 0;
@@ -3033,18 +3038,21 @@ window.GC_FORM_CONFIG = {
     tries += 1;
     const passengerInput = document.getElementById('passengers');
     const destinationInput = document.getElementById('destination');
+    const vehicleInput = document.getElementById('gcVehicle');
     const passengerField = passengerInput?.closest('.field');
     const destinationField = destinationInput?.closest('.field');
-    if (!passengerField || !destinationField) {
+    const vehicleField = vehicleInput?.closest('.field');
+    const anchor = vehicleField || destinationField;
+    if (!passengerField || !anchor) {
       if (tries < 120) setTimeout(placePassenger, 50);
       return;
     }
     passengerField.classList.add('gc-passenger-public');
     passengerField.style.display = 'block';
     passengerField.style.visibility = 'visible';
-    if (destinationField.nextElementSibling !== passengerField) destinationField.after(passengerField);
+    if (anchor.nextElementSibling !== passengerField) anchor.after(passengerField);
     const label = passengerField.querySelector(':scope > label');
-    if (label) label.textContent = '搭乘人數（選填）';
+    if (label) label.textContent = '5人以上請選人數';
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', placePassenger, { once: true });
   else placePassenger();
