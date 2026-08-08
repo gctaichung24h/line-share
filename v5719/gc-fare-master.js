@@ -47,15 +47,38 @@
     safeStorageSet(DRAFT_KEY, { pickup, destination, km, minutes, createdAt: Date.now() });
   }
 
+  function hideLocalSuggestionBox(id) {
+    const box = qs(id + 'Suggest');
+    if (!box) return;
+    box.innerHTML = '';
+    box.classList.add('hidden');
+  }
+
+  function setAddressValueSilently(input, value) {
+    if (!input || !trim(value)) return false;
+    input.value = value;
+    // app-v5719.js 的智慧地址監聽器會讀這個一次性旗標；
+    // 程式帶入/草稿恢復不是新的使用者輸入，不應再次彈出候選清單。
+    input.dataset.gcSkipSuggestOnce = '1';
+    hideLocalSuggestionBox(input.id);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    hideLocalSuggestionBox(input.id);
+    return true;
+  }
+
   function restoreDraft() {
     const draft = safeStorageGet(DRAFT_KEY);
     if (!draft) return;
     [['pickup', draft.pickup], ['destination', draft.destination], ['fareKm', draft.km], ['fareMinutes', draft.minutes]].forEach(([id, value]) => {
       const input = qs(id);
       if (!input || trim(input.value) || !trim(value)) return;
-      input.value = value;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+      if (id === 'pickup' || id === 'destination') setAddressValueSilently(input, value);
+      else {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     });
   }
 
@@ -109,21 +132,10 @@
   function toCall() {
     const pickup = trim(qs('pickup')?.value);
     const destination = trim(qs('destination')?.value);
-    const hint = qs('gcFareCallHint');
-    if (!pickup || !destination) {
-      if (!pickup) setFieldError('pickup', cfg()['錯誤_上車地址'] || '請填寫上車地址。');
-      if (!destination) setFieldError('destination', cfg()['錯誤_下車地址'] || '請填寫下車地址。');
-      if (hint) {
-        hint.textContent = cfg()['叫車缺地址提示'] || '要直接叫車，請先填寫上方的上下車地點。';
-        hint.classList.remove('hidden');
-      }
-      qs('gcFareRouteStep')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      (pickup ? qs('destination') : qs('pickup'))?.focus({ preventScroll: true });
-      return;
-    }
+    // 自助試算只需要分鐘＋公里；地址是「開 Google 地圖」的便利資料，不是進叫車頁的門檻。
+    // 有填就安全帶入，沒填就讓既有叫車表格照原規則由客人補填；下車地址仍維持叫車端選填。
     setFieldError('pickup', '');
     setFieldError('destination', '');
-    if (hint) hint.classList.add('hidden');
     saveDraft();
     safeStorageSet(HANDOFF_KEY, { pickup, destination, createdAt: Date.now() });
     const url = new URL(location.href);
@@ -161,13 +173,24 @@
           <span>${escapeHtml(cfg()['路線範例1'] || '較快：16 分｜10.2 km')}</span>
           <span class="is-selected">${escapeHtml(cfg()['路線範例2'] || '試算：21 分｜7.9 km（公里數較少）')}</span>
         </div>
-        <p class="gc-fare-route-return">${escapeHtml(cfg()['路線返回提醒'] || '看完後切回 LINE，只要填入該路線的「公里＋分鐘」。')}</p>
+        <p class="gc-fare-route-return">${escapeHtml(cfg()['路線返回提醒'] || '看完後切回 LINE，照 Google 地圖顯示順序填「分鐘＋公里」。')}</p>
       </div>
-      <button class="gc-fare-skip-link" id="gcFareSkipRoute" type="button">${escapeHtml(cfg()['已知數字捷徑'] || '已經知道公里＋分鐘？直接往下試算')}</button>`;
+      <button class="gc-fare-skip-link" id="gcFareSkipRoute" type="button">${escapeHtml(cfg()['已知數字捷徑'] || '已經知道分鐘＋公里？直接往下試算')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);
     const routeFields = qs('gcFareRouteFields');
     if (pickupField) routeFields.appendChild(pickupField);
     if (destinationField) routeFields.appendChild(destinationField);
+
+    // 車資自助試算可直接填「分鐘＋公里」，不強迫先輸入地址。
+    // 只有按 Google 地圖或人工估價時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
+    [
+      [pickup, cfg()['自助上車標題'] || '上車地點（選填）'],
+      [destination, cfg()['自助下車標題'] || '下車地點（選填）']
+    ].forEach(([input, labelText]) => {
+      input.required = false;
+      const label = input.closest('.field')?.querySelector(`label[for="${input.id}"]`);
+      if (label) label.textContent = labelText;
+    });
 
     const manual = document.querySelector('.gc-fare-manual');
     const manualHead = manual?.querySelector('.gc-fare-manual-head');
@@ -197,8 +220,8 @@
       reminder.className = 'gc-fare-ride-reminder';
       reminder.id = 'gcFareRideReminder';
       reminder.innerHTML = `
-        <strong>${escapeHtml(cfg()['乘車提醒標題'] || '希望實際車資接近本次預估？')}</strong>
-        <p class="gc-fare-ride-script">${escapeHtml(cfg()['乘車提醒主句'] || '上車時可直接告知司機：「麻煩走較短距離路線，謝謝。」')}</p>
+        <strong>${escapeHtml(cfg()['乘車提醒標題'] || '重要｜想讓實際車資接近本次預估？')}</strong>
+        <p class="gc-fare-ride-script">${escapeHtml(cfg()['乘車提醒主句'] || '上車後請直接告知司機：「麻煩走最短距離路線，謝謝。」')}</p>
         <p>${escapeHtml(cfg()['乘車提醒補充1'] || '若有指定路線，也可於上車時直接告知司機。')}</p>
         <p>${escapeHtml(cfg()['乘車提醒補充2'] || '若以時間為優先，可請司機走較快路線；距離較長時車資可能增加。')}</p>`;
       result.appendChild(reminder);
@@ -206,7 +229,7 @@
       const actionWrap = document.createElement('div');
       actionWrap.className = 'gc-fare-result-actions hidden';
       actionWrap.id = 'gcFareCallAction';
-      actionWrap.innerHTML = `<button type="button" class="gc-fare-call-btn" id="gcFareCallBtn">${escapeHtml(cfg()['叫車按鈕'] || '價格可以・立即叫車')}</button><p class="gc-fare-call-hint hidden" id="gcFareCallHint"></p>`;
+      actionWrap.innerHTML = `<button type="button" class="gc-fare-call-btn" id="gcFareCallBtn">${escapeHtml(cfg()['叫車按鈕'] || '價格可以・立即叫車')}</button>`;
       result.appendChild(actionWrap);
 
       const mapsAgain = document.createElement('button');
@@ -242,16 +265,8 @@
     document.documentElement.dataset.gcFareHandoffDone = '1';
     const handoff = safeStorageGet(HANDOFF_KEY);
     if (!handoff) return true;
-    if (!trim(pickup.value) && trim(handoff.pickup)) {
-      pickup.value = handoff.pickup;
-      pickup.dispatchEvent(new Event('input', { bubbles: true }));
-      pickup.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    if (!trim(destination.value) && trim(handoff.destination)) {
-      destination.value = handoff.destination;
-      destination.dispatchEvent(new Event('input', { bubbles: true }));
-      destination.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    if (!trim(pickup.value) && trim(handoff.pickup)) setAddressValueSilently(pickup, handoff.pickup);
+    if (!trim(destination.value) && trim(handoff.destination)) setAddressValueSilently(destination, handoff.destination);
     safeStorageRemove(HANDOFF_KEY);
     safeStorageRemove(DRAFT_KEY);
     return true;

@@ -48,3 +48,39 @@
   .gc-fare-route-rule>p,.gc-fare-route-example span{font-size:11.2px}
   .gc-fare-ride-reminder p{font-size:11.1px}
 }
+
+/* GC_MASTER_STABLE_2026_08_FARE_UX_R1
+   Fare-only UX refinement: Google Maps visual order (minutes -> km),
+   larger explanatory copy, and prominent in-car shortest-route reminder. */
+.gc-fare-step-head p{font-size:14px!important;line-height:1.58!important;color:#566f82!important;font-weight:600!important}
+.gc-fare-route-rule{padding:15px 14px 14px!important}
+.gc-fare-route-rule>strong{font-size:14.6px!important;color:#173f60!important;font-weight:850!important}
+.gc-fare-route-rule>p{font-size:13.2px!important;line-height:1.56!important;color:#5e7688!important;font-weight:600!important}
+.gc-fare-route-example span{font-size:13.2px!important;line-height:1.42!important;padding:9px 11px!important}
+.gc-fare-route-return{font-size:13.4px!important;font-weight:760!important;color:#315c79!important}
+.gc-fare-skip-link{font-size:12.8px!important;font-weight:700!important}
+.gc-fare-calc-help{font-size:14px!important;line-height:1.5!important;color:#587185!important;font-weight:650!important}
+.gc-fare-calc-field>span{display:flex!important;align-items:center!important;gap:6px!important;font-size:14.4px!important;font-weight:780!important}
+.gc-fare-input-order{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:3px 6px;border-radius:999px;background:#174f80;color:#fff;font-size:10.8px;font-style:normal;font-weight:850;line-height:1.15;letter-spacing:.01em}
+.gc-fare-input-order.is-second{background:#e8f2f9;color:#285c81;border:1px solid #bdd4e4}
+.gc-fare-result-basis{font-size:13.5px!important;line-height:1.5!important}
+.gc-fare-ride-reminder{margin-top:16px!important;padding:15px 14px!important;border:2px solid #91b9d5!important;border-left:5px solid #175988!important;border-radius:15px!important;background:linear-gradient(180deg,#eef7fd 0%,#f7fbfe 100%)!important;box-shadow:0 8px 20px rgba(25,79,119,.07)!important}
+.gc-fare-ride-reminder>strong{font-size:15.2px!important;line-height:1.42!important;color:#123f63!important;font-weight:900!important}
+.gc-fare-ride-reminder .gc-fare-ride-script{margin-top:9px!important;padding:10px 11px!important;border-radius:10px!important;background:#fff!important;border:1px solid #bfd6e6!important;color:#123f63!important;font-size:15.5px!important;font-weight:900!important;line-height:1.5!important}
+.gc-fare-ride-reminder p:not(.gc-fare-ride-script){font-size:13px!important;line-height:1.55!important;color:#587286!important;font-weight:600!important}
+.gc-fare-manual-details>summary strong{font-size:15px!important;color:#3f6179!important}
+.gc-fare-manual-details>summary small{font-size:12.8px!important;line-height:1.5!important;color:#718797!important;font-weight:600!important}
+.gc-fare-manual-extra{font-size:12.9px!important;line-height:1.55!important;color:#637b8d!important;font-weight:600!important}
+.gc-fare-maps-again{font-size:12.9px!important}
+@media(max-width:360px){
+  .gc-fare-step-head p{font-size:13.2px!important}
+  .gc-fare-route-rule>strong{font-size:14px!important}
+  .gc-fare-route-rule>p,.gc-fare-route-example span{font-size:12.6px!important}
+  .gc-fare-calc-help{font-size:13.2px!important}
+  .gc-fare-calc-field>span{font-size:13.7px!important}
+  .gc-fare-ride-reminder>strong{font-size:14.5px!important}
+  .gc-fare-ride-reminder .gc-fare-ride-script{font-size:14.7px!important}
+  .gc-fare-ride-reminder p:not(.gc-fare-ride-script){font-size:12.5px!important}
+  .gc-fare-manual-details>summary small,.gc-fare-manual-extra{font-size:12.4px!important}
+}
+

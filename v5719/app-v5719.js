@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608';
+  const GC_BUILD_VERSION = 'master202608r2';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R2_FARE_HANDOFF_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1643,25 +1643,25 @@
           <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
           <span class="gc-fare-fast-badge">${escapeHtml(cfg['計算器徽章'] || '立即試算')}</span>
         </div>
-        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] || '只填 Google 地圖「公里數較少」路線的兩個數字')}</div>
+        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] || '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
         <div class="gc-fare-calc-grid">
-          <label class="gc-fare-calc-field" for="fareKm">
-            <span>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
+          <label class="gc-fare-calc-field" for="fareMinutes">
+            <span><em class="gc-fare-input-order">先填</em>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
             <div class="gc-fare-calc-input-wrap">
-              <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 8')}" autocomplete="off">
-              <b>公里</b>
+              <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 21')}" autocomplete="off">
+              <b>分鐘</b>
             </div>
           </label>
-          <label class="gc-fare-calc-field" for="fareMinutes">
-            <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
+          <label class="gc-fare-calc-field" for="fareKm">
+            <span><em class="gc-fare-input-order is-second">再填</em>${escapeHtml(cfg['公里標題'] || '公里數')}</span>
             <div class="gc-fare-calc-input-wrap">
-              <input id="fareMinutes" class="gc-fare-calc-input" type="number" min="1" max="1440" step="1" inputmode="numeric" placeholder="${escapeHtml(cfg['時間提示'] || '例如 8')}" autocomplete="off">
-              <b>分鐘</b>
+              <input id="fareKm" class="gc-fare-calc-input" type="number" min="0.1" max="999" step="0.1" inputmode="decimal" placeholder="${escapeHtml(cfg['公里提示'] || '例如 7.9')}" autocomplete="off">
+              <b>公里</b>
             </div>
           </label>
         </div>
         <div class="gc-fare-calc-result is-waiting" id="fareCalcResult" aria-live="polite">
-          <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '輸入公里數與時間後自動試算')}</span>
+          <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '先填分鐘，再填公里，立即顯示預估車資')}</span>
           <strong class="gc-fare-result-price" id="fareResultPrice"></strong>
           <p class="gc-fare-result-basis" id="fareResultBasis"></p>
           <p class="gc-fare-result-note" id="fareResultNote1"></p>
@@ -2061,7 +2061,7 @@
     const reset = () => {
       result.classList.add('is-waiting');
       result.classList.remove('is-invalid', 'is-ready');
-      label.textContent = cfg['計算器等待'] || '輸入公里數與時間後自動試算';
+      label.textContent = cfg['計算器等待'] || '先填分鐘，再填公里，立即顯示預估車資';
       price.textContent = '';
       basis.textContent = '';
       note1.textContent = '';
@@ -2095,7 +2095,7 @@
       label.textContent = cfg['結果標題'] || '預估車資';
       // GC_MASTER_FARE_BASELINE_PRIMARY
       price.textContent = `約 NT$${formatFareMoney(estimate.baseline)}`;
-      basis.textContent = `${cfg['結果依據標題'] || '本次試算依據'}｜${estimate.km} 公里・${estimate.minutes} 分鐘`;
+      basis.textContent = `${cfg['結果依據標題'] || '本次試算依據'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
       note1.textContent = cfg['結果說明1'] || '依較短距離路線試算；實際依路況、等候時間及跳錶為準。';
       note2.textContent = fareTextTemplate(cfg['結果說明2'] || '實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
       longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
