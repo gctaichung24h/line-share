@@ -1,6 +1,6 @@
 ﻿(() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r7';
+  const GC_BUILD_VERSION = 'master202608r8';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R7_FARE_OPTIONAL_LABEL_REMOVED_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1667,7 +1667,7 @@
           <div class="gc-fare-calc-title" id="fareCalcTitle">${escapeHtml(cfg['計算器標題'] || '🚕 10秒快速試算')}</div>
           <span class="gc-fare-fast-badge">${escapeHtml(cfg['計算器徽章'] || '立即試算')}</span>
         </div>
-        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] || '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
+        <div class="gc-fare-calc-help">${escapeHtml(cfg['計算器說明'] ?? '照 Google 地圖顯示順序：先填分鐘，再填公里')}</div>
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareMinutes">
             <span><em class="gc-fare-input-order">先填</em>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
@@ -1685,7 +1685,7 @@
           </label>
         </div>
         <div class="gc-fare-calc-result is-waiting" id="fareCalcResult" aria-live="polite">
-          <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '先填分鐘，再填公里，立即顯示預估車資')}</span>
+          <span class="gc-fare-result-label" id="fareResultLabel">${escapeHtml(cfg['計算器等待'] || '填完兩格，立即顯示預估車資')}</span>
           <strong class="gc-fare-result-price" id="fareResultPrice"></strong>
           <p class="gc-fare-result-basis" id="fareResultBasis"></p>
           <p class="gc-fare-result-note" id="fareResultNote1"></p>
@@ -1738,8 +1738,8 @@
           <div class="gc-fare-or" aria-hidden="true"><span>或</span></div>
           <section class="gc-fare-manual">
             <div class="gc-fare-manual-head">
-              <strong>${escapeHtml(cfg['人工協助標題'] || '不方便自行試算？')}</strong>
-              <span>${escapeHtml(cfg['人工協助提示'] || '填寫上下車地址，由客服協助估價。')}</span>
+              <strong>${escapeHtml(cfg['人工協助標題'] || '需要客服協助？')}</strong>
+              <span>${escapeHtml(cfg['人工協助提示'] ?? '')}</span>
             </div>
             <form class="gc-fare-manual-form" id="serviceForm" novalidate>
               <div id="globalError" class="global-error"></div>
@@ -2147,7 +2147,7 @@
     const reset = () => {
       result.classList.add('is-waiting');
       result.classList.remove('is-invalid', 'is-ready');
-      label.textContent = cfg['計算器等待'] || '先填分鐘，再填公里，立即顯示預估車資';
+      label.textContent = cfg['計算器等待'] || '填完兩格，立即顯示預估車資';
       price.textContent = '';
       basis.textContent = '';
       note1.textContent = '';
@@ -2181,9 +2181,9 @@
       label.textContent = cfg['結果標題'] || '預估車資';
       // GC_MASTER_FARE_BASELINE_PRIMARY
       price.textContent = `約 NT$${formatFareMoney(estimate.baseline)}`;
-      basis.textContent = `${cfg['結果依據標題'] || '本次試算依據'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
-      note1.textContent = cfg['結果說明1'] || '依較短距離路線試算；實際依路況、等候時間及跳錶為準。';
-      note2.textContent = fareTextTemplate(cfg['結果說明2'] || '實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
+      basis.textContent = `${cfg['結果依據標題'] || '本次試算'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
+      note1.textContent = cfg['結果說明1'] || '依填入的時間＋公里試算；實際依行駛路線、路況與等候時間為準。';
+      note2.textContent = fareTextTemplate(cfg['結果說明2'] || '預估與實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
       longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
       longDistance.classList.toggle('hidden', !estimate.longDistance);
     };

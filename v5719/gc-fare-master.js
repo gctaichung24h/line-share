@@ -4,6 +4,7 @@
   // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
   // GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
   // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
+  // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -170,7 +171,7 @@
   function openMaps() {
     const missingPickup = !trim(qs('pickup')?.value);
     const missingDestination = !trim(qs('destination')?.value);
-    // 地址在自助試算仍是選填；只有按「查看 Google 地圖」這個動作時才需要。
+    // 地址在自助試算不是強制欄位；只有按「查看 Google 地圖」這個動作時才需要。
     // R6 直接把缺少欄位紅框並顯示短提示，不再占用大面積提示區。
     if (missingPickup || missingDestination) {
       showRouteAddressGuidance('map', missingPickup, missingDestination);
@@ -235,23 +236,30 @@
     const routeStep = document.createElement('section');
     routeStep.className = 'gc-fare-route-step';
     routeStep.id = 'gcFareRouteStep';
+    const routeIntro = trim(cfg()['路線步驟說明']);
     routeStep.innerHTML = `
       <div class="gc-fare-step-head">
-        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 先確認較短距離路線')}</strong>
-        <p>${escapeHtml(cfg()['路線步驟說明'] || '輸入上下車地點後開啟 Google 地圖；若有多條路線，請選公里數較少的那條。')}</p>
+        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
+        ${routeIntro ? `<p>${escapeHtml(routeIntro)}</p>` : ''}
       </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
-      <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖查看路線')}</button>
-      <div class="gc-fare-route-rule" role="note">
-        <strong>${escapeHtml(cfg()['路線重點標題'] || '試算看公里數，不看預設藍色路線')}</strong>
-        <p>${escapeHtml(cfg()['路線重點說明1'] || 'Google 預設建議通常偏向較快，不一定是距離較短。')}</p>
-        <div class="gc-fare-route-example">
-          <span>${escapeHtml(cfg()['路線範例1'] || '較快：16 分｜10.2 km')}</span>
-          <span class="is-selected">${escapeHtml(cfg()['路線範例2'] || '試算：21 分｜7.9 km（公里數較少）')}</span>
+      <div class="gc-fare-route-quick" aria-label="路線選擇提示">
+        <div class="gc-fare-route-quick-row">
+          <b>${escapeHtml(cfg()['路線重點標題'] || '想省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
         </div>
-        <p class="gc-fare-route-return">${escapeHtml(cfg()['路線返回提醒'] || '看完後切回 LINE，照 Google 地圖顯示順序填「分鐘＋公里」。')}</p>
+        <div class="gc-fare-route-quick-row">
+          <b>${escapeHtml(cfg()['路線快速_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
+        </div>
+        <div class="gc-fare-route-quick-foot">${escapeHtml(cfg()['路線返回提醒'] || '路線距離較長時，車資可能增加。')}</div>
+        <details class="gc-fare-route-how">
+          <summary>${escapeHtml(cfg()['路線教學按鈕'] || '怎麼看？')}</summary>
+          <div class="gc-fare-route-how-body">
+            <div><span>${escapeHtml(cfg()['路線範例1'] || '16 分｜10.2 km')}</span><b>${escapeHtml(cfg()['路線範例1標籤'] || '時間較短')}</b></div>
+            <div><span>${escapeHtml(cfg()['路線範例2'] || '21 分｜7.9 km')}</span><b>${escapeHtml(cfg()['路線範例2標籤'] || '距離較短')}</b></div>
+          </div>
+        </details>
       </div>
-      <button class="gc-fare-skip-link" id="gcFareSkipRoute" type="button">${escapeHtml(cfg()['已知數字捷徑'] || '已經知道分鐘＋公里？直接往下試算')}</button>`;
+      <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);
     const routeFields = qs('gcFareRouteFields');
     if (pickupField) routeFields.appendChild(pickupField);
@@ -274,12 +282,12 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '還是不方便操作？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] || '客服也可以協助估價；繁忙時回覆可能需要稍候。')}</small></span><b aria-hidden="true">＋</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要客服協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">＋</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const extra = document.createElement('p');
       extra.className = 'gc-fare-manual-extra';
-      extra.textContent = cfg()['人工協助補充'] || '若只是想立即知道大概車資，使用上方快速試算會比較快。';
+      extra.textContent = cfg()['人工協助補充'] || '請填寫上下車地點，客服將依序協助估價。';
       manualHead.remove();
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
@@ -310,10 +318,12 @@
       reminder.className = 'gc-fare-ride-reminder';
       reminder.id = 'gcFareRideReminder';
       reminder.innerHTML = `
-        <strong>${escapeHtml(cfg()['乘車提醒標題'] || '重要｜想讓實際車資接近本次預估？')}</strong>
-        <p class="gc-fare-ride-script">${escapeHtml(cfg()['乘車提醒主句'] || '上車後請直接告知司機：「麻煩走最短距離路線，謝謝。」')}</p>
-        <p>${escapeHtml(cfg()['乘車提醒補充1'] || '若有指定路線，也可於上車時直接告知司機。')}</p>
-        <p>${escapeHtml(cfg()['乘車提醒補充2'] || '若以時間為優先，可請司機走較快路線；距離較長時車資可能增加。')}</p>`;
+        <strong>${escapeHtml(cfg()['乘車提醒標題'] || '路線有偏好？上車告知司機即可')}</strong>
+        <div class="gc-fare-preference-list">
+          <div class="gc-fare-preference-row"><b>${escapeHtml(cfg()['乘車偏好_省標題'] || '省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['乘車偏好_省內容'] || '較短距離')}</span></div>
+          <div class="gc-fare-preference-row"><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['乘車偏好_快內容'] || '較快路線')}</span></div>
+        </div>
+        <p class="gc-fare-preference-note">${escapeHtml(cfg()['乘車偏好_補充'] || '較快路線若里程較長，車資可能增加。')}</p>`;
       result.appendChild(reminder);
 
       const actionWrap = document.createElement('div');
@@ -332,7 +342,6 @@
 
     qs('gcFareMapBtn')?.addEventListener('click', openMaps);
     qs('gcFareMapsAgain')?.addEventListener('click', openMaps);
-    qs('gcFareSkipRoute')?.addEventListener('click', () => calc.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     qs('gcFareCallBtn')?.addEventListener('click', toCall);
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
