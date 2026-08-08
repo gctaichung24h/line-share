@@ -1,0 +1,50 @@
+/* GC_MASTER_STABLE_2026_08_FARE_FLOW_PATCH
+   Fare-only layer. Does not style call/driver pages. */
+.gc-fare-route-step{margin:0 0 16px;padding:18px 16px 16px;border:1.5px solid #c4d8e7;border-radius:18px;background:linear-gradient(180deg,#fbfdff 0%,#f7fbfe 100%);box-shadow:0 8px 22px rgba(24,72,108,.045)}
+.gc-fare-step-head strong{display:block;color:#153f63;font-size:17px;font-weight:850;line-height:1.3;letter-spacing:-.015em}
+.gc-fare-step-head p{margin:6px 0 15px;color:#60798c;font-size:12.6px;font-weight:570;line-height:1.55}
+.gc-fare-route-fields .field{margin-bottom:13px!important}
+.gc-fare-route-fields .field:last-child{margin-bottom:14px!important}
+.gc-fare-map-btn,.gc-fare-call-btn{width:100%;min-height:54px;border:0;border-radius:15px;background:linear-gradient(180deg,#174f80 0%,#123f68 100%);color:#fff;font-size:15.5px;font-weight:820;letter-spacing:-.01em;box-shadow:0 8px 20px rgba(20,69,108,.15);cursor:pointer}
+.gc-fare-map-btn:active,.gc-fare-call-btn:active{transform:translateY(1px)}
+.gc-fare-route-rule{margin-top:14px;padding:13px 13px 12px;border:1px solid #dce8f0;border-radius:14px;background:#fff}
+.gc-fare-route-rule>strong{display:block;color:#234d6d;font-size:13.4px;font-weight:820;line-height:1.4}
+.gc-fare-route-rule>p{margin:5px 0 0;color:#6c8191;font-size:11.7px;font-weight:560;line-height:1.5}
+.gc-fare-route-example{display:grid;gap:6px;margin-top:10px}
+.gc-fare-route-example span{display:block;padding:8px 10px;border:1px solid #e1e9ef;border-radius:10px;background:#f9fbfc;color:#687d8d;font-size:11.8px;font-weight:660;line-height:1.35}
+.gc-fare-route-example span.is-selected{border-color:#a8c8df;background:#eef7fd;color:#174f7b;font-weight:800}
+.gc-fare-route-return{padding-top:8px;border-top:1px solid #edf2f5;color:#45687f!important;font-weight:700!important}
+.gc-fare-skip-link{display:block;margin:12px auto 0;padding:4px 5px;border:0;background:transparent;color:#5e7890;font-size:11.6px;font-weight:670;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.gc-fare-calc{scroll-margin-top:12px}
+.gc-fare-result-basis{display:none;margin:9px 0 0;padding:9px 10px;border-radius:10px;background:#f2f7fa;color:#355d79;font-size:12.1px;font-weight:760;line-height:1.45}
+.gc-fare-calc-result.is-ready .gc-fare-result-basis{display:block}
+.gc-fare-ride-reminder{display:none;margin-top:13px;padding:13px 12px;border:1px solid #cbdde9;border-radius:13px;background:#f7fbfe;text-align:left}
+.gc-fare-calc-result.is-ready .gc-fare-ride-reminder{display:block}
+.gc-fare-ride-reminder>strong{display:block;color:#174a72;font-size:13.5px;font-weight:850;line-height:1.4}
+.gc-fare-ride-reminder p{margin:5px 0 0;color:#627b8d;font-size:11.65px;font-weight:570;line-height:1.52}
+.gc-fare-ride-reminder .gc-fare-ride-script{color:#244f70;font-size:12.35px;font-weight:800}
+.gc-fare-result-actions{margin-top:13px}
+.gc-fare-call-btn{min-height:56px;font-size:16px}
+.gc-fare-call-hint{margin:7px 2px 0;color:#a04d3e;font-size:11.8px;font-weight:700;line-height:1.45;text-align:left}
+.gc-fare-maps-again{display:block;margin:10px auto 0;padding:5px 7px;border:0;background:transparent;color:#57748a;font-size:11.7px;font-weight:680;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.gc-fare-manual-details{margin-top:27px;border-top:1px solid #e4ebf0;padding-top:17px}
+.gc-fare-manual-details>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:2px 1px 10px}
+.gc-fare-manual-details>summary::-webkit-details-marker{display:none}
+.gc-fare-manual-details>summary span{min-width:0}
+.gc-fare-manual-details>summary strong{display:block;color:#567185;font-size:13.8px;font-weight:780;line-height:1.4}
+.gc-fare-manual-details>summary small{display:block;margin-top:3px;color:#8797a3;font-size:11.3px;font-weight:550;line-height:1.45}
+.gc-fare-manual-details>summary b{flex:0 0 auto;color:#7d91a0;font-size:17px;font-weight:500}
+.gc-fare-manual-inner{padding:7px 0 0}
+.gc-fare-manual-extra{margin:0 0 12px;padding:10px 11px;border-radius:11px;background:#f8fafb;color:#6f8291;font-size:11.55px;font-weight:560;line-height:1.5}
+.gc-fare-manual-details .gc-fare-manual-form{padding:0!important}
+.gc-fare-manual-details .gc-fare-manual-form .submit-btn{margin-top:0!important;background:#fff!important;color:#355c78!important;border:1.5px solid #b9ccda!important;box-shadow:none!important}
+.gc-fare-manual-details .gc-fare-manual-form .submit-btn:active{background:#f7fafc!important}
+@media(max-width:360px){
+  .gc-fare-route-step{padding:15px 12px 14px}
+  .gc-fare-step-head strong{font-size:15.7px}
+  .gc-fare-step-head p{font-size:11.8px}
+  .gc-fare-map-btn,.gc-fare-call-btn{min-height:52px;font-size:14.6px}
+  .gc-fare-route-rule>strong{font-size:12.7px}
+  .gc-fare-route-rule>p,.gc-fare-route-example span{font-size:11.2px}
+  .gc-fare-ride-reminder p{font-size:11.1px}
+}
