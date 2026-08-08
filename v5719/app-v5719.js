@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r2';
+  const GC_BUILD_VERSION = 'master202608r3';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R2_FARE_HANDOFF_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';

@@ -1,27 +1,54 @@
 (() => {
   'use strict';
   const MASTER_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_MODULE';
-  const DRAFT_KEY = 'gc_fare_draft_v1';
-  const HANDOFF_KEY = 'gc_fare_to_call_v1';
-  const TTL_MS = 30 * 60 * 1000;
+  // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
+  // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
+  const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
+  const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
+  const HANDOFF_KEY = 'gc_fare_to_call_v2';
+  const SNAPSHOT_PREFIX = 'gc_fare_flow_v2_';
+  const FLOW_STATE_KEY = 'gcFareFlowId';
+  const FLOW_RETURN_KEY = 'gcFareReturnFromCall';
+  const TTL_MS = 20 * 60 * 1000;
 
   const cfg = () => (window.GC_FORM_CONFIG && window.GC_FORM_CONFIG.fare) || {};
   const qs = id => document.getElementById(id);
   const trim = value => String(value || '').trim();
-  const safeStorageGet = key => {
+  const safeSessionGet = key => {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = sessionStorage.getItem(key);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || !parsed.createdAt || Date.now() - parsed.createdAt > TTL_MS) {
-        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
         return null;
       }
       return parsed;
     } catch (_) { return null; }
   };
-  const safeStorageSet = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
-  const safeStorageRemove = key => { try { localStorage.removeItem(key); } catch (_) {} };
+  const safeSessionSet = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
+  const safeSessionRemove = key => { try { sessionStorage.removeItem(key); } catch (_) {} };
+  const clearLegacyFareStorage = () => {
+    try { localStorage.removeItem(LEGACY_DRAFT_KEY); localStorage.removeItem(LEGACY_HANDOFF_KEY); } catch (_) {}
+  };
+  const newFlowId = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  function currentFareFlow(create = false) {
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    let id = trim(state[FLOW_STATE_KEY]);
+    if (!id && create) {
+      id = newFlowId();
+      history.replaceState({ ...state, [FLOW_STATE_KEY]: id, [FLOW_RETURN_KEY]: false }, '', location.href);
+    }
+    return id;
+  }
+  const snapshotKey = flowId => SNAPSHOT_PREFIX + flowId;
+  function markFareContinuity() {
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = currentFareFlow(true);
+    if (state[FLOW_RETURN_KEY] === true && trim(state[FLOW_STATE_KEY]) === flowId) return flowId;
+    history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
+    return flowId;
+  }
   const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 
   function currentMode() {
@@ -39,12 +66,13 @@
   }
 
   function saveDraft() {
+    const flowId = markFareContinuity();
     const pickup = trim(qs('pickup')?.value);
     const destination = trim(qs('destination')?.value);
     const km = trim(qs('fareKm')?.value);
     const minutes = trim(qs('fareMinutes')?.value);
-    if (!pickup && !destination && !km && !minutes) return;
-    safeStorageSet(DRAFT_KEY, { pickup, destination, km, minutes, createdAt: Date.now() });
+    if (!pickup && !destination && !km && !minutes) { safeSessionRemove(snapshotKey(flowId)); return; }
+    safeSessionSet(snapshotKey(flowId), { pickup, destination, km, minutes, createdAt: Date.now() });
   }
 
   function hideLocalSuggestionBox(id) {
@@ -68,8 +96,13 @@
   }
 
   function restoreDraft() {
-    const draft = safeStorageGet(DRAFT_KEY);
-    if (!draft) return;
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = trim(state[FLOW_STATE_KEY]);
+    // 同一個車資流程內（含看 Google 地圖、轉叫車後返回）可恢復 20 分鐘。
+    // 從 LINE 選單重新進入車資試算會建立新 flow，不讀舊快照，因此保持空白。
+    if (!flowId || state[FLOW_RETURN_KEY] !== true) return false;
+    const draft = safeSessionGet(snapshotKey(flowId));
+    if (!draft) return false;
     [['pickup', draft.pickup], ['destination', draft.destination], ['fareKm', draft.km], ['fareMinutes', draft.minutes]].forEach(([id, value]) => {
       const input = qs(id);
       if (!input || trim(input.value) || !trim(value)) return;
@@ -80,6 +113,11 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = qs('fareCalcResult');
+      if (target?.classList.contains('is-ready')) target.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }));
+    return true;
   }
 
   function googleMapsUrl() {
@@ -137,7 +175,10 @@
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();
-    safeStorageSet(HANDOFF_KEY, { pickup, destination, createdAt: Date.now() });
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = currentFareFlow(true);
+    history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
+    safeSessionSet(HANDOFF_KEY, { pickup, destination, flowId, createdAt: Date.now() });
     const url = new URL(location.href);
     url.searchParams.set('mode', 'call');
     url.searchParams.delete('_r');
@@ -212,6 +253,21 @@
       inner.appendChild(form);
       manual.remove();
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '－' : '＋'; });
+
+      // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
+      // 必須直接把畫面帶到第一個缺少的地址並顯示原本錯誤提示。
+      form.addEventListener('submit', event => {
+        const missingPickup = !trim(pickup.value);
+        const missingDestination = !trim(destination.value);
+        if (!missingPickup && !missingDestination) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        details.open = true;
+        setFieldError('pickup', missingPickup ? (cfg()['錯誤_上車地址'] || '請填寫上車地址。') : '');
+        setFieldError('destination', missingDestination ? (cfg()['錯誤_下車地址'] || '請填寫下車地址。') : '');
+        const firstMissing = missingPickup ? pickup : destination;
+        firstMissing.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, true);
     }
 
     const result = qs('fareCalcResult');
@@ -252,6 +308,8 @@
       qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
       qs(id)?.addEventListener('change', () => setTimeout(refreshFareAction, 0));
     });
+    clearLegacyFareStorage();
+    currentFareFlow(true);
     restoreDraft();
     refreshFareAction();
     return true;
@@ -263,12 +321,12 @@
     const destination = qs('destination');
     if (!pickup || !destination || !document.querySelector('#serviceForm')) return false;
     document.documentElement.dataset.gcFareHandoffDone = '1';
-    const handoff = safeStorageGet(HANDOFF_KEY);
+    const handoff = safeSessionGet(HANDOFF_KEY);
     if (!handoff) return true;
     if (!trim(pickup.value) && trim(handoff.pickup)) setAddressValueSilently(pickup, handoff.pickup);
     if (!trim(destination.value) && trim(handoff.destination)) setAddressValueSilently(destination, handoff.destination);
-    safeStorageRemove(HANDOFF_KEY);
-    safeStorageRemove(DRAFT_KEY);
+    // 只消耗「帶入叫車」資料；原車資快照保留 20 分鐘，供瀏覽器返回查看。
+    safeSessionRemove(HANDOFF_KEY);
     return true;
   }
 
