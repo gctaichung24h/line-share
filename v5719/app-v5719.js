@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r5';
+  const GC_BUILD_VERSION = 'master202608r6';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1764,12 +1764,41 @@
     input.min = local;
   }
 
+  function clearFieldValidation(id) {
+    const input = document.getElementById(id);
+    const error = document.getElementById(`${id}Error`);
+    if (input) {
+      input.classList.remove('invalid');
+      input.removeAttribute('aria-invalid');
+    }
+    input?.closest('.field')?.classList.remove('gc-validation-error');
+    if (error) {
+      error.textContent = '';
+      error.classList.remove('show');
+      error.removeAttribute('role');
+    }
+  }
+
+  function clearNamedValidation(id) {
+    const error = document.getElementById(id);
+    if (!error) return;
+    error.textContent = '';
+    error.classList.remove('show');
+    error.removeAttribute('role');
+    error.closest('.field')?.classList.remove('gc-validation-error');
+  }
+
   function clearErrors() {
     document.querySelectorAll('.error-text').forEach(el => {
       el.textContent = '';
       el.classList.remove('show');
+      el.removeAttribute('role');
     });
-    document.querySelectorAll('.invalid').forEach(el => el.classList.remove('invalid'));
+    document.querySelectorAll('.invalid').forEach(el => {
+      el.classList.remove('invalid');
+      el.removeAttribute('aria-invalid');
+    });
+    document.querySelectorAll('.gc-validation-error').forEach(el => el.classList.remove('gc-validation-error'));
     const global = document.getElementById('globalError');
     if (global) {
       global.textContent = '';
@@ -1780,10 +1809,15 @@
   function showFieldError(id, message) {
     const input = document.getElementById(id);
     const error = document.getElementById(`${id}Error`);
-    if (input) input.classList.add('invalid');
+    if (input) {
+      input.classList.add('invalid');
+      input.setAttribute('aria-invalid', 'true');
+      input.closest('.field')?.classList.add('gc-validation-error');
+    }
     if (error) {
       error.textContent = message;
       error.classList.add('show');
+      error.setAttribute('role', 'alert');
     }
   }
 
@@ -1792,7 +1826,22 @@
     if (error) {
       error.textContent = message;
       error.classList.add('show');
+      error.setAttribute('role', 'alert');
+      error.closest('.field')?.classList.add('gc-validation-error');
     }
+  }
+
+  function focusFirstValidationError() {
+    const field = document.querySelector('.field.gc-validation-error');
+    if (!field) return;
+    requestAnimationFrame(() => {
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const target = field.querySelector('input:not([type="radio"]), select, textarea, input[type="radio"]');
+      setTimeout(() => {
+        try { target?.focus({ preventScroll: true }); }
+        catch (_) { try { target?.focus(); } catch (_) {} }
+      }, 260);
+    });
   }
 
   function showGlobalError(message) {
@@ -1939,14 +1988,24 @@
 
     document.querySelectorAll('input[name="serviceType"]').forEach(input => {
       input.addEventListener('change', () => {
+        clearNamedValidation('serviceTypeError');
         const reserve = checked('serviceType') === 'reserve';
         document.getElementById('scheduleFields').classList.toggle('hidden', !reserve);
         if (!reserve) {
           document.getElementById('date').value = '';
           document.getElementById('time').value = '';
+          clearFieldValidation('date');
+          clearFieldValidation('time');
         }
         updateLocationVisibility();
       });
+    });
+    ['date', 'time', 'pickup'].forEach(id => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      const clear = () => { if (String(input.value || '').trim()) clearFieldValidation(id); };
+      input.addEventListener('input', clear);
+      input.addEventListener('change', clear);
     });
 
     let sending = false;
@@ -1979,11 +2038,14 @@
         valid = false;
       }
       if (serviceType === 'instant' && attachedLocation?.requiresConfirmation && !attachedLocation.confirmed) {
-        showFieldError('pickup', '請先確認定位地址是否正確，或直接修改上車地址。');
+        showFieldError('pickup', '請確認定位地址。');
         setLocationReview('請確認門牌是否為實際上車地點；不對可直接修改。', true);
         valid = false;
       }
-      if (!valid) return;
+      if (!valid) {
+        focusFirstValidationError();
+        return;
+      }
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];

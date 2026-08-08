@@ -1519,3 +1519,53 @@ body{
   .gc-fare-calc-help{font-size:12.4px!important}
   .gc-fare-result-price{font-size:28px!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
+   Validation-only visual layer: missing required data is shown directly on the field.
+   Normal/pristine layout is unchanged. */
+@keyframes gcValidationPulse{
+  0%{box-shadow:0 0 0 0 rgba(180,35,24,.20)}
+  55%{box-shadow:0 0 0 4px rgba(180,35,24,.11)}
+  100%{box-shadow:0 0 0 2px rgba(180,35,24,.07)}
+}
+.field.gc-validation-error .input,
+.field.gc-validation-error textarea,
+.field.gc-validation-error .gc-select{
+  border-color:#c83b32!important;
+  background:#fffafa!important;
+  box-shadow:0 0 0 2px rgba(180,35,24,.07)!important;
+  animation:gcValidationPulse .34s ease-out 1;
+}
+.field.gc-validation-error .input:focus,
+.field.gc-validation-error textarea:focus,
+.field.gc-validation-error .gc-select:focus{
+  border-color:#b42318!important;
+  box-shadow:0 0 0 3px rgba(180,35,24,.12)!important;
+}
+.field.gc-validation-error.gc-primary-address{
+  border-color:#d45a52!important;
+  background:linear-gradient(180deg,#fffdfd 0%,#fff8f8 100%)!important;
+  box-shadow:0 7px 20px rgba(180,35,24,.07)!important;
+}
+.field.gc-validation-error.gc-primary-address:before{
+  background:#c92f26!important;
+  opacity:1!important;
+}
+.field.gc-validation-error .field-label-row>label,
+.field.gc-validation-error>label,
+.field.gc-validation-error>.field-label{
+  color:#8f241d!important;
+}
+.field.gc-validation-error .choice span{
+  border-color:#c83b32!important;
+  background:#fffafa!important;
+  box-shadow:0 0 0 2px rgba(180,35,24,.06)!important;
+  animation:gcValidationPulse .34s ease-out 1;
+}
+.field.gc-validation-error .error-text.show{
+  margin-top:7px!important;
+  color:#a52a22!important;
+  font-size:13.2px!important;
+  font-weight:760!important;
+  line-height:1.35!important;
+}

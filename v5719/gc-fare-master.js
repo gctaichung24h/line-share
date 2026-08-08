@@ -3,6 +3,7 @@
   const MASTER_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_MODULE';
   // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
   // GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
+  // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -59,10 +60,18 @@
   function setFieldError(id, message) {
     const input = qs(id);
     const error = qs(id + 'Error');
-    if (input) input.classList.toggle('invalid', Boolean(message));
+    const active = Boolean(message);
+    if (input) {
+      input.classList.toggle('invalid', active);
+      if (active) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+      input.closest('.field')?.classList.toggle('gc-validation-error', active);
+    }
     if (error) {
       error.textContent = message || '';
-      error.classList.toggle('show', Boolean(message));
+      error.classList.toggle('show', active);
+      if (active) error.setAttribute('role', 'alert');
+      else error.removeAttribute('role');
     }
   }
 
@@ -138,52 +147,37 @@
   }
 
   function clearRouteAddressGuidance() {
+    // R6：不再顯示大面積提示框；缺哪一格就直接在該欄位紅框提示。
     const note = qs('gcFareActionNote');
-    if (!note) return;
-    note.textContent = '';
-    note.dataset.kind = '';
-    note.classList.add('hidden');
-  }
-
-  function routeGuidanceText(kind, missingPickup, missingDestination) {
-    const c = cfg();
-    if (kind === 'manual') {
-      if (missingPickup && missingDestination) return c['提示_客服估價缺上下車'] || '提示｜客服協助估價需先填寫上下車地點；已帶您到上方填寫。';
-      if (missingPickup) return c['提示_客服估價缺上車'] || '提示｜客服協助估價還需要上車地點；已帶您到上方填寫。';
-      return c['提示_客服估價缺下車'] || '提示｜客服協助估價還需要下車地點；已帶您到上方填寫。';
-    }
-    if (missingPickup && missingDestination) return c['提示_查路線缺上下車'] || '提示｜開啟 Google 地圖需先填寫上下車地點；若已知道分鐘＋公里，可直接往下試算。';
-    if (missingPickup) return c['提示_查路線缺上車'] || '提示｜開啟 Google 地圖還需要上車地點。';
-    return c['提示_查路線缺下車'] || '提示｜開啟 Google 地圖還需要下車地點。';
+    if (note) note.remove();
   }
 
   function showRouteAddressGuidance(kind, missingPickup, missingDestination) {
-    const note = qs('gcFareActionNote');
-    if (!note || (!missingPickup && !missingDestination)) { clearRouteAddressGuidance(); return; }
-    note.textContent = routeGuidanceText(kind, missingPickup, missingDestination);
-    note.dataset.kind = kind;
-    note.classList.remove('hidden');
+    const message = cfg()['錯誤_情境缺資料'] || '請填寫資料。';
+    setFieldError('pickup', missingPickup ? message : '');
+    setFieldError('destination', missingDestination ? message : '');
+    if (!missingPickup && !missingDestination) return;
     const firstMissing = missingPickup ? qs('pickup') : qs('destination');
     requestAnimationFrame(() => {
       firstMissing?.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => {
         try { firstMissing?.focus({ preventScroll: true }); }
         catch (_) { try { firstMissing?.focus(); } catch (_) {} }
-      }, 320);
+      }, 280);
     });
   }
 
   function openMaps() {
     const missingPickup = !trim(qs('pickup')?.value);
     const missingDestination = !trim(qs('destination')?.value);
-    // 地址在自助試算是選填；只有使用「查看 Google 地圖」這個動作時才需要。
-    // 因此不顯示紅色「必填」錯誤，改用中性情境提示並帶到缺少欄位。
-    setFieldError('pickup', '');
-    setFieldError('destination', '');
+    // 地址在自助試算仍是選填；只有按「查看 Google 地圖」這個動作時才需要。
+    // R6 直接把缺少欄位紅框並顯示短提示，不再占用大面積提示區。
     if (missingPickup || missingDestination) {
       showRouteAddressGuidance('map', missingPickup, missingDestination);
       return;
     }
+    setFieldError('pickup', '');
+    setFieldError('destination', '');
     clearRouteAddressGuidance();
     const url = googleMapsUrl();
     if (!url) return;
@@ -246,7 +240,6 @@
         <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 先確認較短距離路線')}</strong>
         <p>${escapeHtml(cfg()['路線步驟說明'] || '輸入上下車地點後開啟 Google 地圖；若有多條路線，請選公里數較少的那條。')}</p>
       </div>
-      <div class="gc-fare-action-note hidden" id="gcFareActionNote" role="status" aria-live="polite"></div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖查看路線')}</button>
       <div class="gc-fare-route-rule" role="note">
@@ -305,10 +298,8 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         details.open = true;
-        // 「選填」是自助試算的整體規則；人工估價只是此動作需要地址。
-        // 不再用紅色必填錯誤造成語意衝突，改用中性提示並自動帶到缺少欄位。
-        setFieldError('pickup', '');
-        setFieldError('destination', '');
+        // 「選填」是自助試算的整體規則；人工估價這個動作需要上下車地址。
+        // 缺哪一格就直接紅框＋短提示，並帶到第一個缺少欄位。
         showRouteAddressGuidance('manual', missingPickup, missingDestination);
       }, true);
     }
@@ -346,13 +337,8 @@
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
         saveDraft();
-        if (input === pickup) setFieldError('pickup', '');
-        if (input === destination) setFieldError('destination', '');
-        if (input === pickup || input === destination) {
-          const note = qs('gcFareActionNote');
-          const kind = note?.dataset.kind;
-          if (kind) showRouteAddressGuidance(kind, !trim(pickup.value), !trim(destination.value));
-        }
+        if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
+        if (input === destination && trim(destination.value)) setFieldError('destination', '');
       });
       input.addEventListener('change', saveDraft);
     });
