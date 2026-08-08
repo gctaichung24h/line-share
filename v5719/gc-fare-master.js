@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   'use strict';
   const MASTER_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_MODULE';
   // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
@@ -260,8 +260,8 @@
     // 車資自助試算可直接填「分鐘＋公里」，不強迫先輸入地址。
     // 只有按 Google 地圖或人工估價時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
     [
-      [pickup, cfg()['自助上車標題'] || '上車地點（選填）'],
-      [destination, cfg()['自助下車標題'] || '下車地點（選填）']
+      [pickup, cfg()['自助上車標題'] || '上車地點'],
+      [destination, cfg()['自助下車標題'] || '下車地點']
     ].forEach(([input, labelText]) => {
       input.required = false;
       const label = input.closest('.field')?.querySelector(`label[for="${input.id}"]`);
@@ -298,7 +298,7 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         details.open = true;
-        // 「選填」是自助試算的整體規則；人工估價這個動作需要上下車地址。
+        // 自助試算時地址不是強制欄位；人工估價這個動作需要上下車地址。
         // 缺哪一格就直接紅框＋短提示，並帶到第一個缺少欄位。
         showRouteAddressGuidance('manual', missingPickup, missingDestination);
       }, true);
