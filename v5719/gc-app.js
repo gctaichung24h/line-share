@@ -1,4 +1,222 @@
-﻿(() => {
+window.GC_FORM_CONFIG = {
+    "liffId":  "2010952768-gu3rzglx",
+    "common":  {
+                   "品牌名稱":  "GC 台中白牌車隊 24H",
+                   "初始化文字":  "正在開啟服務…",
+                   "非LINE開啟提醒":  "請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。",
+                   "傳送中文字":  "傳送中…",
+                   "傳送失敗文字":  "訊息尚未送出，請確認網路後重新送出。",
+                   "預覽模式提醒":  "目前為電腦預覽模式，不會真的傳送到 LINE。",
+                   "缺少傳送權限提醒":  "此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。",
+                   "訊息欄位符號":  "•",
+                   "最近地址標題":  "最近使用地址",
+                   "最近地址刪除":  "刪除",
+                   "最近地址清除全部":  "清除全部",
+                   "最近地址清除確認":  "確定要清除全部最近使用地址嗎？",
+                   "確認提醒":  "請確認上、下車地點與資料是否正確。",
+                   "確認返回按鈕":  "返回修改",
+                   "確認送出按鈕":  "確認送出",
+                   "確認標題_叫車":  "請確認叫車資料",
+                   "確認標題_代駕":  "請確認代駕資料",
+                   "確認標題_估價":  "請確認估價資料",
+                   "選填未填寫":  "未填寫（選填）",
+                   "常用行程標題":  "⭐ 常用行程",
+                   "常用行程儲存":  "儲存目前行程",
+                   "常用行程儲存標題":  "儲存常用行程",
+                   "常用行程名稱標題":  "行程名稱",
+                   "常用行程名稱提示":  "例如：住家 → 公司",
+                   "常用行程空白":  "尚未儲存常用行程。",
+                   "常用行程已滿按鈕":  "已達 3 組上限",
+                   "常用行程需地址":  "請先填寫完整上下車地址。",
+                   "常用行程定位限制":  "目前定位無法直接儲存，請改填完整地址。",
+                   "常用行程已滿":  "最多可儲存 3 組，請先刪除一組。",
+                   "常用行程儲存成功":  "常用行程已儲存。",
+                   "常用行程清除確認":  "確定要清除全部常用行程嗎？",
+                   "定位按鈕":  "📍 使用目前位置",
+                   "定位重新取得":  "📍 重新取得位置",
+                   "定位取得中":  "正在取得定位…",
+                   "定位權限提醒":  "請允許手機存取目前位置。",
+                   "定位成功":  "定位已取得，請確認上車地址。",
+                   "定位不支援":  "此裝置不支援定位，請直接輸入地址。",
+                   "定位拒絕":  "定位權限未開啟，請改輸入完整地址。",
+                   "定位失敗":  "無法取得目前位置，請改輸入完整地址。",
+                   "重複送出提醒":  "相同資料剛剛已送出，請稍候小編回覆。"
+               },
+    "call":  {
+                 "頁面標題":  "即時／預約叫車",
+                 "頁面說明":  "填寫必要資料後即可快速送出。",
+                 "即時選項":  "即時叫車",
+                 "預約選項":  "預約叫車",
+                 "日期標題":  "用車日期",
+                 "時間標題":  "用車時間",
+                 "上車標題":  "上車地址",
+                 "上車提示":  "請輸入完整地址或明確地標",
+                 "下車標題":  "下車地址（選填）",
+                 "下車提示":  "偏鄉、跨縣市、長途請填目的地",
+                 "人數標題":  "搭乘人數（選填）",
+                 "人數提示":  "請選擇實際乘客人數",
+                 "更多資訊標題":  "其他需求（選填）",
+                 "行李標題":  "行李數量（選填）",
+                 "行李提示":  "例如：1個30吋、1個26吋",
+                 "需求標題":  "寵物同行（選填）",
+                 "需求提示":  "請選擇無、有籠或無籠",
+                 "備註標題":  "備註資訊（選填）",
+                 "備註提示":  "其他需要小編或司機留意的資訊",
+                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                 "表格提醒2":  "",
+                 "送出按鈕":  "下一步：確認叫車資料",
+                 "錯誤_用車方式":  "請選擇服務類型。",
+                 "錯誤_日期":  "請填寫資料。",
+                 "錯誤_時間":  "請填寫資料。",
+                 "錯誤_上車地址":  "請填寫資料。",
+                 "訊息標題_即時":  "🚕 我要【叫車】",
+                 "訊息標題_預約":  "🚕 我要【預約叫車】",
+                 "訊息分隔線":  "━─━─━─━─━─━─",
+                 "訊息欄位_用車方式":  "服務類型",
+                 "訊息欄位_日期":  "用車日期",
+                 "訊息欄位_時間":  "用車時間",
+                 "訊息欄位_上車":  "上車地址",
+                 "訊息欄位_下車":  "下車地址",
+                 "訊息欄位_人數":  "搭乘人數",
+                 "訊息欄位_行李":  "行李數量",
+                 "訊息欄位_需求":  "乘車需求",
+                 "訊息欄位_備註":  "備註資訊",
+                 "成功標題":  "✅ 即時叫車表單已成功送出",
+                 "成功內容1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
+                 "成功內容2":  "【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。",
+                 "成功標題_預約":  "✅ 預約叫車表單已成功送出",
+                 "成功內容_預約1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
+                 "成功內容_預約2":  "【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。",
+                 "返回按鈕":  "返回 LINE 聊天室"
+             },
+    "driver":  {
+                   "頁面標題":  "酒後代駕",
+                   "頁面說明":  "填寫代駕地點與服務類型後即可快速送出。",
+                   "即時選項":  "即時代駕",
+                   "預約選項":  "預約代駕",
+                   "日期標題":  "用車日期",
+                   "時間標題":  "用車時間",
+                   "上車標題":  "代駕地點",
+                   "上車提示":  "請輸入車輛目前位置或明確地標",
+                   "下車標題":  "送達地點（選填）",
+                   "下車提示":  "偏鄉、跨縣市、長途請填目的地",
+                   "更多資訊標題":  "備註資訊（選填）",
+                   "車輛資訊標題":  "車輛資訊",
+                   "車輛資訊提示":  "例如：黑色 Toyota、自排、車牌 ABC-1234",
+                   "停車位置標題":  "車輛停放位置",
+                   "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
+                   "備註標題":  "備註資訊（選填）",
+                   "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
+                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                   "表格提醒2":  "",
+                   "送出按鈕":  "下一步：確認代駕資料",
+                   "錯誤_用車方式":  "請選擇服務類型。",
+                   "錯誤_日期":  "請填寫資料。",
+                   "錯誤_時間":  "請填寫資料。",
+                   "錯誤_上車地址":  "請填寫資料。",
+                   "訊息標題_即時":  "🍺 我要【代駕】",
+                   "訊息標題_預約":  "🍺 我要【預約代駕】",
+                   "訊息分隔線":  "━─━─━─━─━─━─",
+                   "訊息欄位_用車方式":  "服務類型",
+                   "訊息欄位_日期":  "用車日期",
+                   "訊息欄位_時間":  "用車時間",
+                   "訊息欄位_上車":  "代駕地點",
+                   "訊息欄位_下車":  "送達地點",
+                   "訊息欄位_車輛":  "車輛資訊",
+                   "訊息欄位_停車":  "車輛停放位置",
+                   "訊息欄位_備註":  "備註資訊",
+                   "成功標題":  "✅ 即時代駕表單已成功送出",
+                   "成功內容1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
+                   "成功內容2":  "【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。",
+                   "成功標題_預約":  "✅ 預約代駕表單已成功送出",
+                   "成功內容_預約1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
+                   "成功內容_預約2":  "【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。",
+                   "返回按鈕":  "返回 LINE 聊天室"
+               },
+    "fare":  {
+                 "頁面標題":  "車資試算",
+                 "頁面引導標題":  "",
+                 "頁面說明":  "查路線 → 填分鐘＋公里 → 立即看預估車資",
+                 "路線步驟標題":  "① 查 Google 路線",
+                 "路線步驟說明":  "",
+                 "路線重點標題":  "想省車資",
+                 "路線重點說明1":  "看公里數較少",
+                 "路線範例1":  "16 分｜10.2 km",
+                 "路線範例2":  "21 分｜7.9 km",
+                 "路線返回提醒":  "路線距離較長時，車資可能增加。",
+                 "路線快速_快標題":  "趕時間",
+                 "路線快速_快內容":  "看時間較短",
+                 "路線教學按鈕":  "怎麼看？",
+                 "路線範例1標籤":  "時間較短",
+                 "路線範例2標籤":  "距離較短",
+                 "路線按鈕":  "開啟 Google 地圖",
+                 "已知數字捷徑":  "",
+                 "錯誤_情境缺資料":  "請填寫資料。",
+                 "計算器標題":  "② 填入分鐘＋公里",
+                 "計算器徽章":  "立即試算",
+                 "計算器說明":  "",
+                 "計算器等待":  "填完兩格，立即顯示預估車資",
+                 "公里標題":  "公里數",
+                 "公里提示":  "例如 7.9",
+                 "時間標題":  "預估時間",
+                 "時間提示":  "例如 21",
+                 "結果標題":  "預估車資",
+                 "低消結果提示":  "最低消費",
+                 "結果依據標題":  "本次試算",
+                 "結果說明1":  "依填入的時間＋公里試算；實際依行駛路線、路況與等候時間為準。",
+                 "結果說明2":  "預估與實際車資可能約有 ±NT${浮動} 元差異。",
+                 "乘車提醒標題":  "路線有偏好？上車告知司機即可",
+                 "乘車提醒主句":  "",
+                 "乘車提醒補充1":  "",
+                 "乘車提醒補充2":  "",
+                 "乘車偏好_省標題":  "省車資",
+                 "乘車偏好_省內容":  "較短距離",
+                 "乘車偏好_快標題":  "趕時間",
+                 "乘車偏好_快內容":  "較快路線",
+                 "乘車偏好_補充":  "較快路線若里程較長，車資可能增加。",
+                 "叫車按鈕":  "價格可以・立即叫車",
+                 "重新查看路線按鈕":  "重新查看 Google 地圖路線",
+                 "費率標題":  "▍中部地區費率",
+                 "費率_全天同價文案":  "24H同一費率｜無夜間加成",
+                 "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
+                 "人工協助標題":  "需要客服協助？",
+                 "人工協助提示":  "",
+                 "人工協助補充":  "請填寫上下車地點，客服將依序協助估價。",
+                 "自助上車標題":  "上車地點",
+                 "自助下車標題":  "下車地點",
+                 "上車標題":  "上車地址",
+                 "上車提示":  "請輸入完整地址或明確地標",
+                 "下車標題":  "下車地址",
+                 "下車提示":  "請輸入完整地址或明確地標",
+                 "送出按鈕":  "仍需客服協助估價",
+                 "錯誤_上車地址":  "請填寫資料。",
+                 "錯誤_下車地址":  "請填寫資料。",
+                 "訊息標題":  "💰 我要【客服協助估價】",
+                 "訊息分隔線":  "━─━─━─━─━─━─",
+                 "訊息欄位_估價方式":  "估價方式",
+                 "訊息內容_估價方式":  "不方便自行試算，需客服協助",
+                 "訊息欄位_上車":  "上車地址",
+                 "訊息欄位_下車":  "下車地址",
+                 "訊息欄位_備註":  "",
+                 "成功標題":  "✅ 估價需求已送出",
+                 "成功內容1":  "客服將依序協助估價，繁忙時可能需要稍候。",
+                 "成功內容2":  "本次僅為車資試算，尚未建立叫車或預約需求。",
+                 "成功內容3":  "",
+                 "返回按鈕":  "返回 LINE 聊天室",
+                 "計價_起跳":  "70",
+                 "計價_每分鐘":  "3",
+                 "計價_每公里":  "15",
+                 "計價_加成起始公里":  "21",
+                 "計價_加成每公里":  "10",
+                 "計價_最低消費":  "100",
+                 "計價_預估浮動":  "30",
+                 "計價_長途門檻":  "45",
+                 "Google地圖路線網址":  "https://www.google.com/maps/dir/?api=1"
+             }
+};
+
+;
+(() => {
   'use strict';
   const GC_BUILD_VERSION = 'master202608r9';
   let gcLastVersionCheck = 0;
@@ -2372,3 +2590,856 @@
   if (loadingText && COMMON['初始化文字']) loadingText.textContent = COMMON['初始化文字'];
   initialize();
 })();
+
+;
+(() => {
+  'use strict';
+
+  const params = new URLSearchParams(location.search);
+  const mode = params.get('mode');
+  const isCall = mode === 'call';
+  const isDriver = mode === 'driver';
+  const isFare = mode === 'fare';
+  if (!isCall && !isDriver && !isFare) return;
+
+  const CONFIG = window.GC_FORM_CONFIG || {};
+  const COMMON = CONFIG.common || {};
+  const VEHICLES = {
+    suv: { label: '休旅車', fee: 0 },
+    imported: { label: '進口車', fee: 200 },
+    six: { label: '六人座', fee: 100 },
+    seven: { label: '七人座', fee: 100 },
+    nine: { label: '九人座', fee: 250 }
+  };
+
+  let applied = false;
+  let sendPatched = false;
+  let favoriteSheetScrollY = 0;
+
+  const value = id => String(document.getElementById(id)?.value || '').trim();
+  const selectedVehicle = () => VEHICLES[value('gcVehicle')] || null;
+  const passengerCount = () => Number.parseInt(value('passengers'), 10) || 0;
+  const passengerFee = () => passengerCount() >= 5 ? (passengerCount() - 4) * 50 : 0;
+  const petRaw = () => document.querySelector('input[name="gcPet"]:checked')?.value || '';
+  const petText = () => petRaw() === 'caged' ? '有（有籠）' : petRaw() === 'uncaged' ? '有（無籠）' : '';
+
+  function fieldById(id) { return document.getElementById(id)?.closest('.field') || null; }
+  function relabel(field, text) { const label = field?.querySelector(':scope > label'); if (label) label.textContent = text; }
+  function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
+
+  function makeLabelRow(field, action) {
+    if (!field || field.querySelector(':scope > .field-label-row')) return;
+    const label = field.querySelector(':scope > label');
+    if (!label) return;
+    const row = document.createElement('div');
+    row.className = 'field-label-row';
+    field.insertBefore(row, label);
+    row.appendChild(label);
+    if (action) row.appendChild(action);
+  }
+
+  function createFavoriteSheet(destination, favorite) {
+    if (!destination || !favorite || document.getElementById('gcFavoriteSheet')) return;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.id = 'gcFavoriteToggle';
+    toggle.className = 'field-inline-btn';
+    toggle.textContent = '⭐常用行程';
+    toggle.setAttribute('aria-expanded', 'false');
+    makeLabelRow(destination, toggle);
+
+    const sheet = document.createElement('div');
+    sheet.id = 'gcFavoriteSheet';
+    sheet.className = 'gc-sheet-overlay hidden';
+    sheet.innerHTML = `<section class="gc-sheet" role="dialog" aria-modal="true" aria-label="常用行程">
+      <div class="gc-sheet-handle"></div>
+      <div class="gc-sheet-head"><strong>⭐ 常用行程</strong><button type="button" class="gc-sheet-close" aria-label="關閉">✕</button></div>
+      <div class="gc-sheet-body"></div>
+    </section>`;
+    favorite.classList.add('gc-favorite-sheet-box');
+    favorite.open = true;
+    sheet.querySelector('.gc-sheet-body').appendChild(favorite);
+    document.body.appendChild(sheet);
+
+    const close = () => {
+      sheet.classList.add('hidden');
+      sheet.hidden = true;
+      sheet.setAttribute('aria-hidden', 'true');
+      sheet.style.setProperty('display', 'none', 'important');
+      document.body.classList.remove('gc-sheet-open');
+      document.documentElement.classList.remove('gc-sheet-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      toggle.setAttribute('aria-expanded', 'false');
+      window.scrollTo(0, favoriteSheetScrollY);
+    };
+    const open = () => {
+      const y = window.scrollY;
+      const active = document.activeElement;
+      if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) active.blur();
+      const reveal = () => {
+        favorite.open = true;
+        favoriteSheetScrollY = y;
+        window.scrollTo(0, y);
+        sheet.hidden = false;
+        sheet.removeAttribute('aria-hidden');
+        sheet.style.removeProperty('display');
+        sheet.classList.remove('hidden');
+        document.documentElement.classList.add('gc-sheet-open');
+        document.body.classList.add('gc-sheet-open');
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${y}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+        document.body.style.overflow = 'hidden';
+        toggle.setAttribute('aria-expanded', 'true');
+      };
+      setTimeout(reveal, 180);
+      setTimeout(() => window.scrollTo(0, y), 300);
+    };
+    toggle.addEventListener('click', open);
+    sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
+    sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
+    sheet.addEventListener('click', event => {
+      // V8.1: capture 階段先關 Sheet，再讓儲存 Dialog 開啟，杜絕雙層視窗。
+      if (event.target.closest('#favoriteSaveBtn')) close();
+      if (event.target.closest('#favoriteClearBtn')) close();
+      if (event.target.closest('.favorite-use')) setTimeout(close, 0);
+    }, true);
+
+    const saveOverlay = document.getElementById('favoriteSaveOverlay');
+    if (saveOverlay) {
+      new MutationObserver(() => {
+        if (!saveOverlay.classList.contains('hidden')) close();
+      }).observe(saveOverlay, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  function compactAddressActions() {
+    const pickup = document.getElementById('pickup')?.closest('.address-field');
+    const locationAction = document.getElementById('locationAction');
+    const locationStatus = document.getElementById('locationStatus');
+    if (pickup) {
+      pickup.classList.add('gc-primary-address', 'gc-pickup-address');
+      if (locationAction) {
+        locationAction.classList.add('field-inline-action');
+        const button = locationAction.querySelector('.location-btn');
+        if (button) button.textContent = '📍目前位置';
+        makeLabelRow(pickup, locationAction);
+        if (locationStatus) pickup.appendChild(locationStatus);
+      } else makeLabelRow(pickup, null);
+    }
+    const destination = document.getElementById('destination')?.closest('.address-field');
+    if (destination) destination.classList.add('gc-primary-address', 'gc-destination-address');
+    createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
+  }
+
+  function addVehicleField() {
+    if (!isCall || document.getElementById('gcVehicle')) return;
+    const pickup = fieldById('pickup');
+    if (!pickup) return;
+    const field = document.createElement('div');
+    field.className = 'field gc-vehicle-field';
+    field.innerHTML = `
+      <label for="gcVehicle">指定車型（選填）</label>
+      <select class="input gc-select" id="gcVehicle" name="gcVehicle">
+        <option value="">不指定（隨機派車）</option>
+        <option value="suv">休旅車</option>
+        <option value="imported">進口車</option>
+        <option value="six">六人座</option>
+        <option value="seven">七人座</option>
+        <option value="nine">九人座</option>
+      </select>
+      <details class="gc-info-disclosure">
+        <summary>ⓘ 車型與加價說明</summary>
+        <div class="gc-info-disclosure-body">
+          <p><strong>僅指定車型｜品牌／車款隨機媒合。</strong></p>
+          <p><strong>不指定最快｜指定可能影響媒合速度與成功率。</strong></p>
+          <p>休旅車不加價｜進口車 +200｜六、七人座 +100｜九人座 +250。</p>
+        </div>
+      </details>
+      <div id="gcVehicleNotice" class="gc-price-notice hidden" aria-live="polite"></div>`;
+    pickup.before(field);
+    const vehicleSelect = field.querySelector('select');
+    const disclosure = field.querySelector('.gc-info-disclosure');
+    const vehicleNotice = field.querySelector('#gcVehicleNotice');
+    vehicleSelect?.addEventListener('change', () => {
+      // V8: 切換車型時完整說明自動收起，只留該車型的精簡提示。
+      if (disclosure) disclosure.open = false;
+      updateNotices();
+    });
+    disclosure?.addEventListener('toggle', () => {
+      // V8: 同一時間只顯示一個資訊區，避免兩張說明卡堆疊。
+      if (vehicleNotice) {
+        if (disclosure.open) vehicleNotice.classList.add('gc-v8-suppressed');
+        else { vehicleNotice.classList.remove('gc-v8-suppressed'); updateNotices(); }
+      }
+    });
+  }
+
+  function replacePassengersAndExpose() {
+    if (!isCall) return;
+    const old = document.getElementById('passengers');
+    if (!old) return;
+    let select = old;
+    if (old.tagName !== 'SELECT') {
+      select = document.createElement('select');
+      select.id = 'passengers';
+      select.name = 'passengers';
+      select.className = `${old.className || 'input'} gc-select`;
+      select.innerHTML = '<option value="">請選擇實際乘客人數</option>' +
+        Array.from({ length: 8 }, (_, i) => `<option value="${i + 1}人">${i + 1}人</option>`).join('');
+      old.replaceWith(select);
+    }
+    const field = select.closest('.field');
+    relabel(field, '搭乘人數（選填）');
+    if (!document.getElementById('gcPeopleNotice')) {
+      const notice = document.createElement('div');
+      notice.id = 'gcPeopleNotice';
+      notice.className = 'gc-price-notice hidden';
+      field?.appendChild(notice);
+    }
+    select.addEventListener('change', updateNotices);
+
+    const destination = fieldById('destination');
+    if (field && destination && field.previousElementSibling !== destination) destination.after(field);
+  }
+
+  function addPetField(anchor) {
+    if (!isCall || document.getElementById('gcPetField') || !anchor) return;
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.id = 'gcPetField';
+    field.innerHTML = `<div class="field-label">寵物同行（選填）</div>
+      <div class="choice-row gc-pet-row">
+        <label class="choice"><input type="radio" name="gcPet" value="none"><span>無</span></label>
+        <label class="choice"><input type="radio" name="gcPet" value="caged"><span>有籠</span></label>
+        <label class="choice"><input type="radio" name="gcPet" value="uncaged"><span>無籠</span></label>
+      </div><div id="gcPetNotice" class="gc-price-notice hidden"></div>`;
+    anchor.before(field);
+    field.querySelectorAll('input').forEach(input => input.addEventListener('change', updateNotices));
+  }
+
+  function forcePassengerPublicPosition() {
+    if (!isCall) return;
+    const passenger = fieldById('passengers');
+    const destination = fieldById('destination');
+    if (!passenger || !destination) return;
+    passenger.classList.add('gc-passenger-public');
+    if (passenger.parentElement?.classList.contains('optional-content')) {
+      destination.after(passenger);
+    } else if (destination.nextElementSibling !== passenger) {
+      destination.after(passenger);
+    }
+  }
+
+  function restructureCallDetails() {
+    const form = document.getElementById('serviceForm');
+    if (!form) return;
+    const details = [...form.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const baggage = fieldById('baggage');
+    const requirements = fieldById('requirements');
+    const notes = fieldById('notes');
+    requirements?.remove();
+    if (!details) return;
+    details.classList.add('gc-secondary-box');
+    const summary = details.querySelector('summary');
+    const content = details.querySelector('.optional-content');
+    if (summary) {
+      const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
+      summary.textContent = '其他需求（選填）';
+      if (disclosureTrigger) summary.appendChild(disclosureTrigger);
+    }
+    if (baggage) {
+      relabel(baggage, '行李數量（選填）');
+      baggage.querySelector('input')?.setAttribute('placeholder', '例如：1個30吋、1個26吋');
+    }
+    if (notes) {
+      relabel(notes, '備註資訊（選填）');
+      notes.querySelector('textarea')?.setAttribute('placeholder', '其他需要小編或司機留意的資訊');
+    }
+    addPetField(baggage || notes);
+    const pet = document.getElementById('gcPetField');
+    [pet, baggage, notes].forEach(field => { if (field && content && field.parentNode !== content) content.appendChild(field); });
+  }
+
+  function restructureDriver() {
+    const form = document.getElementById('serviceForm');
+    if (!form) return;
+    fieldById('vehicle')?.remove();
+    fieldById('parking')?.remove();
+    const details = [...form.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
+    const notes = fieldById('notes');
+    if (details) {
+      details.classList.add('gc-secondary-box');
+      const summary = details.querySelector('summary');
+      if (summary) {
+        // V8.5: 保留右側小型展開／收合控制；不可用 textContent 把按鈕一起清掉。
+        const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
+        summary.textContent = '備註資訊（選填）';
+        if (disclosureTrigger) summary.appendChild(disclosureTrigger);
+      }
+      if (notes) {
+        const innerLabel = notes.querySelector(':scope > label, :scope > .field-label');
+        if (innerLabel) innerLabel.remove();
+        notes.classList.add('gc-driver-note-field');
+      }
+    }
+  }
+
+  function updateNotices() {
+    const v = selectedVehicle();
+    const vf = v?.fee || 0;
+    const pf = passengerFee();
+    const vn = document.getElementById('gcVehicleNotice');
+    const pn = document.getElementById('gcPeopleNotice');
+    const petn = document.getElementById('gcPetNotice');
+    const feeBase = Math.max(vf, pf);
+
+    if (vn) {
+      let lines = [];
+      if (v) {
+        lines.push('<span class="gc-notice-kicker">媒合提醒</span><strong>指定車型可能影響媒合速度與成功率。</strong>');
+        lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
+      }
+      vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
+      vn.classList.toggle('hidden', lines.length === 0);
+    }
+    if (pn) {
+      const lines = [];
+      if (pf > 0) lines.push(`<span class="gc-fee-line">加價資訊 <b>${passengerCount()}位乘客 +NT$${pf}</b></span>`);
+      if (vf > 0 && pf > 0) lines.push('<span class="gc-fee-rule">車型與人數加價取較高者，不重複累加。</span>');
+      pn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
+      pn.classList.toggle('hidden', lines.length === 0);
+    }
+    if (petn) {
+      const show = petRaw() === 'uncaged';
+      petn.innerHTML = show ? '<p><span class="gc-fee-line">加價資訊 <b>無籠寵物 +NT$50</b></span></p>' : '';
+      petn.classList.toggle('hidden', !show);
+    }
+  }
+
+  function cleanConfirmation() {
+    const overlay = document.getElementById('confirmOverlay');
+    const summary = document.getElementById('confirmSummary');
+    if (!overlay || !summary || overlay.classList.contains('hidden')) return;
+    const removeLabels = ['跨縣市方向', '行程方向', '車輛資訊', '車輛停放位置', '乘車需求', '補充資訊'];
+    [...summary.querySelectorAll('.confirm-row')].forEach(row => {
+      const label = row.querySelector('span')?.textContent.trim();
+      const data = row.querySelector('strong')?.textContent.trim();
+      if (removeLabels.includes(label) || ((label === '下車地址' || label === '送達地點') && /^未填寫/.test(data || ''))) row.remove();
+    });
+    if (!isCall) return;
+    summary.querySelectorAll('[data-gc-v7-extra]').forEach(row => row.remove());
+    const serviceRow = [...summary.querySelectorAll('.confirm-row')].find(row => row.querySelector('span')?.textContent.trim() === '服務類型');
+    const noteRow = [...summary.querySelectorAll('.confirm-row')].find(row => row.querySelector('span')?.textContent.trim() === '備註資訊');
+    const addRow = (label, text, afterService = false) => {
+      if (!text) return;
+      const row = document.createElement('div');
+      row.className = 'confirm-row';
+      row.dataset.gcV7Extra = '1';
+      row.innerHTML = `<span>${label}</span><strong>${text}</strong>`;
+      if (afterService && serviceRow) serviceRow.after(row); else summary.insertBefore(row, noteRow || null);
+    };
+    addRow('指定車型', selectedVehicle()?.label || '', true);
+    addRow('寵物同行', petText());
+
+    const vehicleFee = selectedVehicle()?.fee || 0;
+    const peopleFee = passengerFee();
+    const petFee = petRaw() === 'uncaged' ? 50 : 0;
+    const extraTotal = Math.max(vehicleFee, peopleFee) + petFee;
+    {
+      const row = document.createElement('div');
+      row.className = 'confirm-row gc-confirm-extra-total';
+      row.dataset.gcV7Extra = '1';
+      row.innerHTML = `<span>除車資外，另加收費用</span><strong>NT$${extraTotal}</strong>`;
+      summary.appendChild(row);
+    }
+  }
+
+  function transformMessage(text) {
+    let lines = String(text).split('\n').filter(line => !/[•・]\s*(跨縣市方向|行程方向|車輛資訊|車輛停放位置|乘車需求|補充資訊)\s*：/.test(line));
+    if (isDriver || isFare) return lines.join('\n');
+    if (!isCall || !/^🚕 我要【(?:預約)?叫車】/.test(lines[0] || '')) return lines.join('\n');
+    lines = lines.filter(line => !/[•・]\s*(指定車型|寵物同行)\s*：/.test(line));
+    const symbol = COMMON['訊息欄位符號'] || '•';
+    const serviceIndex = lines.findIndex(line => /[•・]\s*服務類型：/.test(line));
+    if (selectedVehicle()) lines.splice(serviceIndex >= 0 ? serviceIndex + 1 : 2, 0, `${symbol} 指定車型：🈯️${selectedVehicle().label}`);
+    if (petText()) {
+      let noteIndex = lines.findIndex(line => /[•・]\s*備註資訊：/.test(line));
+      if (noteIndex < 0) noteIndex = lines.length;
+      lines.splice(noteIndex, 0, `${symbol} 寵物同行：${petText()}`);
+    }
+    return lines.join('\n');
+  }
+
+  function patchSend() {
+    if (sendPatched || !window.liff || typeof window.liff.sendMessages !== 'function') return false;
+    const original = window.liff.sendMessages.bind(window.liff);
+    window.liff.sendMessages = messages => original(messages.map(message => message?.type === 'text' ? { ...message, text: transformMessage(message.text) } : message));
+    sendPatched = true;
+    return true;
+  }
+
+  function applyOnce() {
+    const form = document.getElementById('serviceForm');
+    if (!form || applied) return false;
+    applied = true;
+    compactAddressActions();
+    removeFieldByInputName('direction');
+    if (isCall) {
+      addVehicleField();
+      replacePassengersAndExpose();
+      restructureCallDetails();
+      window.GC_bindSmallDisclosureTriggers?.();
+      setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 0);
+      setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 120);
+      forcePassengerPublicPosition();
+      updateNotices();
+      setTimeout(forcePassengerPublicPosition, 0);
+      setTimeout(forcePassengerPublicPosition, 160);
+    } else if (isDriver) {
+      restructureDriver();
+    } else if (isFare) {
+      [...form.querySelectorAll('details.optional-box')].filter(d => d.id !== 'favoriteTripsBox').forEach(d => d.remove());
+    }
+    const overlay = document.getElementById('confirmOverlay');
+    if (overlay) new MutationObserver(cleanConfirmation).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    cleanConfirmation();
+    return true;
+  }
+
+  let tries = 0;
+  const timer = setInterval(() => {
+    tries += 1;
+    applyOnce();
+    patchSend();
+    if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
+  }, 50);
+})();
+
+;
+(() => {
+  'use strict';
+  const params = new URLSearchParams(location.search);
+  if (params.get('mode') !== 'call') return;
+  let tries = 0;
+  const placePassenger = () => {
+    tries += 1;
+    const passengerInput = document.getElementById('passengers');
+    const destinationInput = document.getElementById('destination');
+    const passengerField = passengerInput?.closest('.field');
+    const destinationField = destinationInput?.closest('.field');
+    if (!passengerField || !destinationField) {
+      if (tries < 120) setTimeout(placePassenger, 50);
+      return;
+    }
+    passengerField.classList.add('gc-passenger-public');
+    passengerField.style.display = 'block';
+    passengerField.style.visibility = 'visible';
+    if (destinationField.nextElementSibling !== passengerField) destinationField.after(passengerField);
+    const label = passengerField.querySelector(':scope > label');
+    if (label) label.textContent = '搭乘人數（選填）';
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', placePassenger, { once: true });
+  else placePassenger();
+})();
+
+;
+(() => {
+  'use strict';
+  const MASTER_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_MODULE';
+  // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
+  // GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
+  // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
+  // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
+  // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
+  const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
+  const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
+  const HANDOFF_KEY = 'gc_fare_to_call_v2';
+  const SNAPSHOT_PREFIX = 'gc_fare_flow_v2_';
+  const FLOW_STATE_KEY = 'gcFareFlowId';
+  const FLOW_RETURN_KEY = 'gcFareReturnFromCall';
+  const TTL_MS = 20 * 60 * 1000;
+
+  const cfg = () => (window.GC_FORM_CONFIG && window.GC_FORM_CONFIG.fare) || {};
+  const qs = id => document.getElementById(id);
+  const trim = value => String(value || '').trim();
+  const safeSessionGet = key => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.createdAt || Date.now() - parsed.createdAt > TTL_MS) {
+        sessionStorage.removeItem(key);
+        return null;
+      }
+      return parsed;
+    } catch (_) { return null; }
+  };
+  const safeSessionSet = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
+  const safeSessionRemove = key => { try { sessionStorage.removeItem(key); } catch (_) {} };
+  const clearLegacyFareStorage = () => {
+    try { localStorage.removeItem(LEGACY_DRAFT_KEY); localStorage.removeItem(LEGACY_HANDOFF_KEY); } catch (_) {}
+  };
+  const newFlowId = () => `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  function currentFareFlow(create = false) {
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    let id = trim(state[FLOW_STATE_KEY]);
+    if (!id && create) {
+      id = newFlowId();
+      history.replaceState({ ...state, [FLOW_STATE_KEY]: id, [FLOW_RETURN_KEY]: false }, '', location.href);
+    }
+    return id;
+  }
+  const snapshotKey = flowId => SNAPSHOT_PREFIX + flowId;
+  function markFareContinuity() {
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = currentFareFlow(true);
+    if (state[FLOW_RETURN_KEY] === true && trim(state[FLOW_STATE_KEY]) === flowId) return flowId;
+    history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
+    return flowId;
+  }
+  const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+
+  function currentMode() {
+    return new URLSearchParams(location.search).get('mode') || '';
+  }
+
+  function setFieldError(id, message) {
+    const input = qs(id);
+    const error = qs(id + 'Error');
+    const active = Boolean(message);
+    if (input) {
+      input.classList.toggle('invalid', active);
+      if (active) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+      input.closest('.field')?.classList.toggle('gc-validation-error', active);
+    }
+    if (error) {
+      error.textContent = message || '';
+      error.classList.toggle('show', active);
+      if (active) error.setAttribute('role', 'alert');
+      else error.removeAttribute('role');
+    }
+  }
+
+  function saveDraft() {
+    const flowId = markFareContinuity();
+    const pickup = trim(qs('pickup')?.value);
+    const destination = trim(qs('destination')?.value);
+    const km = trim(qs('fareKm')?.value);
+    const minutes = trim(qs('fareMinutes')?.value);
+    if (!pickup && !destination && !km && !minutes) { safeSessionRemove(snapshotKey(flowId)); return; }
+    safeSessionSet(snapshotKey(flowId), { pickup, destination, km, minutes, createdAt: Date.now() });
+  }
+
+  function hideLocalSuggestionBox(id) {
+    const box = qs(id + 'Suggest');
+    if (!box) return;
+    box.innerHTML = '';
+    box.classList.add('hidden');
+  }
+
+  function setAddressValueSilently(input, value) {
+    if (!input || !trim(value)) return false;
+    input.value = value;
+    // app-v5719.js 的智慧地址監聽器會讀這個一次性旗標；
+    // 程式帶入/草稿恢復不是新的使用者輸入，不應再次彈出候選清單。
+    input.dataset.gcSkipSuggestOnce = '1';
+    hideLocalSuggestionBox(input.id);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    hideLocalSuggestionBox(input.id);
+    return true;
+  }
+
+  function restoreDraft() {
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = trim(state[FLOW_STATE_KEY]);
+    // 同一個車資流程內（含看 Google 地圖、轉叫車後返回）可恢復 20 分鐘。
+    // 從 LINE 選單重新進入車資試算會建立新 flow，不讀舊快照，因此保持空白。
+    if (!flowId || state[FLOW_RETURN_KEY] !== true) return false;
+    const draft = safeSessionGet(snapshotKey(flowId));
+    if (!draft) return false;
+    [['pickup', draft.pickup], ['destination', draft.destination], ['fareKm', draft.km], ['fareMinutes', draft.minutes]].forEach(([id, value]) => {
+      const input = qs(id);
+      if (!input || trim(input.value) || !trim(value)) return;
+      if (id === 'pickup' || id === 'destination') setAddressValueSilently(input, value);
+      else {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = qs('fareCalcResult');
+      if (target?.classList.contains('is-ready')) target.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }));
+    return true;
+  }
+
+  function googleMapsUrl() {
+    const pickup = trim(qs('pickup')?.value);
+    const destination = trim(qs('destination')?.value);
+    if (!pickup || !destination) return '';
+
+    const base = trim(cfg()['Google地圖路線網址']) || 'https://www.google.com/maps/dir/?api=1';
+    let url;
+    try { url = new URL(base); }
+    catch (_) { url = new URL('https://www.google.com/maps/dir/?api=1'); }
+    url.searchParams.set('api', '1');
+    url.searchParams.set('travelmode', 'driving');
+    url.searchParams.set('origin', pickup);
+    url.searchParams.set('destination', destination);
+    return url.toString();
+  }
+
+  function clearRouteAddressGuidance() {
+    // R6：不再顯示大面積提示框；缺哪一格就直接在該欄位紅框提示。
+    const note = qs('gcFareActionNote');
+    if (note) note.remove();
+  }
+
+  function showRouteAddressGuidance(kind, missingPickup, missingDestination) {
+    const message = cfg()['錯誤_情境缺資料'] || '請填寫資料。';
+    setFieldError('pickup', missingPickup ? message : '');
+    setFieldError('destination', missingDestination ? message : '');
+    if (!missingPickup && !missingDestination) return;
+    const firstMissing = missingPickup ? qs('pickup') : qs('destination');
+    requestAnimationFrame(() => {
+      firstMissing?.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        try { firstMissing?.focus({ preventScroll: true }); }
+        catch (_) { try { firstMissing?.focus(); } catch (_) {} }
+      }, 280);
+    });
+  }
+
+  function openMaps() {
+    const missingPickup = !trim(qs('pickup')?.value);
+    const missingDestination = !trim(qs('destination')?.value);
+    // 地址在自助試算不是強制欄位；只有按「查看 Google 地圖」這個動作時才需要。
+    // R6 直接把缺少欄位紅框並顯示短提示，不再占用大面積提示區。
+    if (missingPickup || missingDestination) {
+      showRouteAddressGuidance('map', missingPickup, missingDestination);
+      return;
+    }
+    setFieldError('pickup', '');
+    setFieldError('destination', '');
+    clearRouteAddressGuidance();
+    const url = googleMapsUrl();
+    if (!url) return;
+    saveDraft();
+    try {
+      if (window.liff && typeof window.liff.isInClient === 'function' && window.liff.isInClient() && typeof window.liff.openWindow === 'function') {
+        window.liff.openWindow({ url, external: true });
+        return;
+      }
+    } catch (_) {}
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) location.href = url;
+  }
+
+  function refreshFareAction() {
+    const result = qs('fareCalcResult');
+    const action = qs('gcFareCallAction');
+    const mapsAgain = qs('gcFareMapsAgain');
+    if (!result || !action || !mapsAgain) return;
+    const ready = result.classList.contains('is-ready');
+    action.classList.toggle('hidden', !ready);
+    mapsAgain.classList.toggle('hidden', !ready);
+  }
+
+  function toCall() {
+    const pickup = trim(qs('pickup')?.value);
+    const destination = trim(qs('destination')?.value);
+    // 自助試算只需要分鐘＋公里；地址是「開 Google 地圖」的便利資料，不是進叫車頁的門檻。
+    // 有填就安全帶入，沒填就讓既有叫車表格照原規則由客人補填；下車地址仍維持叫車端選填。
+    setFieldError('pickup', '');
+    setFieldError('destination', '');
+    saveDraft();
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = currentFareFlow(true);
+    history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
+    safeSessionSet(HANDOFF_KEY, { pickup, destination, flowId, createdAt: Date.now() });
+    const url = new URL(location.href);
+    url.searchParams.set('mode', 'call');
+    url.searchParams.delete('_r');
+    location.assign(url.toString());
+  }
+
+  function enhanceFare() {
+    if (document.documentElement.dataset.gcFareMasterReady === '1') return true;
+    const fareCard = document.querySelector('.gc-fare-card');
+    const calc = document.querySelector('.gc-fare-calc');
+    const form = qs('serviceForm');
+    const pickup = qs('pickup');
+    const destination = qs('destination');
+    if (!fareCard || !calc || !form || !pickup || !destination) return false;
+    document.documentElement.dataset.gcFareMasterReady = '1';
+
+    const pickupField = pickup.closest('.field');
+    const destinationField = destination.closest('.field');
+    const routeStep = document.createElement('section');
+    routeStep.className = 'gc-fare-route-step';
+    routeStep.id = 'gcFareRouteStep';
+    const routeIntro = trim(cfg()['路線步驟說明']);
+    routeStep.innerHTML = `
+      <div class="gc-fare-step-head">
+        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
+        ${routeIntro ? `<p>${escapeHtml(routeIntro)}</p>` : ''}
+      </div>
+      <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
+      <div class="gc-fare-route-quick" aria-label="路線選擇提示">
+        <div class="gc-fare-route-quick-row">
+          <b>${escapeHtml(cfg()['路線重點標題'] || '想省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
+        </div>
+        <div class="gc-fare-route-quick-row">
+          <b>${escapeHtml(cfg()['路線快速_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
+        </div>
+        <div class="gc-fare-route-quick-foot">${escapeHtml(cfg()['路線返回提醒'] || '路線距離較長時，車資可能增加。')}</div>
+        <details class="gc-fare-route-how">
+          <summary>${escapeHtml(cfg()['路線教學按鈕'] || '怎麼看？')}</summary>
+          <div class="gc-fare-route-how-body">
+            <div><span>${escapeHtml(cfg()['路線範例1'] || '16 分｜10.2 km')}</span><b>${escapeHtml(cfg()['路線範例1標籤'] || '時間較短')}</b></div>
+            <div><span>${escapeHtml(cfg()['路線範例2'] || '21 分｜7.9 km')}</span><b>${escapeHtml(cfg()['路線範例2標籤'] || '距離較短')}</b></div>
+          </div>
+        </details>
+      </div>
+      <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
+    calc.parentNode.insertBefore(routeStep, calc);
+    const routeFields = qs('gcFareRouteFields');
+    if (pickupField) routeFields.appendChild(pickupField);
+    if (destinationField) routeFields.appendChild(destinationField);
+
+    // 車資自助試算可直接填「分鐘＋公里」，不強迫先輸入地址。
+    // 只有按 Google 地圖或人工估價時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
+    [
+      [pickup, cfg()['自助上車標題'] || '上車地點'],
+      [destination, cfg()['自助下車標題'] || '下車地點']
+    ].forEach(([input, labelText]) => {
+      input.required = false;
+      const label = input.closest('.field')?.querySelector(`label[for="${input.id}"]`);
+      if (label) label.textContent = labelText;
+    });
+
+    const manual = document.querySelector('.gc-fare-manual');
+    const manualHead = manual?.querySelector('.gc-fare-manual-head');
+    if (manual && manualHead) {
+      const details = document.createElement('details');
+      details.className = 'gc-fare-manual-details';
+      const summary = document.createElement('summary');
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要客服協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">＋</b>`;
+      const inner = document.createElement('div');
+      inner.className = 'gc-fare-manual-inner';
+      const extra = document.createElement('p');
+      extra.className = 'gc-fare-manual-extra';
+      extra.textContent = cfg()['人工協助補充'] || '請填寫上下車地點，客服將依序協助估價。';
+      manualHead.remove();
+      manual.parentNode.insertBefore(details, manual);
+      details.appendChild(summary);
+      details.appendChild(inner);
+      inner.appendChild(extra);
+      inner.appendChild(form);
+      manual.remove();
+      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '－' : '＋'; });
+
+      // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
+      // 必須直接把畫面帶到第一個缺少的地址並顯示原本錯誤提示。
+      form.addEventListener('submit', event => {
+        const missingPickup = !trim(pickup.value);
+        const missingDestination = !trim(destination.value);
+        if (!missingPickup && !missingDestination) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        details.open = true;
+        // 自助試算時地址不是強制欄位；人工估價這個動作需要上下車地址。
+        // 缺哪一格就直接紅框＋短提示，並帶到第一個缺少欄位。
+        showRouteAddressGuidance('manual', missingPickup, missingDestination);
+      }, true);
+    }
+
+    const result = qs('fareCalcResult');
+    if (result) {
+      const reminder = document.createElement('section');
+      reminder.className = 'gc-fare-ride-reminder';
+      reminder.id = 'gcFareRideReminder';
+      reminder.innerHTML = `
+        <strong>${escapeHtml(cfg()['乘車提醒標題'] || '路線有偏好？上車告知司機即可')}</strong>
+        <div class="gc-fare-preference-list">
+          <div class="gc-fare-preference-row"><b>${escapeHtml(cfg()['乘車偏好_省標題'] || '省車資')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['乘車偏好_省內容'] || '較短距離')}</span></div>
+          <div class="gc-fare-preference-row"><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b><i aria-hidden="true">→</i><span>${escapeHtml(cfg()['乘車偏好_快內容'] || '較快路線')}</span></div>
+        </div>
+        <p class="gc-fare-preference-note">${escapeHtml(cfg()['乘車偏好_補充'] || '較快路線若里程較長，車資可能增加。')}</p>`;
+      result.appendChild(reminder);
+
+      const actionWrap = document.createElement('div');
+      actionWrap.className = 'gc-fare-result-actions hidden';
+      actionWrap.id = 'gcFareCallAction';
+      actionWrap.innerHTML = `<button type="button" class="gc-fare-call-btn" id="gcFareCallBtn">${escapeHtml(cfg()['叫車按鈕'] || '價格可以・立即叫車')}</button>`;
+      result.appendChild(actionWrap);
+
+      const mapsAgain = document.createElement('button');
+      mapsAgain.type = 'button';
+      mapsAgain.className = 'gc-fare-maps-again hidden';
+      mapsAgain.id = 'gcFareMapsAgain';
+      mapsAgain.textContent = cfg()['重新查看路線按鈕'] || '重新查看 Google 地圖路線';
+      result.appendChild(mapsAgain);
+    }
+
+    qs('gcFareMapBtn')?.addEventListener('click', openMaps);
+    qs('gcFareMapsAgain')?.addEventListener('click', openMaps);
+    qs('gcFareCallBtn')?.addEventListener('click', toCall);
+    [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
+      input.addEventListener('input', () => {
+        saveDraft();
+        if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
+        if (input === destination && trim(destination.value)) setFieldError('destination', '');
+      });
+      input.addEventListener('change', saveDraft);
+    });
+    ['fareKm', 'fareMinutes'].forEach(id => {
+      qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
+      qs(id)?.addEventListener('change', () => setTimeout(refreshFareAction, 0));
+    });
+    clearLegacyFareStorage();
+    currentFareFlow(true);
+    restoreDraft();
+    refreshFareAction();
+    return true;
+  }
+
+  function consumeCallHandoff() {
+    if (document.documentElement.dataset.gcFareHandoffDone === '1') return true;
+    const pickup = qs('pickup');
+    const destination = qs('destination');
+    if (!pickup || !destination || !document.querySelector('#serviceForm')) return false;
+    document.documentElement.dataset.gcFareHandoffDone = '1';
+    const handoff = safeSessionGet(HANDOFF_KEY);
+    if (!handoff) return true;
+    if (!trim(pickup.value) && trim(handoff.pickup)) setAddressValueSilently(pickup, handoff.pickup);
+    if (!trim(destination.value) && trim(handoff.destination)) setAddressValueSilently(destination, handoff.destination);
+    // 只消耗「帶入叫車」資料；原車資快照保留 20 分鐘，供瀏覽器返回查看。
+    safeSessionRemove(HANDOFF_KEY);
+    return true;
+  }
+
+  function boot() {
+    const mode = currentMode();
+    const run = mode === 'fare' ? enhanceFare : mode === 'call' ? consumeCallHandoff : () => true;
+    if (run()) return;
+    const observer = new MutationObserver(() => { if (run()) observer.disconnect(); });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), 12000);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
+})();
+

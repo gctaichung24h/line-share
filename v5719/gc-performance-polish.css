@@ -1,0 +1,14 @@
+/* GC_MASTER_STABLE_2026_08R9_SPEED_POLISH
+   只做載入感受與互動回饋；不改欄位、功能、費率、文案邏輯。 */
+.loading-card{margin-top:14vh!important;padding:28px 24px!important;min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.loading-card .brand-avatar{width:58px!important;height:58px!important;flex-basis:58px!important;border-radius:18px!important}
+.loading-card p{margin:15px 0 0;color:#60778b;font-size:13px;font-weight:600;letter-spacing:.01em}
+.gc-loading-dots{display:flex;gap:6px;margin-top:13px;height:7px;align-items:center}
+.gc-loading-dots span{display:block;width:6px;height:6px;border-radius:50%;background:#6f96b7;opacity:.34;animation:gcLoadingDot 1.05s ease-in-out infinite}
+.gc-loading-dots span:nth-child(2){animation-delay:.14s}.gc-loading-dots span:nth-child(3){animation-delay:.28s}
+@keyframes gcLoadingDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-2px)}}
+.submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition-property:transform,box-shadow,border-color,background-color,color,opacity;transition-duration:.12s;transition-timing-function:ease-out}
+.submit-btn:active,.back-btn:active,.gc-fare-map-btn:active,.gc-fare-call-btn:active,.gc-fare-maps-again:active,.field-inline-btn:active,.location-btn:active,.gc-sheet-close:active{transform:translateY(1px) scale(.995)}
+.choice input:active+span{transform:scale(.992)}
+.gc-fare-route-how>summary:active,.gc-fare-manual-details>summary:active,.optional-box>summary:active{opacity:.72}
+@media(prefers-reduced-motion:reduce){.gc-loading-dots span{animation:none!important}.submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn,.gc-fare-maps-again,.field-inline-btn,.location-btn,.gc-sheet-close,.choice span,summary{transition:none!important}}
