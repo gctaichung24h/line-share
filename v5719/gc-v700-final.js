@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
+  // GC_MASTER_STABLE_2026_08R10J_PRIMARY_TASK_FIRST_LAYOUT
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -35,14 +36,31 @@
   function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
 
   function makeLabelRow(field, action) {
-    if (!field || field.querySelector(':scope > .field-label-row')) return;
-    const label = field.querySelector(':scope > label');
-    if (!label) return;
-    const row = document.createElement('div');
-    row.className = 'field-label-row';
-    field.insertBefore(row, label);
-    row.appendChild(label);
-    if (action) row.appendChild(action);
+    if (!field) return null;
+    let row = field.querySelector(':scope > .field-label-row');
+    let label = row?.querySelector(':scope > label') || field.querySelector(':scope > label');
+    if (!label) return row || null;
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'field-label-row';
+      field.insertBefore(row, label);
+      row.appendChild(label);
+    }
+    let actions = row.querySelector(':scope > .field-inline-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'field-inline-actions';
+      row.appendChild(actions);
+    }
+    if (action && !actions.contains(action)) actions.appendChild(action);
+    return row;
+  }
+
+  function attachRecentAddressShortcut(field) {
+    if (!field) return;
+    const recent = field.querySelector(':scope > .recent-address-control');
+    if (!recent) return;
+    makeLabelRow(field, recent);
   }
 
   function createFavoriteSheet(destination, favorite) {
@@ -51,7 +69,7 @@
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '⭐常用行程';
+    toggle.textContent = '常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     makeLabelRow(destination, toggle);
 
@@ -133,17 +151,23 @@
     const locationStatus = document.getElementById('locationStatus');
     if (pickup) {
       pickup.classList.add('gc-primary-address', 'gc-pickup-address');
+      makeLabelRow(pickup, null);
+      attachRecentAddressShortcut(pickup);
       if (locationAction) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
-        if (button) button.textContent = '📍目前位置';
+        if (button) button.textContent = '目前位置';
         makeLabelRow(pickup, locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
-      } else makeLabelRow(pickup, null);
+      }
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
-    if (destination) destination.classList.add('gc-primary-address', 'gc-destination-address');
-    createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
+    if (destination) {
+      destination.classList.add('gc-primary-address', 'gc-destination-address');
+      makeLabelRow(destination, null);
+      createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
+      attachRecentAddressShortcut(destination);
+    }
   }
 
   function addVehicleField() {

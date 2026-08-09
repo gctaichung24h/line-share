@@ -5,6 +5,7 @@
   // GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
   // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
+  // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -184,7 +185,7 @@
     clearRouteAddressGuidance();
     const url = googleMapsUrl();
     if (!url) return;
-    window.GC_rememberRecentAddresses?.([trim(qs('destination')?.value), trim(qs('pickup')?.value)]);
+    // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();
     try {
       if (window.liff && typeof window.liff.isInClient === 'function' && window.liff.isInClient() && typeof window.liff.openWindow === 'function') {
@@ -241,7 +242,7 @@
     routeStep.id = 'gcFareRouteStep';
     routeStep.innerHTML = `
       <div class="gc-fare-step-kicker">
-        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
+        <strong>${escapeHtml(cfg()['路線步驟標題'] || '查 Google 路線')}</strong>
         <span>${escapeHtml(cfg()['路線步驟說明'] || '先看路線時間與公里')}</span>
       </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
@@ -281,12 +282,13 @@
       panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      warning.innerHTML = `<strong>${escapeHtml(cfg()['人工協助警示標題'] || '建議先自行試算')}</strong><p>${escapeHtml(cfg()['人工協助警示說明'] || '客服協助屬較慢流程；繁忙時可能先提供快速試算，如需人工估價需稍候小編依序回覆。')}</p>`;
+      warning.innerHTML = `<strong>${escapeHtml(cfg()['人工協助警示標題'] || '想快速知道車資？')}</strong><p>${escapeHtml(cfg()['人工協助警示說明'] || '建議先用上方快速試算；繁忙時客服可能先提供試算資訊。')}</p>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
-      const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
-      const manualLines = String(manualCopy).split(/[。；]/).map(line => line.trim()).filter(Boolean);
+      const manualCopy = String(cfg()['人工協助補充'] ?? '').trim();
+      const manualLines = manualCopy.split(/[。；]/).map(line => line.trim()).filter(Boolean);
       extra.innerHTML = manualLines.map(line => `<div class="gc-manual-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('');
+      extra.classList.toggle('hidden', manualLines.length === 0);
       manualHead.remove();
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);

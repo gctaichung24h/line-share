@@ -137,7 +137,7 @@ window.GC_FORM_CONFIG = {
                  "頁面標題":  "車資試算",
                  "頁面引導標題":  "",
                  "頁面說明":  "查路線 → 填分鐘＋公里",
-                 "路線步驟標題":  "① 查 Google 路線",
+                 "路線步驟標題":  "查 Google 路線",
                  "路線步驟說明":  "",
                  "路線重點標題":  "想省車資",
                  "路線重點說明1":  "看公里數較少",
@@ -152,7 +152,7 @@ window.GC_FORM_CONFIG = {
                  "路線按鈕":  "開啟 Google 地圖",
                  "已知數字捷徑":  "",
                  "錯誤_情境缺資料":  "請填寫資料。",
-                 "計算器標題":  "② 回來填 2 個數字",
+                 "計算器標題":  "回來填 2 個數字",
                  "計算器徽章":  "",
                  "計算器說明":  "照 Google 地圖顯示填入即可",
                  "計算器等待":  "輸入後即時顯示",
@@ -180,11 +180,11 @@ window.GC_FORM_CONFIG = {
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
                  "人工協助標題":  "其他估價方式",
-                 "人工協助提示":  "建議最後再選",
+                 "人工協助提示":  "快速試算最快｜仍需協助可展開",
                  "人工協助展開標題":  "客服協助估價",
-                 "人工協助補充":  "請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。",
-                 "人工協助警示標題":  "建議先自行試算",
-                 "人工協助警示說明":  "客服協助屬較慢流程；繁忙時可能先提供快速試算，如需人工估價需稍候小編依序回覆。",
+                 "人工協助補充":  "",
+                 "人工協助警示標題":  "想快速知道車資？",
+                 "人工協助警示說明":  "建議先用上方快速試算；繁忙時客服可能先提供試算資訊。",
                  "自助上車標題":  "上車地址",
                  "自助下車標題":  "下車地址",
                  "上車標題":  "上車地址",
@@ -202,7 +202,7 @@ window.GC_FORM_CONFIG = {
                  "訊息欄位_下車":  "下車地址",
                  "訊息欄位_備註":  "",
                  "成功標題":  "✅ 估價需求已送出",
-                 "成功內容1":  "客服將依序協助估價；繁忙時可能先提供快速試算，請稍候小編協助。",
+                 "成功內容1":  "估價需求已送出；繁忙時可能先提供快速試算資訊，請留意聊天室。",
                  "成功內容2":  "本次僅為車資試算，尚未建立叫車或預約需求。",
                  "成功內容3":  "",
                  "返回按鈕":  "返回 LINE 聊天室",
@@ -221,7 +221,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10h';
+  const GC_BUILD_VERSION = 'master202608r10j';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -402,11 +402,13 @@ window.GC_FORM_CONFIG = {
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
-          <button class="recent-toggle" type="button" aria-expanded="false">
-            <span class="recent-toggle-main"><span class="recent-clock" aria-hidden="true">🕘</span><span class="recent-title">${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</span></span>
-            <span class="recent-toggle-side"><span class="recent-count"></span><span class="recent-action-label">展開</span><span class="recent-chevron" aria-hidden="true">⌄</span></span>
+          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="最近使用地址">
+            <span class="recent-clock" aria-hidden="true">↺</span>
+            <span class="recent-title">最近</span>
+            <span class="recent-count"></span>
+            <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="recent-panel hidden"></div>
+          <div class="recent-panel hidden" role="dialog" aria-label="最近使用地址"></div>
         </div>` : ''}
         <div class="error-text" id="${id}Error"></div>
       </div>`;
@@ -469,8 +471,36 @@ window.GC_FORM_CONFIG = {
     return String(address || '').replace(/\s+/g, ' ').trim();
   }
 
+  // GC_MASTER_STABLE_2026_08R10J_DISPATCH_ADDRESS_SANITIZER
+  // Final outbound address cleanup: strip Taiwan postal codes only when the remaining
+  // text clearly starts with a Taiwan city/county, then compact structured Chinese addresses.
+  // This prevents 420015 / 40674 and provider commas/spaces from reaching LINE while
+  // preserving rider-entered landmarks and house-number digits.
+  const TAIWAN_ADMIN_START = /^(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)/;
+
+  function cleanTaiwanAddressForUse(address) {
+    let text = normalizeAddress(address)
+      .replace(/　/g, ' ')
+      .replace(/臺/g, '台')
+      .replace(/号/g, '號')
+      .trim();
+    if (!text) return '';
+
+    // Taiwan postal codes can be 3, 5, or 6 digits. Remove only when a recognized
+    // Taiwan city/county immediately follows, avoiding accidental deletion of door numbers.
+    text = text.replace(/^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\s*[,，、]?\s*(?=(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '');
+
+    const structuredTaiwanAddress = TAIWAN_ADMIN_START.test(text) && /[市縣區鄉鎮村里路街道段巷弄號樓室]/.test(text);
+    if (structuredTaiwanAddress) {
+      text = text
+        .replace(/[，,、]+/g, '')
+        .replace(/\s+/g, '');
+    }
+    return text;
+  }
+
   function smartNormalizeTaiwanAddress(address) {
-    let text = normalizeAddress(address).replace(/号/g, '號');
+    let text = cleanTaiwanAddressForUse(address);
     if (!text || /[號樓室]$/.test(text)) return text;
     const match = text.match(/([0-9０-９]+(?:[-之][0-9０-９]+)?)$/);
     if (!match || !/[路街道巷弄]/.test(text)) return text;
@@ -482,28 +512,9 @@ window.GC_FORM_CONFIG = {
   }
 
   // GC_MASTER_STABLE_2026_08R4_LOCATION_ADDRESS_CLEAN
-  // Only normalize addresses generated by the current-location reverse geocoder.
-  // Do not apply this globally to rider-entered text, so house numbers and custom landmarks stay untouched.
+  // Reverse-geocoder output uses the same dispatch-safe cleanup as every other address source.
   function cleanLocatedTaiwanAddress(address) {
-    let text = String(address || '')
-      .replace(/　/g, ' ')
-      .replace(/臺/g, '台')
-      .replace(/号/g, '號')
-      .trim();
-    if (!text) return '';
-
-    // Taiwan reverse-geocode output may start with a 3-digit or 3+3 postal code.
-    // It has no dispatch value, so remove it only in this location-generated path.
-    text = text.replace(/^[0-9０-９]{3}(?:[0-9０-９]{3})?\s*(?=(?:台|臺)(?:北|中|南|東)市|新北市|桃園市|高雄市|基隆市|新竹(?:市|縣)|嘉義(?:市|縣)|苗栗縣|彰化縣|南投縣|雲林縣|屏東縣|宜蘭縣|花蓮縣|(?:台|臺)東縣|澎湖縣|金門縣|連江縣)/, '');
-
-    // Chinese Taiwan addresses read more cleanly without separator spaces.
-    // If a provider ever returns a non-Chinese address, keep normal word spacing instead.
-    if (/[市縣區鄉鎮村里路街道段巷弄號]/.test(text)) {
-      text = text.replace(/\s+/g, '');
-    } else {
-      text = normalizeAddress(text);
-    }
-    return smartNormalizeTaiwanAddress(text);
+    return smartNormalizeTaiwanAddress(address);
   }
 
   function normalizeAddressInput(id) {
@@ -813,7 +824,7 @@ window.GC_FORM_CONFIG = {
       if (!Array.isArray(parsed)) return [];
       const unique = [];
       for (const item of parsed) {
-        const address = normalizeAddress(item);
+        const address = smartNormalizeTaiwanAddress(item);
         if (!address) continue;
         if (!unique.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
           unique.push(address);
@@ -839,7 +850,7 @@ window.GC_FORM_CONFIG = {
     const next = [];
     const candidates = [...addresses, ...loadRecentAddresses()];
     for (const item of candidates) {
-      const address = normalizeAddress(item);
+      const address = smartNormalizeTaiwanAddress(item);
       if (!address) continue;
       if (!next.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
         next.push(address);
@@ -850,7 +861,7 @@ window.GC_FORM_CONFIG = {
     refreshRecentAddressControls();
   }
 
-  // R10H: allow the fare module to reuse the same normalized recent-address writer.
+  // R10J: keep the normalized recent-address writer exposed for compatibility; fare mode itself does not read/write recents.
   window.GC_rememberRecentAddresses = rememberRecentAddresses;
 
   function deleteRecentAddress(index) {
@@ -869,8 +880,8 @@ window.GC_FORM_CONFIG = {
 
   function normalizeFavoriteTrip(item) {
     if (!item || typeof item !== 'object') return null;
-    const pickup = normalizeAddress(item.pickup);
-    const destination = normalizeAddress(item.destination);
+    const pickup = smartNormalizeTaiwanAddress(item.pickup);
+    const destination = smartNormalizeTaiwanAddress(item.destination);
     const name = String(item.name || '').trim().slice(0, 30);
     if (!pickup || !destination || pickup === LOCATION_MARKER) return null;
     return { name: name || '常用行程', pickup, destination };
@@ -1508,7 +1519,7 @@ window.GC_FORM_CONFIG = {
       }
 
       control.classList.remove('hidden');
-      if (count) count.textContent = `（${addresses.length}）`;
+      if (count) count.textContent = `(${addresses.length})`;
       if (!panel) return;
       panel.innerHTML = `
         <div class="recent-helper">點選地址即可自動帶入</div>
@@ -1572,20 +1583,16 @@ window.GC_FORM_CONFIG = {
       let lastTouchToggleAt = 0;
       let touchOpening = false;
 
-      const syncToggleLabels = () => {
-        document.querySelectorAll('.recent-address-control').forEach(item => {
-          const btn = item.querySelector('.recent-toggle');
-          const label = item.querySelector('.recent-action-label');
-          if (btn && label) label.textContent = btn.getAttribute('aria-expanded') === 'true' ? '收合' : '展開';
-        });
-      };
+      const syncToggleLabels = () => {};
 
       const togglePanel = () => {
         const willOpen = panel.classList.contains('hidden');
         document.querySelectorAll('.recent-panel').forEach(other => other.classList.add('hidden'));
         document.querySelectorAll('.recent-toggle').forEach(other => other.setAttribute('aria-expanded', 'false'));
+        document.querySelectorAll('.recent-address-control').forEach(other => other.classList.remove('is-open'));
         panel.classList.toggle('hidden', !willOpen);
         toggle.setAttribute('aria-expanded', String(willOpen));
+        control.classList.toggle('is-open', willOpen);
         syncToggleLabels();
       };
       syncToggleLabels();
@@ -1636,6 +1643,7 @@ window.GC_FORM_CONFIG = {
             if (error) error.classList.remove('show');
             panel.classList.add('hidden');
             toggle.setAttribute('aria-expanded', 'false');
+            control.classList.remove('is-open');
             syncToggleLabels();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1655,6 +1663,25 @@ window.GC_FORM_CONFIG = {
       });
     });
     refreshRecentAddressControls();
+
+    // GC_R10J_RECENT_POPOVER_AUTO_CLOSE: 最近地址以輕量浮層呈現；點外部立即收合，不推動主表單版面。
+    if (!document.documentElement.dataset.gcRecentOutsideCloseBound) {
+      document.documentElement.dataset.gcRecentOutsideCloseBound = '1';
+      const closeRecentOutside = event => {
+        if (event.target?.closest?.('.recent-address-control')) return;
+        document.querySelectorAll('.recent-address-control').forEach(control => {
+          const toggle = control.querySelector('.recent-toggle');
+          const panel = control.querySelector('.recent-panel');
+          if (toggle?.getAttribute('aria-expanded') === 'true' || (panel && !panel.classList.contains('hidden'))) {
+            toggle?.setAttribute('aria-expanded', 'false');
+            panel?.classList.add('hidden');
+            control.classList.remove('is-open');
+          }
+        });
+      };
+      document.addEventListener('pointerdown', closeRecentOutside, { passive: true });
+      document.addEventListener('focusin', closeRecentOutside);
+    }
   }
 
   function renderConfirmationModal() {
@@ -1898,7 +1925,7 @@ window.GC_FORM_CONFIG = {
     return `
       <section class="gc-fare-calc" aria-label="填入分鐘與公里">
         <div class="gc-fare-calc-kicker">
-          <strong>${escapeHtml(cfg['計算器標題'] || '② 回來填 2 個數字')}</strong>
+          <strong>${escapeHtml(cfg['計算器標題'] || '回來填 2 個數字')}</strong>
           <span>${escapeHtml(cfg['計算器說明'] || '照 Google 地圖顯示填入即可')}</span>
         </div>
         <div class="gc-fare-calc-grid">
@@ -1962,6 +1989,7 @@ window.GC_FORM_CONFIG = {
   }
 
   function renderFare(cfg) {
+    // GC_R10J_FARE_NO_RECENT_ADDRESS: 車資試算不顯示最近使用地址；最近地址只保留給叫車／代駕。
     attachedLocation = null;
     document.title = cfg['頁面標題'];
     app.innerHTML = `
@@ -1983,8 +2011,8 @@ window.GC_FORM_CONFIG = {
             </div>
             <form class="gc-fare-manual-form" id="serviceForm" novalidate>
               <div id="globalError" class="global-error"></div>
-              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, true)}
-              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, true)}
+              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
+              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
               <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
             </form>
           </section>
@@ -2538,7 +2566,7 @@ window.GC_FORM_CONFIG = {
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
           await sendFormMessages(lines.join('\n'));
           if (!preview) markSubmission(signature);
-          rememberRecentAddresses([destination, pickup]);
+          // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算不讀寫最近使用地址，避免污染叫車／代駕的最近地址。
           renderSuccess(cfg);
         } catch (error) {
           sending = false;
@@ -2665,6 +2693,7 @@ window.GC_FORM_CONFIG = {
 (() => {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
+  // GC_MASTER_STABLE_2026_08R10J_PRIMARY_TASK_FIRST_LAYOUT
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -2699,14 +2728,31 @@ window.GC_FORM_CONFIG = {
   function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
 
   function makeLabelRow(field, action) {
-    if (!field || field.querySelector(':scope > .field-label-row')) return;
-    const label = field.querySelector(':scope > label');
-    if (!label) return;
-    const row = document.createElement('div');
-    row.className = 'field-label-row';
-    field.insertBefore(row, label);
-    row.appendChild(label);
-    if (action) row.appendChild(action);
+    if (!field) return null;
+    let row = field.querySelector(':scope > .field-label-row');
+    let label = row?.querySelector(':scope > label') || field.querySelector(':scope > label');
+    if (!label) return row || null;
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'field-label-row';
+      field.insertBefore(row, label);
+      row.appendChild(label);
+    }
+    let actions = row.querySelector(':scope > .field-inline-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'field-inline-actions';
+      row.appendChild(actions);
+    }
+    if (action && !actions.contains(action)) actions.appendChild(action);
+    return row;
+  }
+
+  function attachRecentAddressShortcut(field) {
+    if (!field) return;
+    const recent = field.querySelector(':scope > .recent-address-control');
+    if (!recent) return;
+    makeLabelRow(field, recent);
   }
 
   function createFavoriteSheet(destination, favorite) {
@@ -2715,7 +2761,7 @@ window.GC_FORM_CONFIG = {
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '⭐常用行程';
+    toggle.textContent = '常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     makeLabelRow(destination, toggle);
 
@@ -2797,17 +2843,23 @@ window.GC_FORM_CONFIG = {
     const locationStatus = document.getElementById('locationStatus');
     if (pickup) {
       pickup.classList.add('gc-primary-address', 'gc-pickup-address');
+      makeLabelRow(pickup, null);
+      attachRecentAddressShortcut(pickup);
       if (locationAction) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
-        if (button) button.textContent = '📍目前位置';
+        if (button) button.textContent = '目前位置';
         makeLabelRow(pickup, locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
-      } else makeLabelRow(pickup, null);
+      }
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
-    if (destination) destination.classList.add('gc-primary-address', 'gc-destination-address');
-    createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
+    if (destination) {
+      destination.classList.add('gc-primary-address', 'gc-destination-address');
+      makeLabelRow(destination, null);
+      createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
+      attachRecentAddressShortcut(destination);
+    }
   }
 
   function addVehicleField() {
@@ -3143,6 +3195,7 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
   // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
+  // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -3322,7 +3375,7 @@ window.GC_FORM_CONFIG = {
     clearRouteAddressGuidance();
     const url = googleMapsUrl();
     if (!url) return;
-    window.GC_rememberRecentAddresses?.([trim(qs('destination')?.value), trim(qs('pickup')?.value)]);
+    // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();
     try {
       if (window.liff && typeof window.liff.isInClient === 'function' && window.liff.isInClient() && typeof window.liff.openWindow === 'function') {
@@ -3379,7 +3432,7 @@ window.GC_FORM_CONFIG = {
     routeStep.id = 'gcFareRouteStep';
     routeStep.innerHTML = `
       <div class="gc-fare-step-kicker">
-        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
+        <strong>${escapeHtml(cfg()['路線步驟標題'] || '查 Google 路線')}</strong>
         <span>${escapeHtml(cfg()['路線步驟說明'] || '先看路線時間與公里')}</span>
       </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
@@ -3419,12 +3472,13 @@ window.GC_FORM_CONFIG = {
       panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      warning.innerHTML = `<strong>${escapeHtml(cfg()['人工協助警示標題'] || '建議先自行試算')}</strong><p>${escapeHtml(cfg()['人工協助警示說明'] || '客服協助屬較慢流程；繁忙時可能先提供快速試算，如需人工估價需稍候小編依序回覆。')}</p>`;
+      warning.innerHTML = `<strong>${escapeHtml(cfg()['人工協助警示標題'] || '想快速知道車資？')}</strong><p>${escapeHtml(cfg()['人工協助警示說明'] || '建議先用上方快速試算；繁忙時客服可能先提供試算資訊。')}</p>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
-      const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
-      const manualLines = String(manualCopy).split(/[。；]/).map(line => line.trim()).filter(Boolean);
+      const manualCopy = String(cfg()['人工協助補充'] ?? '').trim();
+      const manualLines = manualCopy.split(/[。；]/).map(line => line.trim()).filter(Boolean);
       extra.innerHTML = manualLines.map(line => `<div class="gc-manual-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('');
+      extra.classList.toggle('hidden', manualLines.length === 0);
       manualHead.remove();
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);

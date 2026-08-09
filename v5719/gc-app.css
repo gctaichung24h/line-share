@@ -3033,3 +3033,377 @@ body{background:linear-gradient(180deg,#eef5fa 0%,#f7f9fb 205px,#f7f9fb 100%)!im
 .gc-manual-note-row{font-size:14px!important;line-height:1.55!important}
 @media(max-width:420px){.gc-fare-step-kicker,.gc-fare-calc-kicker{display:block!important}.gc-fare-step-kicker span,.gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;text-align:left!important}.gc-fare-step-kicker strong,.gc-fare-calc-kicker strong{font-size:16.5px!important}.recent-toggle-main{font-size:14px!important}.recent-toggle-side{padding:0 10px!important;gap:6px!important}.gc-fee-line b{font-size:16px!important}}
 
+/* GC_MASTER_STABLE_R10I_COMPACT_RECENT_AND_DENSITY
+   2026-08-09 user field-test fixes:
+   1) 最近地址改為兩個緊湊分件，不再是一整條橫向長按鈕。
+   2) 展開內容點外部由 JS 自動收合。
+   3) 叫車進階區塊只縮垂直密度，不動欄位／送出邏輯。 */
+.recent-address-control{margin-top:8px!important}
+.recent-toggle{
+  display:inline-flex!important;
+  width:auto!important;
+  max-width:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  gap:6px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  justify-content:flex-start!important;
+  align-items:center!important;
+}
+.recent-toggle-main,.recent-toggle-side{
+  min-height:36px!important;
+  border:1px solid #cbd9e3!important;
+  border-radius:11px!important;
+  box-shadow:0 2px 7px rgba(16,45,81,.035)!important;
+}
+.recent-toggle-main{
+  flex:0 1 auto!important;
+  padding:0 10px!important;
+  gap:6px!important;
+  background:#f4f8fb!important;
+  font-size:13.5px!important;
+  font-weight:700!important;
+}
+.recent-clock{width:19px!important;height:19px!important;font-size:16px!important}
+.recent-toggle-side{
+  min-width:0!important;
+  padding:0 9px!important;
+  gap:5px!important;
+  border-left:1px solid #cbd9e3!important;
+  background:#fff!important;
+  box-shadow:0 2px 7px rgba(16,45,81,.035)!important;
+}
+.recent-toggle[aria-expanded="true"]{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.recent-toggle[aria-expanded="true"] .recent-toggle-main{border-color:#a9bfd0!important;background:#edf5fa!important}
+.recent-toggle[aria-expanded="true"] .recent-toggle-side{border-color:#a9bfd0!important;background:#f7fbfd!important}
+.recent-count{font-size:11.5px!important}
+.recent-action-label{font-size:12px!important}
+.recent-chevron{font-size:14px!important}
+.recent-panel{margin-top:7px!important;padding:10px!important;border-radius:13px!important;box-shadow:0 8px 20px rgba(16,45,81,.065)!important}
+.recent-helper{margin-bottom:7px!important;font-size:12px!important}
+.recent-list{gap:7px!important}
+.recent-use{padding:9px 10px!important;border-radius:11px!important}
+.recent-delete{padding:7px 9px!important;border-radius:11px!important}
+.recent-clear{
+  width:auto!important;
+  display:block!important;
+  margin:8px 0 0 auto!important;
+  padding:7px 11px!important;
+  border-radius:10px!important;
+  font-size:12px!important;
+}
+
+/* 車型・5人以上・行李・寵物：實機比例縮約一成，保留 16px 輸入字避免 iPhone 自動放大。 */
+.gc-call-needs-box[open] .optional-content{padding:2px 11px 3px!important}
+.gc-call-needs-box[open] .field{margin-bottom:11px!important}
+.gc-call-needs-box[open] .field>label,
+.gc-call-needs-box[open] .field-label{margin-bottom:6px!important;font-size:15px!important;line-height:1.35!important}
+.gc-call-needs-box[open] .gc-vehicle-field>.gc-select,
+.gc-call-needs-box[open] .gc-passenger-public .input{min-height:49px!important;padding-top:10px!important;padding-bottom:10px!important;font-size:16px!important}
+.gc-call-needs-box[open] .choice span{min-height:46px!important;padding-top:9px!important;padding-bottom:9px!important;font-size:15px!important}
+.gc-call-needs-box[open] .gc-info-disclosure{margin-top:5px!important}
+.gc-call-needs-box[open] .gc-info-disclosure>summary{min-height:34px!important;padding:5px 0!important;font-size:13.5px!important}
+.gc-call-needs-box[open] .gc-info-disclosure-body{padding:10px!important;font-size:14px!important}
+.gc-call-needs-box[open] .gc-vehicle-info-lead{padding-bottom:8px!important}
+.gc-call-needs-box[open] .gc-vehicle-price-list{margin-top:4px!important}
+.gc-call-needs-box[open] .gc-vehicle-price-list>div{min-height:34px!important;padding:5px 2px!important}
+.gc-call-needs-box[open] .gc-price-notice{margin-top:7px!important;padding:10px 11px!important;border-radius:12px!important}
+.gc-call-needs-box[open] .gc-price-notice p{font-size:13.5px!important;line-height:1.48!important}
+.gc-call-needs-box[open] .gc-fee-line b{font-size:16px!important}
+.gc-call-needs-box[open] textarea{min-height:80px!important}
+
+@media(max-width:360px){
+  .recent-toggle{gap:5px!important}
+  .recent-toggle-main{padding:0 8px!important;font-size:13px!important}
+  .recent-toggle-side{padding:0 8px!important;gap:4px!important}
+  .gc-call-needs-box[open] .optional-content{padding-left:9px!important;padding-right:9px!important}
+}
+@media(max-width:360px){
+  .recent-toggle-main{padding:0 7px!important;gap:5px!important;font-size:12.75px!important}
+  .recent-clock{width:17px!important;height:17px!important;font-size:14.5px!important}
+  .recent-toggle-side{padding:0 7px!important;gap:3px!important}
+  .recent-count{font-size:10.75px!important}
+  .recent-action-label{font-size:11.5px!important}
+  .recent-chevron{font-size:13px!important}
+}
+
+/* GC_MASTER_STABLE_R10J_CONVERSION_FIRST_UI
+   Real-device final pass: reduce first-glance cognitive load and make the form itself the visual protagonist.
+   Reference principles: primary task first, progressive disclosure, secondary shortcuts remain available but quiet. */
+.field-label-row{
+  position:relative!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:28px!important;
+  overflow:visible!important;
+}
+.field-inline-actions{
+  display:flex!important;
+  flex:0 0 auto!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:5px!important;
+  min-width:0!important;
+}
+
+/* Primary address fields: remove the card-inside-card feeling. */
+.gc-primary-address,
+.gc-fare-route-fields .gc-primary-address{
+  position:relative!important;
+  margin:0 0 15px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-primary-address::before,
+.gc-fare-route-fields .gc-primary-address::before{display:none!important}
+.gc-primary-address .field-label-row,
+.gc-fare-route-fields .gc-primary-address .field-label-row{margin-bottom:7px!important}
+.gc-primary-address .field-label-row>label,
+.gc-primary-address>label,
+.gc-fare-route-fields .gc-primary-address .field-label-row>label,
+.gc-fare-route-fields .gc-primary-address>label{
+  font-size:17px!important;
+  line-height:1.35!important;
+  font-weight:700!important;
+  letter-spacing:-.01em!important;
+  color:#173f5d!important;
+}
+.gc-primary-address>.input,
+.gc-fare-route-fields .gc-primary-address>.input{
+  min-height:54px!important;
+  border:1px solid #bdcfdb!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 2px 8px rgba(16,45,81,.025)!important;
+}
+.gc-primary-address>.input:focus,
+.gc-fare-route-fields .gc-primary-address>.input:focus{
+  border-color:#7ea6c0!important;
+  box-shadow:0 0 0 3px rgba(66,123,159,.08)!important;
+}
+
+/* Quiet utility controls: recent address / current location / favorites are helpers, never primary tasks. */
+.field-inline-btn,
+.field-inline-action .location-btn,
+.recent-toggle{
+  min-height:28px!important;
+  height:28px!important;
+  width:auto!important;
+  margin:0!important;
+  padding:0 8px!important;
+  border:1px solid #d7e1e8!important;
+  border-radius:9px!important;
+  background:#f8fafc!important;
+  box-shadow:none!important;
+  color:#637d8f!important;
+  font-size:11.5px!important;
+  line-height:1!important;
+  font-weight:650!important;
+  letter-spacing:0!important;
+  white-space:nowrap!important;
+}
+.field-inline-btn:hover,
+.field-inline-action .location-btn:hover,
+.recent-toggle:hover{background:#f3f7fa!important}
+.recent-address-control{
+  position:relative!important;
+  display:inline-flex!important;
+  margin:0!important;
+  padding:0!important;
+  max-width:none!important;
+  z-index:35!important;
+}
+.recent-address-control.hidden{display:none!important}
+.recent-toggle{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:4px!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+.recent-clock{display:none!important}
+.recent-title{overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important}
+.recent-count{font-size:10.75px!important;font-weight:650!important;color:#8a9aa6!important}
+.recent-chevron{margin-left:1px!important;font-size:11px!important;color:#7c93a3!important;transition:transform .16s ease!important}
+.recent-toggle[aria-expanded="true"]{
+  border-color:#aebfca!important;
+  background:#eef4f7!important;
+  color:#45677f!important;
+}
+.recent-toggle[aria-expanded="true"] .recent-chevron{transform:rotate(180deg)!important}
+.recent-panel{
+  position:absolute!important;
+  top:calc(100% + 7px)!important;
+  right:0!important;
+  width:min(310px,calc(100vw - 44px))!important;
+  margin:0!important;
+  padding:9px!important;
+  border:1px solid #d4e0e8!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  box-shadow:0 14px 34px rgba(15,43,68,.14)!important;
+  z-index:120!important;
+}
+.recent-helper{
+  margin:0 2px 7px!important;
+  font-size:11.5px!important;
+  line-height:1.4!important;
+  font-weight:550!important;
+  color:#8395a2!important;
+}
+.recent-list{display:grid!important;gap:6px!important}
+.recent-row{gap:6px!important}
+.recent-use{
+  min-height:39px!important;
+  padding:8px 9px!important;
+  border-radius:10px!important;
+  background:#fbfcfd!important;
+  font-size:13px!important;
+}
+.recent-delete{
+  min-height:36px!important;
+  padding:6px 8px!important;
+  border-radius:9px!important;
+  font-size:11.5px!important;
+}
+.recent-clear{
+  margin:7px 0 0 auto!important;
+  padding:6px 9px!important;
+  border-radius:9px!important;
+  font-size:11.5px!important;
+}
+
+/* Fare: two clean actions, no numbered tutorial styling and no recent-address noise. */
+.gc-fare-route-step{padding-top:8px!important}
+.gc-fare-step-kicker,
+.gc-fare-calc-kicker{
+  margin:0 0 11px!important;
+  align-items:baseline!important;
+}
+.gc-fare-step-kicker strong,
+.gc-fare-calc-kicker strong{
+  font-size:16.5px!important;
+  font-weight:700!important;
+  letter-spacing:-.01em!important;
+  color:#173f5d!important;
+}
+.gc-fare-step-kicker span,
+.gc-fare-calc-kicker span{
+  font-size:12.8px!important;
+  font-weight:500!important;
+  color:#7b8e9c!important;
+}
+.gc-fare-route-fields{
+  display:block!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-route-inline{
+  margin:3px 0 10px!important;
+  font-size:12px!important;
+  line-height:1.45!important;
+  font-weight:500!important;
+  color:#78909f!important;
+}
+.gc-fare-route-inline b{font-weight:650!important;color:#4e7188!important}
+.gc-fare-map-btn{
+  min-height:50px!important;
+  border-radius:14px!important;
+  font-size:16px!important;
+  font-weight:700!important;
+  box-shadow:0 8px 18px rgba(16,45,81,.12)!important;
+}
+.gc-fare-calc{padding-top:12px!important}
+.gc-fare-calc-field>span{font-size:15.5px!important;font-weight:650!important;color:#345a73!important}
+.gc-fare-calc-input-wrap{min-height:52px!important;border-radius:13px!important}
+.gc-fare-rates{margin-top:13px!important;border-color:#e2e8ed!important;background:#fbfcfd!important;box-shadow:none!important}
+.gc-fare-rates-summary{min-height:44px!important;padding:10px 12px!important}
+.gc-fare-rates-summary>span{font-weight:650!important;color:#365a73!important}
+.gc-fare-rates-summary small{font-weight:500!important;color:#8395a2!important}
+
+/* Customer estimate fallback: clear expectation-setting without a warning / rejection tone. */
+.gc-fare-manual-details{
+  margin-top:11px!important;
+  padding-top:8px!important;
+  border-top:1px solid #edf1f4!important;
+}
+.gc-fare-manual-details>summary{min-height:42px!important;padding:7px 1px!important}
+.gc-fare-manual-details>summary strong{font-size:13.5px!important;font-weight:600!important;color:#758b9a!important}
+.gc-fare-manual-details>summary small{margin-top:2px!important;font-size:11.5px!important;font-weight:500!important;color:#93a1aa!important}
+.gc-fare-manual-inner{padding-top:6px!important}
+.gc-manual-panel-title{margin:0 0 7px!important;font-size:15px!important;font-weight:700!important;color:#315873!important}
+.gc-fare-manual-warning{
+  margin:0 0 8px!important;
+  padding:10px 11px!important;
+  border:1px solid #dce6ec!important;
+  border-left:3px solid #8aa9bc!important;
+  border-radius:11px!important;
+  background:#f7fafc!important;
+  box-shadow:none!important;
+}
+.gc-fare-manual-warning strong{margin:0 0 2px!important;font-size:13px!important;font-weight:700!important;color:#42677f!important}
+.gc-fare-manual-warning p{font-size:12.5px!important;line-height:1.5!important;font-weight:500!important;color:#687f8e!important}
+.gc-fare-manual-extra{
+  display:block!important;
+  margin:0 0 8px!important;
+  padding:0 1px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:#7b8e9b!important;
+}
+.gc-manual-note-row{font-size:12px!important;line-height:1.45!important;color:#7b8e9b!important}
+.gc-manual-note-row i{display:none!important}
+.gc-fare-manual-form .submit-btn{min-height:48px!important}
+
+/* Call/driver optional information stays available but visually recedes until needed. */
+.gc-call-needs-box,
+.gc-secondary-box{background:#fbfcfd!important;border-color:#e1e8ed!important;box-shadow:none!important}
+.gc-call-needs-box>summary,
+.gc-secondary-box>summary{min-height:44px!important;padding:10px 12px!important;font-size:14px!important;font-weight:650!important;color:#42637a!important}
+.gc-call-needs-box[open] .optional-content{padding:1px 10px 2px!important}
+.gc-call-needs-box[open] .field{margin-bottom:10px!important}
+.gc-call-needs-box[open] .field>label,
+.gc-call-needs-box[open] .field-label{font-size:14px!important;font-weight:650!important}
+.gc-call-needs-box[open] .gc-info-disclosure>summary{font-size:12.5px!important;font-weight:600!important;color:#6d8291!important}
+.gc-call-needs-box[open] .gc-info-disclosure-body{padding:8px 9px!important;border-radius:10px!important;font-size:12.5px!important}
+.gc-call-needs-box[open] .gc-vehicle-price-list>div{min-height:31px!important;padding:4px 1px!important}
+.gc-call-needs-box[open] .gc-price-notice{padding:8px 9px!important;border-radius:10px!important}
+.gc-call-needs-box[open] .gc-price-notice p{font-size:12.5px!important;line-height:1.45!important}
+.gc-call-needs-box[open] .gc-fee-line b{font-size:15px!important}
+.gc-call-needs-box[open] textarea{min-height:74px!important}
+
+/* Reduce nonessential chrome after the main fields. */
+.form-body>.notice:not(.preview-notice){
+  margin-top:2px!important;
+  padding:9px 11px!important;
+  border-color:#e5ebef!important;
+  background:#f8fafb!important;
+  box-shadow:none!important;
+  font-size:11.75px!important;
+  font-weight:500!important;
+  color:#748895!important;
+}
+
+@media(max-width:360px){
+  .field-label-row{gap:6px!important}
+  .field-inline-actions{gap:4px!important}
+  .field-inline-btn,.field-inline-action .location-btn,.recent-toggle{padding:0 6px!important;font-size:10.8px!important}
+  .recent-count{font-size:10px!important}
+  .gc-primary-address .field-label-row>label,.gc-primary-address>label,.gc-fare-route-fields .gc-primary-address>label{font-size:16.3px!important}
+  .gc-fare-step-kicker,.gc-fare-calc-kicker{display:block!important}
+  .gc-fare-step-kicker span,.gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;text-align:left!important}
+}
+.recent-address-control.is-open{z-index:260!important}
+
