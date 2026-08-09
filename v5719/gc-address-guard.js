@@ -3,6 +3,7 @@
 
   // GC_ADDRESS_GUARD_ACTIVE
   // GC_ADDRESS_GUARD_R10Z1
+  // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -11,7 +12,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10z1-address-guard-20260810';
+  const VERSION = 'r10z4-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -21,7 +22,8 @@
   const POSTAL_RE = /^[0-9０-９]{3}(?:[0-9０-９]{2,3})?$/;
   const COUNTRY_RE = /^(?:台灣|臺灣|Taiwan|TWN)$/i;
   const DISTRICT_RE = /^[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/;
-  const ROAD_RE = /(?:路|街|道|大道|巷|弄)/;
+  const ROAD_RE = /(?:大道|路|街|道|巷|弄)/;
+  const CJK_ROAD_RE = /[\u3400-\u9fff].*(?:大道|路|街|道|巷|弄)/;
 
   const compact = value => String(value ?? '')
     .replace(/臺/g, '台')
@@ -41,12 +43,37 @@
     return m ? compact(m[1]) : text;
   }
 
-  // R10X: ArcGIS can prefix a Taiwan postal code before an otherwise valid address,
-  // e.g. "413 台中市 霧峰區, 六股路138號". Strip it only when a recognized
-  // Taiwan county/city follows, so real house numbers such as "43 自由路二段" stay intact.
+  // GC_R10Z4_PROVIDER_POSTAL_DISAMBIGUATION
+  // ArcGIS Taiwan suggestion labels may start with a postal code before either the county
+  // OR the street/POI, e.g. "404007 公園路188號, 北區, 台中市".  Five/six-digit
+  // prefixes are provider postal data whenever a Taiwan county is present.  Three-digit
+  // prefixes are removed only when they are unambiguously postal (county follows directly,
+  // or a different explicit door number already exists later).  This preserves real house
+  // numbers such as "43 自由路二段" and "413 六股路".
   const TAIWAN_ADMIN_PREFIX_RE = new RegExp(`^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\\s*[,，、]?\\s*(?=(?:${COUNTIES.join('|')}))`);
   function stripLeadingTaiwanPostalPrefix(value) {
-    return compact(value).replace(TAIWAN_ADMIN_PREFIX_RE, '');
+    let text = compact(value);
+    if (!text || !countyFrom(text)) return text;
+    const strong = text.match(/^([0-9０-９]{5,6})\s+(.+)$/);
+    if (strong) return compact(strong[2]);
+    const admin = text.replace(TAIWAN_ADMIN_PREFIX_RE, '');
+    if (admin !== text) return compact(admin);
+    const three = text.match(/^([0-9０-９]{3})\s+(.+)$/);
+    if (three) {
+      const rest = three[2];
+      const laterDoor = /(?:大道|路|街|道|巷|弄)[^,，、]{0,48}[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(rest);
+      if (laterDoor) return compact(rest);
+    }
+    return text;
+  }
+
+  function stripTrailingPostalHouseArtifact(value) {
+    let text = compact(value);
+    if (!text || !countyFrom(text)) return text;
+    // Known bad historical shape: 台中市北區公園路188號404007號.
+    // Remove only a 5/6-digit final pseudo-house when an earlier true door number exists.
+    const m = text.match(/^(.*(?:大道|路|街|道|巷|弄)[^,，、]{0,64}[0-9０-９]+(?:[-之][0-9０-９]+)?號.*?)([0-9０-９]{5,6})號$/);
+    return m ? compact(m[1]) : text;
   }
 
   function samePart(a, b) {
@@ -75,7 +102,7 @@
 
     // ArcGIS may localize Taiwan labels as "43 自由路二段". Taiwan dispatch/navigation
     // expects "自由路二段43號". Only reorder when a street token is clearly present.
-    const leadingHouse = text.match(/^([0-9０-９]+(?:[-之][0-9０-９]+)?)\s+(.+)$/);
+    const leadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)\s+(.+)$/);
     if (leadingHouse && ROAD_RE.test(leadingHouse[2])) {
       const house = leadingHouse[1].replace(/-/g, '之');
       const street = compact(leadingHouse[2]);
@@ -83,7 +110,7 @@
     }
 
     // Also handle compact provider labels such as "43自由路二段" without spaces.
-    const compactLeadingHouse = text.match(/^([0-9０-９]+(?:[-之][0-9０-９]+)?)([^0-9０-９].*)$/);
+    const compactLeadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)([^0-9０-９].*)$/);
     if (compactLeadingHouse && ROAD_RE.test(compactLeadingHouse[2])) {
       const house = compactLeadingHouse[1].replace(/-/g, '之');
       const street = compact(compactLeadingHouse[2]);
@@ -98,7 +125,7 @@
   }
 
   function parseCommaLabel(value) {
-    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
+    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
     if (!raw) return null;
     const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
     if (tokens.length < 2) return null;
@@ -161,31 +188,47 @@
       }
     }
 
-    let detail = '';
+    const postal = noSpace(attrs.Postal || '');
     const addrType = compact(attrs.Addr_type);
     const place = compact(attrs.PlaceName);
-    const streetName = compact(attrs.StName);
-    const addNum = compact(attrs.AddNum).replace(/號$/, '');
     const addressField = compact(attrs.Address);
+    const stAddr = compact(attrs.StAddr);
+    const placeAddr = compact(attrs.Place_addr);
     const shortLabel = compact(attrs.ShortLabel);
-    const streetAddressType = /^(?:PointAddress|PointAddressInt|StreetAddress|Subaddress|StreetMidBlock|StreetBetween|StreetInt)$/i.test(addrType);
+    const longLabel = compact(attrs.LongLabel);
+    const streetName = compact(attrs.StName);
+    let addNum = compact(attrs.AddNum).replace(/號$/, '');
+    if (postal && noSpace(addNum) === postal) addNum = '';
 
-    // GC_ADDRESS_CONTRACT_TW_GROUND_V1
-    // For street-address candidates, structured street + door number outrank PlaceName.
-    // POI/building candidates may use PlaceName only when a street address is not available.
-    if (streetName && (addNum || streetAddressType)) detail = addNum ? `${streetName}${addNum}號` : streetName;
-    if (!detail && addressField && !samePart(addressField, county) && !samePart(addressField, district)) detail = normalizeStreetToken(addressField);
-    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
-    if (!detail && shortLabel && !samePart(shortLabel, county) && !samePart(shortLabel, district)) detail = normalizeStreetToken(shortLabel);
+    const parsedFallback = fallback ? parseCommaLabel(fallback) : null;
+    if (!county && parsedFallback?.county) county = parsedFallback.county;
+    if (!district && parsedFallback?.district) district = parsedFallback.district;
 
-    if ((!county || !detail) && fallback) {
-      const parsed = parseCommaLabel(fallback);
-      if (parsed) {
-        if (!county) county = parsed.county;
-        if (!district) district = parsed.district;
-        if (!detail) detail = parsed.detail;
-      }
+    const cleanStructuredCandidate = value => {
+      const raw = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value));
+      if (!raw) return '';
+      const parsed = parseCommaLabel(raw);
+      return parsed?.detail || raw;
+    };
+    const candidates = [addressField, stAddr, placeAddr, shortLabel, parsedFallback?.detail || '', longLabel]
+      .map(cleanStructuredCandidate)
+      .filter(Boolean);
+
+    // Prefer a Chinese street address supplied by ArcGIS labels/Address fields. This prevents
+    // transliterated StName values such as "TaiPingRd" from replacing an available Chinese label.
+    let detail = candidates.find(v => CJK_ROAD_RE.test(v) && /[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(v)) || '';
+    if (!detail) detail = candidates.find(v => CJK_ROAD_RE.test(v)) || '';
+
+    // Structured StName/AddNum are a last resort, not the first choice. ArcGIS documents AddNum
+    // as the house number and Postal as a separate field; never use Postal as AddNum.
+    if (!detail && streetName) {
+      const street = addNum ? `${streetName}${addNum}號` : streetName;
+      detail = normalizeStreetToken(street);
     }
+    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
+    if (!detail && parsedFallback?.detail) detail = parsedFallback.detail;
+
+    detail = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(detail));
     return { county, district, detail };
   }
 
@@ -218,7 +261,7 @@
   }
 
   function canonicalTaiwanAddress(value, attrs = {}) {
-    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
+    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
     if (!raw) return '';
 
     // Fast path for provider labels already starting with county/city, with or without spaces:
@@ -273,15 +316,20 @@
   function unmistakableProviderArtifact(value) {
     const raw = compact(value);
     if (!raw) return false;
+    if (stripTrailingPostalHouseArtifact(raw) !== raw) return true;
     if (TAIWAN_ADMIN_PREFIX_RE.test(raw)) return true;
     if (isStructurallyCorruptAddress(raw)) return true;
     const hasCounty = Boolean(countyFrom(raw));
-    return hasCounty && /[,，、]/.test(raw);
+    if (hasCounty && /[,，、]/.test(raw)) return true;
+    return hasCounty && /(?:^|[^A-Za-z])(?:[A-Za-z]{2,}(?:Rd|Road|St|Street|Ave|Avenue|Blvd))\s*[0-9]/i.test(raw);
   }
 
   function sanitizeStoredValue(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
+    const dePostal = stripTrailingPostalHouseArtifact(raw);
+    if (dePostal !== raw) return canonicalTaiwanAddress(dePostal) || dePostal;
+    if (/^(?:台北市|新北市|桃園市|台中市|台南市|高雄市).*(?:[A-Za-z]{2,}(?:Rd|Road|St|Street|Ave|Avenue|Blvd))\s*[0-9]/i.test(raw)) return '';
     if (!unmistakableProviderArtifact(raw)) return raw;
     return canonicalTaiwanAddress(raw) || '';
   }
@@ -353,6 +401,7 @@
   window.GC_ADDRESS_GUARD = Object.freeze({
     version: VERSION,
     stripLeadingTaiwanPostalPrefix,
+    stripTrailingPostalHouseArtifact,
     stripIndoorProviderSuffix,
     canonicalTaiwanAddress,
     isStructurallyCorruptAddress

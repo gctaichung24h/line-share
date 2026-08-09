@@ -1,8 +1,9 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z3';
+  const GC_BUILD_VERSION = 'master202608r10z4';
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_BEHAVIOR_RESTORE
+  // GC_MASTER_STABLE_2026_08R10Z4_ADDRESS_PROVIDER_LABEL_FIX
   // Address-only repair: restore R10Q-style autocomplete availability; keep format sanitation and mode-aware submit gates separate.
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
   // GC_MASTER_STABLE_2026_08R10Y_LARGE_FLEET_ADDRESS_RESOLUTION
@@ -321,6 +322,9 @@
     // Taiwan postal codes can be 3, 5, or 6 digits. Remove only when a recognized
     // Taiwan city/county immediately follows, avoiding accidental deletion of door numbers.
     text = text.replace(/^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\s*[,，、]?\s*(?=(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '');
+    // Final address-only safety net for historical/provider pollution such as
+    // 台中市北區公園路188號404007號. Never remove a normal 1-4 digit house number.
+    text = text.replace(/^((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣).*(?:大道|路|街|道|巷|弄).*[0-9０-９]+(?:[-之][0-9０-９]+)?號.*?)[0-9０-９]{5,6}號$/, '$1');
 
     text = stripIndoorAddressInfo(text);
     const structuredTaiwanAddress = TAIWAN_ADMIN_START.test(text) && /[市縣區鄉鎮村里路街道段巷弄號樓室]/.test(text);
@@ -377,13 +381,15 @@
   }
 
   function cleanSuggestedAddress(value) {
-    return normalizeAddress(String(value || '')
-      .replace(/臺/g, '台')
+    let raw = String(value || '').replace(/臺/g, '台');
+    try {
+      raw = window.GC_ADDRESS_GUARD?.stripLeadingTaiwanPostalPrefix?.(raw) || raw;
+      raw = window.GC_ADDRESS_GUARD?.stripTrailingPostalHouseArtifact?.(raw) || raw;
+    } catch (_) {}
+    return normalizeAddress(raw
       .replace(/(?:,|\s)+(?:Taiwan|TWN|台灣|臺灣)$/i, '')
-      // R10X: provider suggestions may start with a Taiwan postal code. Strip only
-      // when a recognized Taiwan county/city immediately follows; manual typing never
-      // passes through this suggestion-only cleaner.
-      .replace(/^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\s*[,，、]?\s*(?=(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '')
+      .replace(/^(?:[0-9０-９]{6}|[0-9０-９]{5})\s+(?=.*(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '')
+      .replace(/^(?:[0-9０-９]{3})\s*[,，、]?\s*(?=(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '')
       .replace(/,\s*/g, ' ')
       .replace(/\s+\d{3}(?:\d{2,3})?$/, ''));
   }
@@ -505,6 +511,8 @@
     return score;
   }
 
+  // GC_R10Z4_SUGGESTION_ADMIN_AND_POSTAL_CLEAN
+  // Candidate UI always keeps county + district visible; detail is provider-postal-cleaned.
   function renderAddressSuggestion(item, index) {
     const parts = splitTaiwanSuggestionAddress(item.text);
     const adminParts = [parts.county, parts.district].filter((part, idx, list) => part && !list.slice(0, idx).some(prev => sameAddressPart(prev, part)));
@@ -775,7 +783,7 @@
   const ADDRESS_RESOLVE_CACHE_LIMIT = 60;
   const addressResolveCache = new Map();
   const typedAddressResolveCache = new Map();
-  const ARCGIS_RESOLVE_OUT_FIELDS = 'Addr_type,Match_addr,ShortLabel,LongLabel,MatchID,City,District,Region,Subregion,StName,AddNum,Address,PlaceName,Postal';
+  const ARCGIS_RESOLVE_OUT_FIELDS = 'Addr_type,Match_addr,ShortLabel,LongLabel,MatchID,City,District,Region,Subregion,StName,AddNum,Address,StAddr,PlaceName,Place_addr,Postal,CountryCode';
 
   function resolvedCandidateFromArcgis(candidate, fallback = '') {
     if (!candidate || Number(candidate.score || 0) < 80) return null;
@@ -898,10 +906,19 @@
     return addressConfidenceKey(value).replace(/火車/g, '');
   }
 
+  // GC_R10Z4_AMBIGUOUS_DOOR_REQUIRES_ADMIN
+  // A street + door number without county/district is still ambiguous (e.g. 公園路188號 can
+  // exist in multiple districts). Strict pickup/fare fields must require a suggestion selection
+  // or explicit county+district instead of silently choosing the proximity-biased top result.
+  function isDoorAddressMissingAdmin(value) {
+    const core = dispatchDoorAddressCore(value);
+    return Boolean(core.road && core.house && (!core.county || !core.district));
+  }
+
   function chooseConfidentTypedResolution(query, candidates) {
     if (!Array.isArray(candidates) || !candidates.length) return null;
     const normalized = smartNormalizeTaiwanAddress(query);
-    if (!normalized || isBroadRoadOnlyAddress(normalized) || isGenericAreaText(normalized)) return null;
+    if (!normalized || isBroadRoadOnlyAddress(normalized) || isGenericAreaText(normalized) || isDoorAddressMissingAdmin(normalized)) return null;
     const top = candidates[0];
     const second = candidates[1] || null;
     if (!top || top.score < 88) return null;
@@ -985,6 +1002,9 @@
 
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
+    if (isDoorAddressMissingAdmin(normalized)) {
+      return '此門牌在不同區域可能重複，請補上縣市／區域或從建議中選擇正確地點。';
+    }
     if (isBroadRoadOnlyAddress(normalized)) {
       const detail = addressDetailOnly(normalized) || '此道路';
       return `「${detail}」範圍較大，請補充門牌、路口、巷口或附近明確地標。`;
@@ -1037,6 +1057,21 @@
       hideAddressSuggestions(id);
       clearFieldValidation(id);
       return true;
+    }
+
+    // GC_R10Z4_AMBIGUOUS_DOOR_SELECTION_GATE
+    // A road+door without county/district is not allowed to auto-pick a nearby district.
+    // Fetch suggestions and let the passenger choose the correct administrative area.
+    if (!isRelaxedRideDestination(id) && isDoorAddressMissingAdmin(normalized)) {
+      const suggestions = await fetchAddressSuggestions(normalized);
+      clearAddressVerified(input);
+      input.classList.add('gc-address-needs-choice');
+      if (options.showError !== false) {
+        showFieldError(id, suggestions.length ? '此門牌在不同區域可能重複，請從建議地址選擇正確縣市／區域。' : '請補上縣市與區域，或從建議地址選擇正確地點。');
+        if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
+        else hideAddressSuggestions(id);
+      }
+      return false;
     }
 
     // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_FALLBACK
