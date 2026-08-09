@@ -9,6 +9,7 @@
   // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
   // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_ROUTE_RESOLUTION
   // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
+  // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_HANDOFF_SANITIZER
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
@@ -117,8 +118,8 @@
 
   function saveDraft() {
     const flowId = markFareContinuity();
-    const pickup = trim(qs('pickup')?.value);
-    const destination = trim(qs('destination')?.value);
+    const pickup = cleanMapAddress(qs('pickup')?.value);
+    const destination = cleanMapAddress(qs('destination')?.value);
     const km = trim(qs('fareKm')?.value);
     const minutes = trim(qs('fareMinutes')?.value);
     if (!pickup && !destination && !km && !minutes) { safeSessionRemove(snapshotKey(flowId)); return; }
@@ -133,8 +134,9 @@
   }
 
   function setAddressValueSilently(input, value) {
-    if (!input || !trim(value)) return false;
-    input.value = value;
+    const cleaned = cleanMapAddress(value);
+    if (!input || !cleaned) return false;
+    input.value = cleaned;
     // app-v5719.js 的智慧地址監聽器會讀這個一次性旗標；
     // 程式帶入/草稿恢復不是新的使用者輸入，不應再次彈出候選清單。
     input.dataset.gcSkipSuggestOnce = '1';
@@ -289,8 +291,10 @@
   function toCall() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
-    const pickup = trim(pickupInput?.value);
-    const destination = trim(destinationInput?.value);
+    const pickup = cleanMapAddress(pickupInput?.value);
+    const destination = cleanMapAddress(destinationInput?.value);
+    if (pickupInput && pickup && trim(pickupInput.value) !== pickup) setAddressValueSilently(pickupInput, pickup);
+    if (destinationInput && destination && trim(destinationInput.value) !== destination) setAddressValueSilently(destinationInput, destination);
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();

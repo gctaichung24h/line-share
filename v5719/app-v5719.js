@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z2';
+  const GC_BUILD_VERSION = 'master202608r10z3';
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
+  // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_BEHAVIOR_RESTORE
+  // Address-only repair: restore R10Q-style autocomplete availability; keep format sanitation and mode-aware submit gates separate.
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
   // GC_MASTER_STABLE_2026_08R10Y_LARGE_FLEET_ADDRESS_RESOLUTION
   // GC_MASTER_STABLE_2026_08R10Z_DISPATCH_CORE_FINAL
@@ -11,7 +13,7 @@
   // GC_MASTER_STABLE_2026_08R10X_PROVIDER_POSTAL_LABEL_SANITIZER
   // Provider-only cleanup: remove Taiwan postal-code prefixes/commas from explicit suggestions; never rewrite manual typing.
   // GC_MASTER_STABLE_2026_08R10W_USER_ADDRESS_CONTROL_LOCK
-  // Customer-visible address text is immutable unless the customer explicitly types/selects/GPS/recent/favorite.
+  // Customer controls address meaning; after typing ends, format-only sanitation may remove provider noise without changing the place.
   // GC_MASTER_STABLE_2026_08R10U_MODE_AWARE_ADDRESS_POLICY
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_MASTER_STABLE_2026_08R10S_FINAL_SMART_LOCATION_AND_POLISH_SEAL
@@ -348,16 +350,21 @@
     return smartNormalizeTaiwanAddress(address);
   }
 
+  // GC_R10Z3_SAFE_VISIBLE_ADDRESS_SANITIZER
+  // Restore the pre-regression behavior only for unambiguous formatting cleanup.
+  // This may remove Taiwan postal-code prefixes / provider commas / extra spaces / indoor floors,
+  // but it never invents a county, district, road or POI and never runs while the passenger is typing.
   function normalizeAddressInput(id) {
     const input = document.getElementById(id);
     if (!input) return '';
-    // R10W: validation/navigation may normalize a private copy, but blur/submit must never
-    // rewrite what the passenger sees. The visible field is the dispatch source of truth.
-    const visible = String(input.value || '').trim();
-    const normalized = smartNormalizeTaiwanAddress(visible);
-    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && visible) {
-      attachedLocation.manualAddress = visible;
-      attachedLocation.address = visible;
+    const before = String(input.value || '').trim();
+    const normalized = smartNormalizeTaiwanAddress(before);
+    if (normalized && normalized !== before) {
+      input.value = normalized;
+    }
+    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && normalized) {
+      attachedLocation.manualAddress = normalized;
+      attachedLocation.address = normalized;
     }
     return normalized;
   }
@@ -707,8 +714,9 @@
     if (!detail) return true;
     if (/\d+(?:[-之]\d+)?號/.test(detail)) return false;
     if (isExplicitIntersectionQuery(detail) || isExplicitAlleyMouthQuery(detail)) return false;
-    if (/(?:路口|交叉口|巷口|弄口)/.test(detail)) return false;
-    // A bare road/street (including section names) is a search area, not a meeting point.
+    // GC_R10Z3_PICKUP_PRECISION_GATE: a generic “XX路口” is still ambiguous unless two roads
+    // form an explicit intersection. Bare roads/streets/avenues/lanes are search areas, not pickup points.
+    if (/(?:路口|交叉口|巷口|弄口)$/.test(detail)) return true;
     return /^(?:[^,，、]{1,36})(?:路|街|大道|道)(?:[一二三四五六七八九十百]+段)?$/.test(detail)
       || /^(?:[^,，、]{1,36})(?:巷|弄)$/.test(detail);
   }
@@ -723,10 +731,9 @@
   function isLocallyDispatchReady(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
     if (!normalized || isBroadRoadOnlyAddress(normalized) || isGenericAreaText(normalized)) return false;
-    if (isStructuredDoorAddress(normalized) || isExplicitIntersectionQuery(normalized) || isExplicitAlleyMouthQuery(normalized)) return true;
-    // Previously selected POIs normally carry an admin area plus a non-road label. Keep those trusted.
-    const parts = splitTaiwanSuggestionAddress(normalized);
-    return Boolean(parts.county && parts.district && parts.detail && !isBroadRoadOnlyAddress(parts.detail));
+    // Local syntax may self-validate only when it is objectively precise. POIs/shops/stations are
+    // validated by ArcGIS or by an explicit suggestion selection, not by a broad text-shape guess.
+    return isStructuredDoorAddress(normalized) || isExplicitIntersectionQuery(normalized) || isExplicitAlleyMouthQuery(normalized);
   }
 
   function markAddressVerified(input, source = 'confirmed', resolvedAddress = '') {
@@ -1141,46 +1148,27 @@
           return;
         }
 
-        // GC_R10Z1_COMPLETE_TYPED_NO_AUTOCOMPLETE_GATE
-        // A passenger who has already entered a complete ground address must not be sent back
-        // through autocomplete. Keep the visible text untouched and verify a private route copy.
-        // This prevents a later provider response from replacing or re-resolving a complete manual address.
-        if (isStructuredDoorAddress(query)) {
-          markAddressVerified(input, 'structured-manual-live', smartNormalizeTaiwanAddress(query));
-          hideAddressSuggestions(id);
-          clearFieldValidation(id);
-          return;
-        }
-
+        // GC_R10Z3_R10Q_AUTOCOMPLETE_RESTORED
+        // Do not use address-completeness as an autocomplete gate. While the passenger is typing,
+        // suggestions remain available exactly as assistance. Validation happens only on action/submit.
         const token = ++addressSuggestRequestToken;
         localToken = token;
         timer = setTimeout(async () => {
           const suggestions = await fetchAddressSuggestions(query);
           if (localToken !== token || normalizeAddress(input.value) !== query) return;
 
+          // Exact/unique results may pre-verify a hidden route copy, but they must not close the
+          // suggestion UI or rewrite the passenger's text. The passenger can still choose a candidate.
           const exact = exactStructuredSuggestion(query, suggestions);
           if (exact) {
-            // Never rewrite a passenger's text while they are typing. Keep the visible text and
-            // retain the canonical resolved address only as hidden verification metadata.
             const selected = canonicalizeSuggestedAddress(exact.text);
-            markAddressVerified(input, 'auto-exact', selected);
-            hideAddressSuggestions(id);
+            if (selected) markAddressVerified(input, 'auto-exact', selected);
             clearFieldValidation(id);
-            return;
           }
 
-          const unique = await uniqueDispatchSuggestion(query, suggestions);
-          if (localToken !== token || normalizeAddress(input.value) !== query) return;
-          if (unique) {
-            const resolvedAddress = resolvedAddressForInput(query, unique.resolved, unique.item.text);
-            markAddressVerified(input, 'auto-resolved', resolvedAddress);
-            hideAddressSuggestions(id);
-            clearFieldValidation(id);
-            return;
-          }
-
+          // Keep the R10Q typing path fast: do not perform a second candidate-resolution request
+          // before showing the list. Resolve only after an explicit tap or when the user submits.
           if (!suggestions.length) { hideAddressSuggestions(id); return; }
-          // If focus has already moved elsewhere, keep the typed text but do not leave a stale panel behind.
           if (document.activeElement !== input) { hideAddressSuggestions(id); return; }
           box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
           box._gcSuggestions = suggestions;
@@ -1189,8 +1177,12 @@
       });
 
       input.addEventListener('blur', () => {
-        // R10W: blur only closes the helper. It must not “tidy” or rewrite passenger text.
-        setTimeout(() => hideAddressSuggestions(id), 180);
+        // GC_R10Z3_BLUR_FORMAT_ONLY: restore R10Q's safe tidy-up after typing is finished.
+        // This is format sanitation only (postal prefix / comma / whitespace / floor), not geocoder replacement.
+        setTimeout(() => {
+          normalizeAddressInput(id);
+          hideAddressSuggestions(id);
+        }, 180);
       });
 
       box.addEventListener('mousedown', event => event.preventDefault());
@@ -1206,7 +1198,7 @@
         // The customer explicitly chose this suggestion, so changing the field is allowed.
         // Use the candidate's structured/canonical address when available; never expose raw
         // provider postal codes, commas, spaces, or reverse-order labels.
-        const selected = resolved?.address || initialSelected;
+        const selected = smartNormalizeTaiwanAddress(resolved?.address || initialSelected);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
         const relaxedDestination = isRelaxedRideDestination(id);
         const ready = relaxedDestination || (resolved
@@ -1246,7 +1238,7 @@
       if (!Array.isArray(parsed)) return [];
       const unique = [];
       for (const item of parsed) {
-        const address = String(item || '').trim();
+        const address = smartNormalizeTaiwanAddress(item);
         if (!address) continue;
         if (!unique.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
           unique.push(address);
@@ -1272,7 +1264,7 @@
     const next = [];
     const candidates = [...addresses, ...loadRecentAddresses()];
     for (const item of candidates) {
-      const address = String(item || '').trim();
+      const address = smartNormalizeTaiwanAddress(item);
       if (!address) continue;
       if (!next.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
         next.push(address);
@@ -1304,8 +1296,8 @@
 
   function normalizeFavoriteTrip(item) {
     if (!item || typeof item !== 'object') return null;
-    const pickup = String(item.pickup || '').trim();
-    const destination = String(item.destination || '').trim();
+    const pickup = smartNormalizeTaiwanAddress(item.pickup);
+    const destination = smartNormalizeTaiwanAddress(item.destination);
     const name = String(item.name || '').trim().slice(0, 30);
     if (!pickup || !destination || pickup === LOCATION_MARKER) return null;
     return { name: name || '常用行程', pickup, destination };
