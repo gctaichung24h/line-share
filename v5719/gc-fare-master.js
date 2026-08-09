@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   'use strict';
   const MASTER_MARKER = 'GC_MASTER_STABLE_2026_08_FARE_FLOW_MODULE';
   // GC_MASTER_STABLE_2026_08R3_FARE_CONTINUITY
@@ -164,6 +164,8 @@
       setTimeout(() => {
         try { firstMissing?.focus({ preventScroll: true }); }
         catch (_) { try { firstMissing?.focus(); } catch (_) {} }
+        setFieldError('pickup', missingPickup ? message : '');
+        setFieldError('destination', missingDestination ? message : '');
       }, 280);
     });
   }
@@ -266,9 +268,12 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要客服協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">＋</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價方式')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
+      const panelTitle = document.createElement('strong');
+      panelTitle.className = 'gc-manual-panel-title';
+      panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
       const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
@@ -278,10 +283,11 @@
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
       details.appendChild(inner);
+      inner.appendChild(panelTitle);
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '－' : '＋'; });
+      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，

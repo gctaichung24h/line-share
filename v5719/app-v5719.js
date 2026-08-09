@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10f';
+  const GC_BUILD_VERSION = 'master202608r10g';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -1663,6 +1663,10 @@
   function renderFareCalculator(cfg) {
     return `
       <section class="gc-fare-calc" aria-label="填入分鐘與公里">
+        <div class="gc-fare-calc-kicker">
+          <strong>${escapeHtml(cfg['計算器標題'] || '② 回來填 2 個數字')}</strong>
+          <span>${escapeHtml(cfg['計算器說明'] || '照 Google 地圖顯示填入即可')}</span>
+        </div>
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareMinutes">
             <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
@@ -1921,9 +1925,30 @@
     return [...document.querySelectorAll(managedDisclosureSelector)];
   }
 
+  function disclosureHasMeaningfulData(details) {
+    if (!details?.matches('details.optional-box:not(.favorite-box)')) return false;
+    const emptyTokens = new Set(['', '0', '無', 'none', 'null', 'undefined', '-', '－']);
+    return [...details.querySelectorAll('input, select, textarea')].some(control => {
+      if (control.disabled) return false;
+      const type = String(control.type || '').toLowerCase();
+      if (type === 'radio' || type === 'checkbox') {
+        if (!control.checked) return false;
+        const v = String(control.value || '').trim().toLowerCase();
+        return !emptyTokens.has(v);
+      }
+      const v = String(control.value || '').trim();
+      if (!v) return false;
+      return !emptyTokens.has(v.toLowerCase());
+    });
+  }
+
   function closeManagedDisclosuresOutside(target) {
     managedDisclosures().forEach(details => {
-      if (details.open && !details.contains(target)) details.open = false;
+      if (!details.open || details.contains(target)) return;
+      // Smart collapse: explanation-only panels close automatically, but a form section
+      // holding actual customer choices stays open so the customer can verify them.
+      if (disclosureHasMeaningfulData(details)) return;
+      details.open = false;
     });
   }
 

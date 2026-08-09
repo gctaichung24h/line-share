@@ -152,9 +152,9 @@ window.GC_FORM_CONFIG = {
                  "路線按鈕":  "開啟 Google 地圖",
                  "已知數字捷徑":  "",
                  "錯誤_情境缺資料":  "請填寫資料。",
-                 "計算器標題":  "② 填入分鐘＋公里",
+                 "計算器標題":  "② 回來填 2 個數字",
                  "計算器徽章":  "",
-                 "計算器說明":  "",
+                 "計算器說明":  "照 Google 地圖顯示填入即可",
                  "計算器等待":  "輸入後即時顯示",
                  "公里標題":  "公里數",
                  "公里提示":  "例如 7.9",
@@ -179,8 +179,9 @@ window.GC_FORM_CONFIG = {
                  "費率標題":  "▍中部地區費率",
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
-                 "人工協助標題":  "不方便自行試算？客服協助估價",
+                 "人工協助標題":  "其他估價方式",
                  "人工協助提示":  "",
+                 "人工協助展開標題":  "客服協助估價",
                  "人工協助補充":  "請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。",
                  "自助上車標題":  "上車地址",
                  "自助下車標題":  "下車地址",
@@ -218,7 +219,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10f';
+  const GC_BUILD_VERSION = 'master202608r10g';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -1881,6 +1882,10 @@ window.GC_FORM_CONFIG = {
   function renderFareCalculator(cfg) {
     return `
       <section class="gc-fare-calc" aria-label="填入分鐘與公里">
+        <div class="gc-fare-calc-kicker">
+          <strong>${escapeHtml(cfg['計算器標題'] || '② 回來填 2 個數字')}</strong>
+          <span>${escapeHtml(cfg['計算器說明'] || '照 Google 地圖顯示填入即可')}</span>
+        </div>
         <div class="gc-fare-calc-grid">
           <label class="gc-fare-calc-field" for="fareMinutes">
             <span>${escapeHtml(cfg['時間標題'] || '預估時間')}</span>
@@ -2139,9 +2144,30 @@ window.GC_FORM_CONFIG = {
     return [...document.querySelectorAll(managedDisclosureSelector)];
   }
 
+  function disclosureHasMeaningfulData(details) {
+    if (!details?.matches('details.optional-box:not(.favorite-box)')) return false;
+    const emptyTokens = new Set(['', '0', '無', 'none', 'null', 'undefined', '-', '－']);
+    return [...details.querySelectorAll('input, select, textarea')].some(control => {
+      if (control.disabled) return false;
+      const type = String(control.type || '').toLowerCase();
+      if (type === 'radio' || type === 'checkbox') {
+        if (!control.checked) return false;
+        const v = String(control.value || '').trim().toLowerCase();
+        return !emptyTokens.has(v);
+      }
+      const v = String(control.value || '').trim();
+      if (!v) return false;
+      return !emptyTokens.has(v.toLowerCase());
+    });
+  }
+
   function closeManagedDisclosuresOutside(target) {
     managedDisclosures().forEach(details => {
-      if (details.open && !details.contains(target)) details.open = false;
+      if (!details.open || details.contains(target)) return;
+      // Smart collapse: explanation-only panels close automatically, but a form section
+      // holding actual customer choices stays open so the customer can verify them.
+      if (disclosureHasMeaningfulData(details)) return;
+      details.open = false;
     });
   }
 
@@ -2943,6 +2969,7 @@ window.GC_FORM_CONFIG = {
       let lines = [];
       if (v) {
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
+        lines.push('<span class="gc-match-warning">指定車型需依當下車況媒合，媒合速度與成功率可能降低。</span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
       vn.classList.toggle('hidden', lines.length === 0);
@@ -3259,6 +3286,8 @@ window.GC_FORM_CONFIG = {
       setTimeout(() => {
         try { firstMissing?.focus({ preventScroll: true }); }
         catch (_) { try { firstMissing?.focus(); } catch (_) {} }
+        setFieldError('pickup', missingPickup ? message : '');
+        setFieldError('destination', missingDestination ? message : '');
       }, 280);
     });
   }
@@ -3361,9 +3390,12 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要客服協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">＋</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價方式')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
+      const panelTitle = document.createElement('strong');
+      panelTitle.className = 'gc-manual-panel-title';
+      panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
       const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
@@ -3373,10 +3405,11 @@ window.GC_FORM_CONFIG = {
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
       details.appendChild(inner);
+      inner.appendChild(panelTitle);
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '－' : '＋'; });
+      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，

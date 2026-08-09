@@ -436,3 +436,53 @@ body{background:linear-gradient(180deg,#eef5fa 0%,#f7f9fb 205px,#f7f9fb 100%)!im
   .gc-rate-row{font-size:14.5px!important}
   .gc-rate-note-row,.gc-manual-note-row{font-size:14.5px!important}
 }
+
+
+/* GC_MASTER_STABLE_2026_08R10_FINAL_FIRST_GLANCE_SYSTEM
+   Final customer-flow hierarchy after real-device review:
+   task fields > page title; self-service fare > fallback support; smart disclosure retention. */
+.form-head,.gc-fare-card .gc-fare-head{padding:10px 19px 9px!important}
+.form-head h1{font-size:20.5px!important;line-height:1.32!important;font-weight:700!important;letter-spacing:-.02em!important;color:#244b65!important}
+.form-head h1::before{height:18px!important;background:#3a7ca7!important}
+.form-head p,.gc-fare-card .gc-fare-head .gc-fare-guide-copy{margin-top:4px!important;font-size:13px!important;font-weight:500!important;color:#748796!important}
+.gc-primary-address .field-label-row>label,.gc-primary-address>label,
+.gc-fare-route-fields .gc-primary-address .field-label-row>label,.gc-fare-route-fields .gc-primary-address>label{font-size:18px!important;line-height:1.35!important;font-weight:700!important;letter-spacing:-.012em!important;color:#123a58!important}
+
+/* Selected vehicle: fee + operational matching consequence in one compact, explicit notice. */
+.gc-vehicle-field #gcVehicleNotice{border-color:#e3d3a6!important;border-left-color:#c7a552!important;background:#fffaf0!important}
+.gc-vehicle-field #gcVehicleNotice p{font-size:13.5px!important;line-height:1.48!important}
+.gc-vehicle-field #gcVehicleNotice p+p{margin-top:7px!important;padding-top:7px!important;border-top:1px solid rgba(174,140,66,.2)!important}
+.gc-match-warning{display:block!important;color:#665323!important;font-weight:650!important}
+
+/* Fare self-service second step must visually continue the main route, not fade behind support. */
+.gc-fare-calc{padding-top:13px!important}
+.gc-fare-calc-kicker{display:flex!important;align-items:baseline!important;justify-content:space-between!important;gap:10px!important;margin:0 1px 10px!important}
+.gc-fare-calc-kicker strong{font-size:16.5px!important;line-height:1.4!important;font-weight:700!important;letter-spacing:-.012em!important;color:#163f5f!important}
+.gc-fare-calc-kicker span{font-size:13.5px!important;line-height:1.45!important;font-weight:500!important;color:#687e8e!important;text-align:right!important}
+.gc-fare-calc-field>span{font-size:17px!important;line-height:1.4!important;font-weight:700!important;color:#214b69!important}
+.gc-fare-calc-input-wrap{border-color:#b9ccd9!important;background:#fff!important}
+.gc-fare-calc-input::placeholder{color:#8f9faa!important}
+.gc-fare-rates{margin-top:14px!important}
+.gc-fare-rates-content{padding-bottom:14px!important}
+.gc-rate-section-title{font-size:15.5px!important}
+.gc-rate-row,.gc-rate-note-row{font-size:15.5px!important}
+
+/* Customer support is an intentional fallback, never a competing CTA. */
+.gc-fare-manual-details{margin-top:5px!important;padding-top:5px!important;border-top:1px solid #edf1f4!important}
+.gc-fare-manual-details>summary{min-height:38px!important;padding:8px 2px!important}
+.gc-fare-manual-details>summary strong{font-size:13.5px!important;line-height:1.4!important;font-weight:500!important;color:#778b99!important}
+.gc-fare-manual-details>summary>b{font-size:14px!important;line-height:1!important;font-weight:500!important;color:#94a3ae!important}
+.gc-fare-manual-inner{padding-top:7px!important}
+.gc-manual-panel-title{display:block!important;margin:0 0 8px!important;font-size:15.5px!important;line-height:1.4!important;font-weight:700!important;color:#244d68!important}
+.gc-fare-manual-extra{margin-bottom:10px!important}
+.gc-manual-note-row{font-size:14.5px!important}
+
+@media(max-width:360px){
+  .form-head h1{font-size:20px!important}
+  .gc-primary-address .field-label-row>label,.gc-primary-address>label,.gc-fare-route-fields .gc-primary-address>label{font-size:17.5px!important}
+  .gc-fare-calc-kicker{display:block!important}
+  .gc-fare-calc-kicker strong{display:block!important;font-size:16px!important}
+  .gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;font-size:12.8px!important;text-align:left!important}
+  .gc-fare-calc-field>span{font-size:16.5px!important}
+  .gc-rate-row,.gc-rate-note-row{font-size:15px!important}
+}
