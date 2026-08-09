@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10v';
+  const GC_BUILD_VERSION = 'master202608r10w';
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
+  // GC_MASTER_STABLE_2026_08R10W_USER_ADDRESS_CONTROL_LOCK
+  // Customer-visible address text is immutable unless the customer explicitly types/selects/GPS/recent/favorite.
   // GC_MASTER_STABLE_2026_08R10U_MODE_AWARE_ADDRESS_POLICY
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_MASTER_STABLE_2026_08R10S_FINAL_SMART_LOCATION_AND_POLISH_SEAL
@@ -341,11 +343,13 @@
   function normalizeAddressInput(id) {
     const input = document.getElementById(id);
     if (!input) return '';
-    const normalized = smartNormalizeTaiwanAddress(input.value);
-    if (normalized && normalized !== input.value.trim()) input.value = normalized;
-    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && normalized) {
-      attachedLocation.manualAddress = normalized;
-      attachedLocation.address = normalized;
+    // R10W: validation/navigation may normalize a private copy, but blur/submit must never
+    // rewrite what the passenger sees. The visible field is the dispatch source of truth.
+    const visible = String(input.value || '').trim();
+    const normalized = smartNormalizeTaiwanAddress(visible);
+    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && visible) {
+      attachedLocation.manualAddress = visible;
+      attachedLocation.address = visible;
     }
     return normalized;
   }
@@ -994,10 +998,8 @@
       });
 
       input.addEventListener('blur', () => {
-        setTimeout(() => {
-          normalizeAddressInput(id);
-          hideAddressSuggestions(id);
-        }, 180);
+        // R10W: blur only closes the helper. It must not “tidy” or rewrite passenger text.
+        setTimeout(() => hideAddressSuggestions(id), 180);
       });
 
       box.addEventListener('mousedown', event => event.preventDefault());
@@ -1016,7 +1018,10 @@
           ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
           : (!broad && isLocallyDispatchReady(selected)));
 
-        input.value = resolvedAddressForInput(selected, resolved, item.text) || selected;
+        // R10W explicit-selection rule: the visible field becomes exactly the suggestion
+        // the passenger tapped. A more canonical route address stays hidden as metadata only.
+        const resolvedAddress = resolvedAddressForInput(selected, resolved, item.text) || selected;
+        input.value = selected;
         input.dataset.gcSkipSuggestOnce = '1';
         input._gcCancelSmartSuggestions?.();
         if (!ready) {
@@ -1030,7 +1035,7 @@
           return;
         }
 
-        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddressForInput(selected, resolved, item.text) || selected);
+        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
@@ -1046,7 +1051,7 @@
       if (!Array.isArray(parsed)) return [];
       const unique = [];
       for (const item of parsed) {
-        const address = smartNormalizeTaiwanAddress(item);
+        const address = String(item || '').trim();
         if (!address) continue;
         if (!unique.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
           unique.push(address);
@@ -1072,7 +1077,7 @@
     const next = [];
     const candidates = [...addresses, ...loadRecentAddresses()];
     for (const item of candidates) {
-      const address = smartNormalizeTaiwanAddress(item);
+      const address = String(item || '').trim();
       if (!address) continue;
       if (!next.some(existing => existing.toLocaleLowerCase() === address.toLocaleLowerCase())) {
         next.push(address);
@@ -1104,8 +1109,8 @@
 
   function normalizeFavoriteTrip(item) {
     if (!item || typeof item !== 'object') return null;
-    const pickup = smartNormalizeTaiwanAddress(item.pickup);
-    const destination = smartNormalizeTaiwanAddress(item.destination);
+    const pickup = String(item.pickup || '').trim();
+    const destination = String(item.destination || '').trim();
     const name = String(item.name || '').trim().slice(0, 30);
     if (!pickup || !destination || pickup === LOCATION_MARKER) return null;
     return { name: name || '常用行程', pickup, destination };
@@ -1584,7 +1589,7 @@
       }
       const generatedAddress = normalizeAddress(attachedLocation.generatedAddress || '');
       if (!generatedAddress || current !== generatedAddress) {
-        attachedLocation.address = smartNormalizeTaiwanAddress(current);
+        attachedLocation.address = String(pickupInput.value || '').trim();
         attachedLocation.manualAddress = attachedLocation.address;
         attachedLocation.confirmed = false;
         attachedLocation.requiresConfirmation = false;
@@ -1601,7 +1606,7 @@
       if (!attachedLocation || !normalizeAddress(pickupInput.value)) return;
       attachedLocation.confirmed = true;
       attachedLocation.requiresConfirmation = false;
-      attachedLocation.address = smartNormalizeTaiwanAddress(pickupInput.value);
+      attachedLocation.address = String(pickupInput.value || '').trim();
       markAddressVerified(pickupInput, 'location-confirmed');
       setLocationReview('', false);
       setLocationStatus('地址已確認，定位會一併附上。', 'success');
@@ -1613,7 +1618,7 @@
         return;
       }
       const requestToken = ++locationRequestToken;
-      const previousPickup = smartNormalizeTaiwanAddress(pickupInput.value);
+      const previousPickup = String(pickupInput.value || '').trim();
       const previousPickupVerified = isAddressVerified(pickupInput);
       pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
@@ -1828,7 +1833,7 @@
   // separated in a locked sheet so choosing a recent address never feels like a new flow.
   function fillRecentAddress(address, targetId) {
     const input = document.getElementById(targetId);
-    const cleaned = smartNormalizeTaiwanAddress(address);
+    const cleaned = String(address || '').trim();
     if (!input || !cleaned) return false;
     if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
     input._gcCancelSmartSuggestions?.();
@@ -2754,8 +2759,8 @@
       normalizeAddressInput('destination');
 
       const serviceType = checked('serviceType');
-      const pickup = value('pickup');
-      const destination = value('destination');
+      let pickup = value('pickup');
+      let destination = value('destination');
       let valid = true;
 
       if (!serviceType) {
@@ -2790,6 +2795,22 @@
       if (!valid) {
         focusFirstValidationError();
         return;
+      }
+
+      // R10W race guard: if the passenger edits an address while async verification is running,
+      // never send the older snapshot. Re-read and verify the final visible text once more.
+      const latestPickup = value('pickup');
+      const latestDestination = value('destination');
+      if (latestPickup !== pickup || latestDestination !== destination) {
+        pickup = latestPickup;
+        destination = latestDestination;
+        let latestValid = Boolean(pickup && pickup !== LOCATION_MARKER);
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
+        if (latestValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) latestValid = false;
+        if (!latestValid) {
+          focusFirstValidationError();
+          return;
+        }
       }
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
@@ -2957,8 +2978,8 @@
       normalizeAddressInput('pickup');
       normalizeAddressInput('destination');
 
-      const pickup = value('pickup');
-      const destination = value('destination');
+      let pickup = value('pickup');
+      let destination = value('destination');
       const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室';
       let valid = true;
       if (!pickup) {
@@ -2974,6 +2995,23 @@
       if (!valid) {
         focusFirstValidationError();
         return;
+      }
+
+      // R10W fare race guard: Google-routing verification and the outgoing LINE text must
+      // refer to the same final visible addresses. If the passenger edited during lookup,
+      // verify the new values rather than sending the stale pre-lookup snapshot.
+      const latestPickup = value('pickup');
+      const latestDestination = value('destination');
+      if (latestPickup !== pickup || latestDestination !== destination) {
+        pickup = latestPickup;
+        destination = latestDestination;
+        let latestValid = Boolean(pickup && destination);
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('destination', { showError: true }))) latestValid = false;
+        if (!latestValid) {
+          focusFirstValidationError();
+          return;
+        }
       }
 
       // GC_MASTER_STABLE_2026_08R10R_FARE_CHAT_EXPECTATION_COPY
