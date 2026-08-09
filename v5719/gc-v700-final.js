@@ -165,8 +165,13 @@
       <details class="gc-info-disclosure">
         <summary>ⓘ 車型與加價說明</summary>
         <div class="gc-info-disclosure-body">
-          <p><strong>僅指定車型｜品牌／車款隨機媒合。</strong></p>
-          <p>休旅車不加價｜進口車 +200｜六、七人座 +100｜九人座 +250。</p>
+          <div class="gc-vehicle-info-lead"><strong>僅指定車型</strong><span>品牌／車款隨機媒合</span></div>
+          <div class="gc-vehicle-price-list" aria-label="車型加價">
+            <div><span>休旅車</span><b>不加價</b></div>
+            <div><span>進口車</span><b>+$200</b></div>
+            <div><span>六、七人座</span><b>+$100</b></div>
+            <div><span>九人座</span><b>+$250</b></div>
+          </div>
         </div>
       </details>
       <div id="gcVehicleNotice" class="gc-price-notice hidden" aria-live="polite"></div>`;
@@ -407,6 +412,7 @@
       replacePassengersAndExpose();
       restructureCallDetails();
       window.GC_bindSmallDisclosureTriggers?.();
+      window.GC_installManagedDisclosureBehavior?.();
       setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 0);
       setTimeout(() => window.GC_bindSmallDisclosureTriggers?.(), 120);
       forcePassengerPublicPosition();

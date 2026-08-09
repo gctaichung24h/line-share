@@ -269,9 +269,11 @@
       summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要客服協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">＋</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
-      const extra = document.createElement('p');
+      const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
-      extra.textContent = cfg()['人工協助補充'] || '請填寫上下車地點，客服將依序協助估價。';
+      const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
+      const manualLines = String(manualCopy).split(/[。；]/).map(line => line.trim()).filter(Boolean);
+      extra.innerHTML = manualLines.map(line => `<div class="gc-manual-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('');
       manualHead.remove();
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
@@ -280,6 +282,7 @@
       inner.appendChild(form);
       manual.remove();
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '－' : '＋'; });
+      window.GC_installManagedDisclosureBehavior?.();
 
       // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
       // 必須直接把畫面帶到第一個缺少的地址並顯示原本錯誤提示。

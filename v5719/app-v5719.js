@@ -1,6 +1,6 @@
-﻿(() => {
+(() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10';
+  const GC_BUILD_VERSION = 'master202608r10f';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -27,7 +27,7 @@
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
-  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_PREMIUM_UX_LOCKED_SAFE';
+  const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_FINAL_ENTERPRISE_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 3;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
@@ -1571,8 +1571,8 @@
     document.title = cfg['頁面標題'];
     app.innerHTML = `
       ${renderBrand()}
-      <section class="form-card">
-        <div class="form-head">
+      <section class="form-card gc-ride-card gc-${mode}-card">
+        <div class="form-head gc-task-head">
           <h1>${escapeHtml(cfg['頁面標題'])}</h1>
           <p>${escapeHtml(cfg['頁面說明'])}</p>
         </div>
@@ -1693,16 +1693,17 @@
   function renderFareRateSummary(cfg) {
     const rules = fareRules(cfg);
     const allDay = cfg['費率_全天同價文案'] || '24H同一費率｜無夜間加成';
-    const allDayShort = allDay.split('｜')[0] || allDay;
-    const rateLines = [
-      `起跳 $${formatFareRuleValue(rules.start)}`,
-      `每分鐘 $${formatFareRuleValue(rules.perMinute)}`,
-      `每公里 $${formatFareRuleValue(rules.perKm)}`,
-      `第${formatFareRuleValue(rules.extraFromKm)}公里起 每公里+$${formatFareRuleValue(rules.extraPerKm)}`,
-      `最低消費 $${formatFareRuleValue(rules.minimum)}`,
-      allDay
+    const allDayParts = allDay.split('｜').map(item => item.trim()).filter(Boolean);
+    const allDayShort = allDayParts[0] || '24H同一費率';
+    const longText = `長途超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里另有直收優惠價`;
+    const baseRows = [
+      ['起跳', `$${formatFareRuleValue(rules.start)}`],
+      ['每分鐘', `$${formatFareRuleValue(rules.perMinute)}`],
+      ['每公里', `$${formatFareRuleValue(rules.perKm)}`],
+      [`第 ${formatFareRuleValue(rules.extraFromKm)} 公里起`, `每公里 +$${formatFareRuleValue(rules.extraPerKm)}`],
+      ['最低消費', `$${formatFareRuleValue(rules.minimum)}`]
     ];
-    const longText = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(rules.longDistanceKm) });
+    const noteRows = [...allDayParts, longText];
     return `
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
@@ -1710,8 +1711,14 @@
           <small>${escapeHtml(allDayShort)}｜最低 $${escapeHtml(formatFareRuleValue(rules.minimum))}</small>
         </summary>
         <div class="gc-fare-rates-content">
-          <div class="gc-fare-rates-lines">${rateLines.map(line => `<span>${escapeHtml(line)}</span>`).join('')}</div>
-          <div class="gc-fare-rates-long">${escapeHtml(longText)}</div>
+          <section class="gc-rate-section" aria-label="基本計費">
+            <strong class="gc-rate-section-title">基本計費</strong>
+            <div class="gc-rate-grid">${baseRows.map(([label,value]) => `<div class="gc-rate-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`).join('')}</div>
+          </section>
+          <section class="gc-rate-section" aria-label="費率說明">
+            <strong class="gc-rate-section-title">費率說明</strong>
+            <div class="gc-rate-note-list">${noteRows.map(line => `<div class="gc-rate-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('')}</div>
+          </section>
         </div>
       </details>`;
   }
@@ -1903,52 +1910,78 @@
     btn.textContent = sending ? (COMMON['傳送中文字'] || '傳送中…') : cfg['送出按鈕'];
   }
 
+  const managedDisclosureSelector = [
+    'details.optional-box:not(.favorite-box)',
+    'details.gc-info-disclosure',
+    'details.gc-fare-rates',
+    'details.gc-fare-manual-details'
+  ].join(',');
+
+  function managedDisclosures() {
+    return [...document.querySelectorAll(managedDisclosureSelector)];
+  }
+
+  function closeManagedDisclosuresOutside(target) {
+    managedDisclosures().forEach(details => {
+      if (details.open && !details.contains(target)) details.open = false;
+    });
+  }
+
+  function installManagedDisclosureBehavior() {
+    if (document.documentElement.dataset.gcDisclosureManager === '1') return;
+    document.documentElement.dataset.gcDisclosureManager = '1';
+
+    // If another disclosure is opened, close peers. Ancestor/child disclosures may coexist
+    // so the vehicle-price details can stay inside the expanded special-needs section.
+    document.addEventListener('toggle', event => {
+      const current = event.target;
+      if (!(current instanceof HTMLDetailsElement) || !current.matches(managedDisclosureSelector) || !current.open) return;
+      managedDisclosures().forEach(details => {
+        if (details === current || !details.open) return;
+        if (details.contains(current) || current.contains(details)) return;
+        details.open = false;
+      });
+    }, true);
+
+    // Tapping elsewhere returns the page to its compact state. Defer the collapse
+    // until after the clicked control has completed its native action (important for
+    // submit buttons and neighboring disclosure summaries in mobile WebViews).
+    document.addEventListener('click', event => {
+      const target = event.target;
+      setTimeout(() => closeManagedDisclosuresOutside(target), 0);
+    });
+  }
+
   function bindSmallDisclosureTriggers() {
+    installManagedDisclosureBehavior();
     document.querySelectorAll('details.optional-box:not(.favorite-box)').forEach(details => {
       const summary = details.querySelector(':scope > summary');
       if (!summary) return;
-      const alreadyBound = summary.dataset.gcSmallTriggerBound === '1';
-
-      // Keep the row readable, but only the compact control at the far right opens it.
-      // This function is intentionally re-entrant because the visual refinement script may rewrite summary text.
       let trigger = summary.querySelector('.gc-small-disclosure-trigger');
       if (!trigger) {
-        trigger = document.createElement('button');
-        trigger.type = 'button';
+        trigger = document.createElement('span');
         trigger.className = 'gc-small-disclosure-trigger';
-        trigger.setAttribute('aria-label', '展開或收合');
-        trigger.innerHTML = '<span class="gc-small-trigger-label">展開</span><span aria-hidden="true">⌄</span>';
+        trigger.setAttribute('aria-hidden', 'true');
+        trigger.innerHTML = '<span class="gc-small-trigger-label">展開</span><span>⌄</span>';
         summary.appendChild(trigger);
       }
-
       const sync = () => {
         const currentTrigger = summary.querySelector('.gc-small-disclosure-trigger');
         if (!currentTrigger) return;
-        currentTrigger.setAttribute('aria-expanded', String(details.open));
         const label = currentTrigger.querySelector('.gc-small-trigger-label');
         if (label) label.textContent = details.open ? '收合' : '展開';
         const arrow = currentTrigger.lastElementChild;
         if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
       };
       sync();
-
-      if (!alreadyBound) {
+      if (summary.dataset.gcSmallTriggerBound !== '1') {
         summary.dataset.gcSmallTriggerBound = '1';
-        summary.addEventListener('click', event => {
-          if (!event.target.closest('.gc-small-disclosure-trigger')) {
-            event.preventDefault();
-            return;
-          }
-          event.preventDefault();
-          event.stopPropagation();
-          details.open = !details.open;
-          sync();
-        });
         details.addEventListener('toggle', sync);
       }
     });
   }
   window.GC_bindSmallDisclosureTriggers = bindSmallDisclosureTriggers;
+  window.GC_installManagedDisclosureBehavior = installManagedDisclosureBehavior;
 
   function installVerticalOnlyTouchGuard() {
     if (document.documentElement.dataset.gcVerticalGuard === '1') return;
