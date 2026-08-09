@@ -2,6 +2,7 @@
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
   // GC_MASTER_STABLE_2026_08R10J_PRIMARY_TASK_FIRST_LAYOUT
+  // GC_MASTER_STABLE_2026_08R10S_FAVORITE_SHEET_NATIVE_GESTURE
   // GC_MASTER_STABLE_2026_08R10Q_FAVORITE_SHEET_SCROLL_FIX
 
   const params = new URLSearchParams(location.search);
@@ -83,7 +84,14 @@
     sheet.querySelector('.gc-sheet-body').appendChild(favorite);
     document.body.appendChild(sheet);
 
+    const panel = sheet.querySelector('.gc-sheet');
+    const resetSheetDrag = () => {
+      if (!panel) return;
+      panel.classList.remove('gc-sheet-dragging', 'gc-sheet-snapback');
+      panel.style.removeProperty('transform');
+    };
     const close = () => {
+      resetSheetDrag();
       sheet.classList.add('hidden');
       sheet.hidden = true;
       sheet.setAttribute('aria-hidden', 'true');
@@ -131,6 +139,59 @@
       if (event.target.closest('#favoriteClearBtn')) close();
       if (event.target.closest('.favorite-use')) setTimeout(close, 0);
     }, true);
+
+    // iOS-style Bottom Sheet: upward swipes browse the list; only a deliberate downward drag
+    // from the handle/header can dismiss the sheet. This prevents "looking for more" from closing it.
+    const dragZones = [sheet.querySelector('.gc-sheet-handle'), sheet.querySelector('.gc-sheet-head')].filter(Boolean);
+    let dragPointerId = null;
+    let dragStartY = 0;
+    let dragLastY = 0;
+    let dragStartTime = 0;
+    let dragActive = false;
+    const dragMove = event => {
+      if (!dragActive || event.pointerId !== dragPointerId || !panel) return;
+      const dy = Math.max(0, event.clientY - dragStartY);
+      dragLastY = event.clientY;
+      if (dy > 0) {
+        event.preventDefault();
+        panel.classList.add('gc-sheet-dragging');
+        panel.style.transform = `translate3d(0, ${Math.min(dy, 220)}px, 0)`;
+      }
+    };
+    const dragEnd = event => {
+      if (!dragActive || event.pointerId !== dragPointerId || !panel) return;
+      const dy = Math.max(0, dragLastY - dragStartY);
+      const elapsed = Math.max(1, performance.now() - dragStartTime);
+      const velocity = dy / elapsed;
+      dragActive = false;
+      dragPointerId = null;
+      panel.classList.remove('gc-sheet-dragging');
+      try { event.currentTarget?.releasePointerCapture?.(event.pointerId); } catch (_) {}
+      if (dy >= 92 || (dy >= 44 && velocity >= 0.55)) {
+        close();
+        return;
+      }
+      panel.classList.add('gc-sheet-snapback');
+      panel.style.transform = 'translate3d(0,0,0)';
+      setTimeout(() => {
+        panel.classList.remove('gc-sheet-snapback');
+        panel.style.removeProperty('transform');
+      }, 240);
+    };
+    dragZones.forEach(zone => {
+      zone.addEventListener('pointerdown', event => {
+        if (event.target.closest('button')) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        dragPointerId = event.pointerId;
+        dragStartY = dragLastY = event.clientY;
+        dragStartTime = performance.now();
+        dragActive = true;
+        try { zone.setPointerCapture?.(event.pointerId); } catch (_) {}
+      });
+      zone.addEventListener('pointermove', dragMove, { passive: false });
+      zone.addEventListener('pointerup', dragEnd);
+      zone.addEventListener('pointercancel', dragEnd);
+    });
 
     const saveOverlay = document.getElementById('favoriteSaveOverlay');
     if (saveOverlay) {

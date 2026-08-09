@@ -1,6 +1,8 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10q';
+  const GC_BUILD_VERSION = 'master202608r10s';
+  // GC_MASTER_STABLE_2026_08R10S_FINAL_SMART_LOCATION_AND_POLISH_SEAL
+  // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
   // Version safety stays enabled, but it no longer competes with the first usable paint.
@@ -44,6 +46,7 @@
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
+  const LOCATION_PIN_ONLY_LABEL = '📍 目前定位（無門牌）';
   const LOCATION_AUTO_ACCEPT_ACCURACY_M = 35;
   const LOCATION_REVIEW_ACCURACY_M = 100;
   const LOCATION_SAMPLE_WINDOW_MS = 3200;
@@ -515,6 +518,33 @@
     return suggestions;
   }
 
+  function isExplicitIntersectionQuery(value) {
+    const text = smartNormalizeTaiwanAddress(value);
+    if (!text || !/(?:交叉路口|交叉口|路口)/.test(text)) return false;
+    return /(?:路|街|道|巷|弄).{0,28}(?:跟|與|和|及|×|X|x|&|／|\/).{0,28}(?:路|街|道|巷|弄)/.test(text);
+  }
+
+  function isExplicitAlleyMouthQuery(value) {
+    const text = smartNormalizeTaiwanAddress(value);
+    if (!text) return false;
+    return /(?:路|街|道)\s*\d+\s*巷(?:\s*\d+\s*弄)?(?:巷口|弄口|口)$/.test(text) || /(?:巷|弄)(?:口)$/.test(text);
+  }
+
+  function geocoderQueryForAddress(value) {
+    let text = smartNormalizeTaiwanAddress(value);
+    if (!text) return '';
+    if (isExplicitIntersectionQuery(text)) {
+      text = text
+        .replace(/(?:交叉路口|交叉口|路口)/g, '')
+        .replace(/\s*(?:跟|與|和|及|×|X|x|&|／|\/)\s*/, ' & ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    } else if (isExplicitAlleyMouthQuery(text)) {
+      text = text.replace(/巷口$/,'巷').replace(/弄口$/,'弄').replace(/口$/,'');
+    }
+    return text;
+  }
+
   async function fetchAddressSuggestions(query) {
     const cacheKey = normalizeAddress(query).replace(/臺/g, '台').toLocaleLowerCase();
     if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
@@ -523,6 +553,7 @@
     const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
     try {
       const explicitCounty = explicitTaiwanCountyFromQuery(query);
+      const geocoderQuery = geocoderQueryForAddress(query) || query;
       const currentLocationBias = attachedLocation &&
         Number.isFinite(attachedLocation.longitude) &&
         Number.isFinite(attachedLocation.latitude) &&
@@ -552,6 +583,7 @@
 
           merged.push({
             text: cleaned,
+            lookupText: raw.text,
             magicKey: raw.magicKey || '',
             sourceRegion,
             _order: order,
@@ -565,7 +597,7 @@
       const primaryLocation = explicitCounty
         ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
         : currentLocationBias;
-      addResults(await fetchArcgisSuggest(query, primaryLocation, controller), explicitCounty || '');
+      addResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), explicitCounty || '');
 
       // Only enrich when the first response did not already give enough safe,
       // district-labelled Central Taiwan choices. This keeps 中彰投 prominent
@@ -582,7 +614,7 @@
           : ADDRESS_PRIMARY_REGIONS.filter(region => region.name === '台中市');
         const enrichedSets = await Promise.all(enrichmentRegions.map(async region => {
           try {
-            const items = await fetchArcgisSuggest(`${region.name} ${query}`, region.location, controller);
+            const items = await fetchArcgisSuggest(`${region.name} ${geocoderQuery}`, region.location, controller);
             return { items, region: region.name };
           } catch (_) {
             return { items: [], region: region.name };
@@ -594,7 +626,7 @@
       const suggestions = merged
         .sort((a, b) => (b._score - a._score) || (a._order - b._order))
         .slice(0, 6)
-        .map(({ text, magicKey }) => ({ text, magicKey }));
+        .map(({ text, lookupText, magicKey }) => ({ text, lookupText, magicKey }));
 
       return cacheAddressSuggestions(cacheKey, suggestions);
     } catch (_) {
@@ -604,15 +636,23 @@
     }
   }
 
-  // GC_MASTER_STABLE_2026_08R10Q_ADDRESS_CONFIDENCE_GATE
-  // A typed address is not considered dispatch-ready merely because the field is non-empty.
-  // Recent/favorite/location/suggestion choices are trusted. Manual text is trusted only when
-  // it resolves to one exact structured address; vague landmarks must be chosen from suggestions.
+  // GC_MASTER_STABLE_2026_08R10S_ADDRESS_CONFIDENCE_GATE
+  // Large-fleet rule: the text does not need a house number, but the pickup/drop-off must resolve
+  // to one dispatchable location. Broad roads/areas are never treated as a finished address.
   function addressConfidenceKey(value) {
     return smartNormalizeTaiwanAddress(value)
       .replace(/[\s,，、。．·・\-—_()（）]/g, '')
       .replace(/臺/g, '台')
       .toLocaleLowerCase();
+  }
+
+  function addressDetailOnly(value) {
+    const normalized = smartNormalizeTaiwanAddress(value);
+    const parts = splitTaiwanSuggestionAddress(normalized);
+    return normalizeAddress(parts.detail || normalized)
+      .replace(/^(?:台灣|臺灣)/, '')
+      .replace(/(?:附近|這邊|那邊|周邊|一帶)$/g, '')
+      .trim();
   }
 
   function isStructuredDoorAddress(value) {
@@ -621,6 +661,33 @@
     const parts = splitTaiwanSuggestionAddress(normalized);
     if (!parts.county || !parts.district) return false;
     return /(?:路|街|道|巷|弄)[^號]{0,36}\d+(?:[-之]\d+)?號/.test(normalized);
+  }
+
+  function isBroadRoadOnlyAddress(value) {
+    const detail = addressDetailOnly(value);
+    if (!detail) return true;
+    if (/\d+(?:[-之]\d+)?號/.test(detail)) return false;
+    if (isExplicitIntersectionQuery(detail) || isExplicitAlleyMouthQuery(detail)) return false;
+    if (/(?:路口|交叉口|巷口|弄口)/.test(detail)) return false;
+    // A bare road/street (including section names) is a search area, not a meeting point.
+    return /^(?:[^,，、]{1,36})(?:路|街|大道|道)(?:[一二三四五六七八九十百]+段)?$/.test(detail)
+      || /^(?:[^,，、]{1,36})(?:巷|弄)$/.test(detail);
+  }
+
+  function isGenericAreaText(value) {
+    const detail = addressDetailOnly(value);
+    if (!detail) return true;
+    return /(?:附近|這邊|那邊|周邊|一帶)$/.test(normalizeAddress(value))
+      || /^(?:[^,，、]{1,20})(?:區|鄉|鎮|里|村)$/.test(detail);
+  }
+
+  function isLocallyDispatchReady(value) {
+    const normalized = smartNormalizeTaiwanAddress(value);
+    if (!normalized || isBroadRoadOnlyAddress(normalized) || isGenericAreaText(normalized)) return false;
+    if (isStructuredDoorAddress(normalized) || isExplicitIntersectionQuery(normalized) || isExplicitAlleyMouthQuery(normalized)) return true;
+    // Previously selected POIs normally carry an admin area plus a non-road label. Keep those trusted.
+    const parts = splitTaiwanSuggestionAddress(normalized);
+    return Boolean(parts.county && parts.district && parts.detail && !isBroadRoadOnlyAddress(parts.detail));
   }
 
   function markAddressVerified(input, source = 'confirmed') {
@@ -655,6 +722,107 @@
     return exact.length === 1 ? exact[0] : null;
   }
 
+  const ADDRESS_RESOLVE_CACHE_LIMIT = 60;
+  const addressResolveCache = new Map();
+
+  async function resolveAddressSuggestion(item) {
+    if (!item?.text) return null;
+    const cacheKey = item.magicKey || `text:${addressConfidenceKey(item.lookupText || item.text)}`;
+    if (cacheKey && addressResolveCache.has(cacheKey)) return addressResolveCache.get(cacheKey);
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        f: 'json',
+        SingleLine: item.lookupText || item.text,
+        countryCode: 'TWN',
+        langCode: 'zh-TW',
+        preferredLabelValues: 'localCity',
+        outFields: 'Addr_type,Match_addr,ShortLabel,LongLabel,MatchID,City,District,Region,Subregion,StName',
+        maxLocations: '1'
+      });
+      if (item.magicKey) params.set('magicKey', item.magicKey);
+      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
+      if (!candidate || Number(candidate.score || 0) < 80) return null;
+      const rawAddress = candidate.attributes?.Match_addr || candidate.address || item.text;
+      const address = canonicalizeSuggestedAddress(rawAddress) || canonicalizeSuggestedAddress(item.text);
+      if (!address || isClearlyOutsideTaiwanSuggestion(address)) return null;
+      const resolved = {
+        type: String(candidate.attributes?.Addr_type || ''),
+        score: Number(candidate.score || 0),
+        address,
+        matchId: String(candidate.attributes?.MatchID || ''),
+        location: candidate.location || null
+      };
+      if (addressResolveCache.size >= ADDRESS_RESOLVE_CACHE_LIMIT) {
+        const firstKey = addressResolveCache.keys().next().value;
+        if (firstKey) addressResolveCache.delete(firstKey);
+      }
+      if (cacheKey) addressResolveCache.set(cacheKey, resolved);
+      return resolved;
+    } catch (_) {
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  function isResolvedCandidateDispatchReady(query, resolved, options = {}) {
+    if (!resolved || resolved.score < 80 || !resolved.address) return false;
+    const type = resolved.type;
+    const fromSelection = options.fromSelection === true;
+    if (isBroadRoadOnlyAddress(query) || isGenericAreaText(query)) return false;
+    if (type === 'StreetName' || type === 'Locality' || type === 'District' || type === 'Region' || type === 'Postal') {
+      return Boolean(isExplicitAlleyMouthQuery(query) && type === 'StreetName' && resolved.score >= 90);
+    }
+    if (type === 'StreetInt') return isExplicitIntersectionQuery(query) || fromSelection;
+    const preciseTypes = new Set(['PointAddress','PointAddressInt','StreetAddress','Subaddress','POI','POIExt','BuildingName','DistanceMarker','StreetMidBlock','StreetBetween']);
+    if (!preciseTypes.has(type)) return false;
+    if (fromSelection) return true;
+    if (isStructuredDoorAddress(query) || isExplicitIntersectionQuery(query) || isExplicitAlleyMouthQuery(query)) return true;
+    const detail = addressDetailOnly(query);
+    // Manual POI/place text may auto-confirm only when it is specific enough and ArcGIS returns one unique precise result.
+    return detail.replace(/\s/g,'').length >= 4 && !isGenericAreaText(detail);
+  }
+
+  function resolvedAddressForInput(query, resolved, fallback = '') {
+    const normalizedQuery = smartNormalizeTaiwanAddress(query);
+    const base = resolved?.address || canonicalizeSuggestedAddress(fallback) || normalizedQuery;
+    if (!resolved || (!isExplicitIntersectionQuery(normalizedQuery) && !isExplicitAlleyMouthQuery(normalizedQuery))) return base;
+    const parts = splitTaiwanSuggestionAddress(base);
+    const admin = `${parts.county || ''}${parts.district || ''}`;
+    let detail = addressDetailOnly(normalizedQuery);
+    if (isExplicitIntersectionQuery(normalizedQuery)) {
+      detail = detail.replace(/(?:跟|與|和|及|×|X|x|&|／|\/)/, '與');
+      if (!/(?:交叉口|交叉路口|路口)$/.test(detail)) detail += '交叉口';
+    }
+    return smartNormalizeTaiwanAddress(`${admin}${detail}`) || base;
+  }
+
+  async function uniqueDispatchSuggestion(query, suggestions, options = {}) {
+    if (!Array.isArray(suggestions) || suggestions.length !== 1) return null;
+    const resolved = await resolveAddressSuggestion(suggestions[0]);
+    return isResolvedCandidateDispatchReady(query, resolved, options) ? { item: suggestions[0], resolved } : null;
+  }
+
+  function addressValidationMessage(query, suggestions = []) {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    if (isBroadRoadOnlyAddress(normalized)) {
+      const detail = addressDetailOnly(normalized) || '此道路';
+      return `「${detail}」範圍較大，請補充門牌、路口、巷口或附近明確地標。`;
+    }
+    if (isExplicitIntersectionQuery(normalized) || isExplicitAlleyMouthQuery(normalized)) {
+      return '目前無法確認這個路口／巷口，請從建議中選擇或補充附近明確地標。';
+    }
+    if (suggestions.length) return '請從建議地址中選擇明確地點。';
+    return '地點還不夠明確，請補充門牌、路口、巷口或附近明確地標。';
+  }
+
   function showAddressChoiceSuggestions(id, suggestions) {
     const input = document.getElementById(id);
     const box = document.getElementById(`${id}Suggest`);
@@ -683,8 +851,18 @@
       return true;
     }
 
-    // Network/geocoder can occasionally be unavailable. A fully structured Taiwan door address
-    // is still operationally clear, so fail open only for that strict shape — never for "長億" etc.
+    const unique = await uniqueDispatchSuggestion(normalized, suggestions);
+    if (unique) {
+      input.value = resolvedAddressForInput(normalized, unique.resolved, unique.item.text);
+      markAddressVerified(input, 'auto-resolved');
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+
+    // If the network/geocoder is temporarily unavailable, only a strict full door address may fail open.
+    // Intersections, alley mouths, roads and place names still require a real resolved location.
     if (!suggestions.length && isStructuredDoorAddress(normalized)) {
       markAddressVerified(input, 'structured-fallback');
       hideAddressSuggestions(id);
@@ -692,10 +870,12 @@
       return true;
     }
 
+    clearAddressVerified(input);
     input.classList.add('gc-address-needs-choice');
     if (options.showError !== false) {
-      showFieldError(id, options.message || '請從建議地址中選擇明確地點。');
-      showAddressChoiceSuggestions(id, suggestions);
+      showFieldError(id, options.message || addressValidationMessage(normalized, suggestions));
+      if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
+      else hideAddressSuggestions(id);
     }
     return false;
   }
@@ -775,6 +955,17 @@
             return;
           }
 
+          const unique = await uniqueDispatchSuggestion(query, suggestions);
+          if (localToken !== token || normalizeAddress(input.value) !== query) return;
+          if (unique) {
+            input.value = resolvedAddressForInput(query, unique.resolved, unique.item.text);
+            markAddressVerified(input, 'auto-resolved');
+            hideAddressSuggestions(id);
+            clearFieldValidation(id);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+
           if (!suggestions.length) { hideAddressSuggestions(id); return; }
           // If focus has already moved elsewhere, keep the typed text but do not leave a stale panel behind.
           if (document.activeElement !== input) { hideAddressSuggestions(id); return; }
@@ -799,10 +990,29 @@
         if (!item) return;
         const selected = smartNormalizeTaiwanAddress(cleanSuggestedAddress(item.text));
         if (!selected) return;
-        input.value = selected;
-        markAddressVerified(input, 'suggestion');
+
+        const resolved = await resolveAddressSuggestion(item);
+        const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
+        const ready = resolved
+          ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
+          : (!broad && isLocallyDispatchReady(selected));
+
+        input.value = resolvedAddressForInput(selected, resolved, item.text) || selected;
         input.dataset.gcSkipSuggestOnce = '1';
-        input.classList.remove('invalid');
+        input._gcCancelSmartSuggestions?.();
+        if (!ready) {
+          clearAddressVerified(input);
+          input.classList.add('gc-address-needs-choice');
+          hideAddressSuggestions(id);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          // General input handlers clear stale errors; show the guidance after those handlers run.
+          showFieldError(id, addressValidationMessage(input.value, []));
+          return;
+        }
+
+        markAddressVerified(input, 'suggestion');
+        input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
         input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -962,6 +1172,15 @@
     status.classList.toggle('is-success', state === 'success');
   }
 
+  function nextFavoriteDefaultName(trips = loadFavoriteTrips()) {
+    const used = new Set((Array.isArray(trips) ? trips : []).map(trip => String(trip?.name || '').trim()));
+    for (let index = 1; index <= FAVORITE_LIMIT; index += 1) {
+      const candidate = `常用行程 ${index}`;
+      if (!used.has(candidate)) return candidate;
+    }
+    return `常用行程 ${Math.min(FAVORITE_LIMIT, (Array.isArray(trips) ? trips.length : 0) + 1)}`;
+  }
+
   function refreshFavoriteTrips() {
     const list = document.getElementById('favoriteTripsList');
     const saveButton = document.getElementById('favoriteSaveBtn');
@@ -1054,7 +1273,7 @@
     const input = document.getElementById('favoriteNameInput');
     const route = document.getElementById('favoriteSaveRoute');
     if (!overlay || !input || !route) return;
-    input.value = `常用行程 ${trips.length + 1}`;
+    input.value = nextFavoriteDefaultName(trips);
     route.textContent = `${pickup} → ${destination}`;
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;
@@ -1074,7 +1293,7 @@
       const pickup = normalizeAddress(overlay.dataset.pickup);
       const destination = normalizeAddress(overlay.dataset.destination);
       const input = document.getElementById('favoriteNameInput');
-      const name = String(input?.value || '').trim() || `常用行程 ${loadFavoriteTrips().length + 1}`;
+      const name = String(input?.value || '').trim() || nextFavoriteDefaultName();
       if (!pickup || !destination) return;
       const trips = loadFavoriteTrips();
       const routeKey = `${addressConfidenceKey(pickup)}→${addressConfidenceKey(destination)}`;
@@ -1108,13 +1327,15 @@
           pickupInput._gcCancelSmartSuggestions?.();
           pickupInput.dataset.gcSkipSuggestOnce = '1';
           pickupInput.value = trip.pickup;
-          markAddressVerified(pickupInput, 'favorite');
+          if (isLocallyDispatchReady(trip.pickup)) markAddressVerified(pickupInput, 'favorite');
+          else clearAddressVerified(pickupInput);
         }
         if (destinationInput) {
           destinationInput._gcCancelSmartSuggestions?.();
           destinationInput.dataset.gcSkipSuggestOnce = '1';
           destinationInput.value = trip.destination;
-          markAddressVerified(destinationInput, 'favorite');
+          if (isLocallyDispatchReady(trip.destination)) markAddressVerified(destinationInput, 'favorite');
+          else clearAddressVerified(destinationInput);
         }
         ['pickup', 'destination'].forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
@@ -1441,7 +1662,23 @@
             attachedLocation.sendMap = false;
             setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
           } else {
-            setLocationStatus(`已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際${locationAddressLabel}。`, 'error');
+            // GC_MASTER_STABLE_2026_08R10S_PRECISE_PIN_FALLBACK
+            // R10S: a precise GPS pin is itself a dispatchable pickup point even when no formal
+            // street number exists. Keep the map pin, show a neutral label, and require one-tap
+            // rider confirmation instead of forcing a fake door number.
+            attachedLocation.address = LOCATION_PIN_ONLY_LABEL;
+            attachedLocation.generatedAddress = LOCATION_PIN_ONLY_LABEL;
+            attachedLocation.settingInput = true;
+            pickupInput._gcCancelSmartSuggestions?.();
+            pickupInput.dataset.gcSkipSuggestOnce = '1';
+            pickupInput.value = LOCATION_PIN_ONLY_LABEL;
+            markAddressVerified(pickupInput, 'location-pin-only');
+            pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+            pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
+            attachedLocation.settingInput = false;
+            attachedLocation.requiresConfirmation = true;
+            setLocationStatus('', 'success');
+            setLocationReview('已取得精準定位；此位置沒有明確門牌，請確認定位點是否正確。', true);
           }
           return;
         }
@@ -1578,7 +1815,8 @@
     input._gcCancelSmartSuggestions?.();
     input.dataset.gcSkipSuggestOnce = '1';
     input.value = cleaned;
-    markAddressVerified(input, 'recent');
+    if (isLocallyDispatchReady(cleaned)) markAddressVerified(input, 'recent');
+    else clearAddressVerified(input);
     input.classList.remove('invalid');
     input.removeAttribute('aria-invalid');
     input.closest('.field')?.classList.remove('gc-validation-error');
@@ -2717,10 +2955,13 @@
         return;
       }
 
+      // GC_MASTER_STABLE_2026_08R10R_FARE_CHAT_EXPECTATION_COPY
+      // Customer-visible LINE message reads as the passenger's request, not an internal command.
+      // It encourages assistance while explicitly leaving room for canned trial-estimate information when busy.
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
       if (cfg['訊息提醒']) lines.push(cfg['訊息提醒']);
-      appendLine(lines, cfg['訊息欄位_估價方式'] || '回覆管道', estimateMethod);
+      if (cfg['訊息提醒2']) lines.push(cfg['訊息提醒2']);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
