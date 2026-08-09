@@ -2991,3 +2991,45 @@ body{background:linear-gradient(180deg,#eef5fa 0%,#f7f9fb 205px,#f7f9fb 100%)!im
   .gc-rate-row,.gc-rate-note-row{font-size:15px!important}
 }
 
+
+/* GC_MASTER_STABLE_R10A_FINISHING_PASS */
+.recent-address-control{margin-top:10px!important}
+.recent-toggle{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-height:48px!important;padding:5px!important;border:1px solid #c6d6e1!important;border-radius:15px!important;background:#f6f9fc!important;box-shadow:0 4px 12px rgba(16,45,81,.04)!important;cursor:pointer!important;pointer-events:auto!important;touch-action:manipulation!important}
+.recent-toggle-main,.recent-toggle-side{display:inline-flex!important;align-items:center!important;min-height:38px!important}
+.recent-toggle-main{flex:1 1 auto!important;min-width:0!important;padding:0 12px!important;gap:8px!important;color:#274a64!important;font-size:14.5px!important;font-weight:700!important}
+.recent-clock{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:22px!important;height:22px!important;font-size:18px!important}
+.recent-title{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.recent-toggle-side{flex:0 0 auto!important;cursor:pointer!important;touch-action:manipulation!important;gap:8px!important;padding:0 12px!important;border-left:1px solid #dde7ee!important;border-radius:11px!important;color:#5d7689!important;background:#fff!important;box-shadow:inset 0 0 0 1px #edf2f6!important}
+.recent-toggle[aria-expanded="true"]{border-color:#9fb7ca!important;background:#eef4f9!important;box-shadow:0 6px 16px rgba(16,45,81,.08)!important}
+.recent-toggle[aria-expanded="true"] .recent-toggle-side{background:#f3f8fc!important}
+.recent-count{margin-left:0!important;color:#6f8392!important;font-size:12px!important;font-weight:700!important}
+.recent-action-label{display:inline-block!important;color:#5d7689!important;font-size:12.5px!important;font-weight:700!important;letter-spacing:.02em!important}
+.recent-chevron{margin-left:0!important;color:#3f6d92!important;font-size:15px!important;transition:transform .18s ease!important}
+.recent-panel{margin-top:8px!important;padding:12px!important;border:1px solid #d7e3ec!important;border-radius:15px!important;background:#fbfdff!important;box-shadow:0 12px 28px rgba(16,45,81,.08)!important}
+.recent-helper{margin:0 2px 9px!important;font-size:12.5px!important;font-weight:650!important;color:#6d8091!important}
+.recent-use,.recent-delete,.recent-clear{border-radius:12px!important}
+.recent-use{padding:11px 12px!important}
+.gc-fare-step-kicker,.gc-fare-calc-kicker{display:flex!important;align-items:flex-end!important;justify-content:space-between!important;gap:12px!important;margin:0 1px 10px!important}
+.gc-fare-step-kicker strong,.gc-fare-calc-kicker strong{font-size:17px!important;line-height:1.36!important;font-weight:750!important;letter-spacing:-.012em!important;color:#153f61!important}
+.gc-fare-step-kicker span,.gc-fare-calc-kicker span{font-size:13.5px!important;line-height:1.42!important;font-weight:550!important;color:#6b8090!important;text-align:right!important}
+.gc-fare-route-inline{margin-top:10px!important}
+.gc-fare-map-btn{border-radius:16px!important;box-shadow:0 12px 24px rgba(16,45,81,.16)!important}
+.optional-box,.gc-secondary-box,.gc-fare-rates,.gc-fare-manual-details{border-radius:17px!important}
+.gc-price-notice{margin-top:9px!important;padding:12px 13px!important;border:1px solid #e7d7ae!important;border-left:4px solid #c4a25b!important;border-radius:14px!important;background:linear-gradient(180deg,#fffdf8 0%,#fff8ea 100%)!important;color:#655123!important;box-shadow:0 5px 14px rgba(86,67,19,.05)!important}
+.gc-price-notice p{font-size:14px!important;line-height:1.56!important}
+.gc-price-notice p+p{margin-top:6px!important;padding-top:7px!important;border-top:1px solid rgba(186,150,73,.18)!important}
+.gc-fee-line{display:flex!important;align-items:baseline!important;justify-content:space-between!important;gap:14px!important;color:#624f22!important;font-weight:650!important}
+.gc-fee-line b{font-size:17px!important;line-height:1.2!important;font-weight:800!important;color:#133f61!important;white-space:nowrap!important}
+.gc-fee-rule,.gc-match-warning{display:block!important;font-size:14px!important;line-height:1.56!important;font-weight:650!important;color:#6d5a29!important}
+.gc-fare-manual-details{margin-top:14px!important;padding-top:12px!important;border-top:1px solid #e7edf1!important}
+.gc-fare-manual-details>summary{min-height:44px!important;padding:10px 2px!important}
+.gc-fare-manual-details>summary strong{font-size:14px!important;line-height:1.4!important;font-weight:600!important;color:#6f8596!important}
+.gc-fare-manual-details>summary>b{font-size:15px!important;color:#8ea0ab!important}
+.gc-manual-panel-title{margin:0 0 9px!important;font-size:16px!important;line-height:1.4!important;font-weight:750!important;color:#244d68!important}
+.gc-fare-manual-warning{margin:0 0 10px!important;padding:12px 13px!important;border:1px solid #ecd8a5!important;border-left:4px solid #cf9741!important;border-radius:14px!important;background:linear-gradient(180deg,#fffaf1 0%,#fff5e4 100%)!important;box-shadow:0 6px 14px rgba(140,96,20,.06)!important}
+.gc-fare-manual-warning strong{display:block!important;margin:0 0 4px!important;font-size:14.5px!important;line-height:1.4!important;font-weight:800!important;color:#8a5d12!important}
+.gc-fare-manual-warning p{margin:0!important;font-size:13.5px!important;line-height:1.55!important;font-weight:650!important;color:#75561c!important}
+.gc-fare-manual-extra{display:grid!important;gap:7px!important;margin:0 0 11px!important;padding:12px 13px!important;border:1px solid #e2e9ee!important;border-radius:14px!important;background:#f8fafb!important;color:#5c7485!important}
+.gc-manual-note-row{font-size:14px!important;line-height:1.55!important}
+@media(max-width:420px){.gc-fare-step-kicker,.gc-fare-calc-kicker{display:block!important}.gc-fare-step-kicker span,.gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;text-align:left!important}.gc-fare-step-kicker strong,.gc-fare-calc-kicker strong{font-size:16.5px!important}.recent-toggle-main{font-size:14px!important}.recent-toggle-side{padding:0 10px!important;gap:6px!important}.gc-fee-line b{font-size:16px!important}}
+

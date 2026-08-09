@@ -180,9 +180,11 @@ window.GC_FORM_CONFIG = {
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
                  "人工協助標題":  "其他估價方式",
-                 "人工協助提示":  "",
+                 "人工協助提示":  "建議最後再選",
                  "人工協助展開標題":  "客服協助估價",
                  "人工協助補充":  "請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。",
+                 "人工協助警示標題":  "建議先自行試算",
+                 "人工協助警示說明":  "客服協助屬較慢流程；繁忙時可能先提供快速試算，如需人工估價需稍候小編依序回覆。",
                  "自助上車標題":  "上車地址",
                  "自助下車標題":  "下車地址",
                  "上車標題":  "上車地址",
@@ -192,7 +194,7 @@ window.GC_FORM_CONFIG = {
                  "送出按鈕":  "送出估價需求",
                  "錯誤_上車地址":  "請填寫資料。",
                  "錯誤_下車地址":  "請填寫資料。",
-                 "訊息標題":  "💰 我要【客服協助估價】",
+                 "訊息標題":  "🆘 我要【客服協助估價】",
                  "訊息分隔線":  "━─━─━─━─━─━─",
                  "訊息欄位_估價方式":  "估價方式",
                  "訊息內容_估價方式":  "不方便自行試算，需客服協助",
@@ -219,7 +221,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10g';
+  const GC_BUILD_VERSION = 'master202608r10h';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -401,9 +403,8 @@ window.GC_FORM_CONFIG = {
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
           <button class="recent-toggle" type="button" aria-expanded="false">
-            <span>🕘 ${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</span>
-            <span class="recent-count"></span>
-            <span class="recent-chevron" aria-hidden="true">⌄</span>
+            <span class="recent-toggle-main"><span class="recent-clock" aria-hidden="true">🕘</span><span class="recent-title">${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</span></span>
+            <span class="recent-toggle-side"><span class="recent-count"></span><span class="recent-action-label">展開</span><span class="recent-chevron" aria-hidden="true">⌄</span></span>
           </button>
           <div class="recent-panel hidden"></div>
         </div>` : ''}
@@ -848,6 +849,9 @@ window.GC_FORM_CONFIG = {
     saveRecentAddresses(next);
     refreshRecentAddressControls();
   }
+
+  // R10H: allow the fare module to reuse the same normalized recent-address writer.
+  window.GC_rememberRecentAddresses = rememberRecentAddresses;
 
   function deleteRecentAddress(index) {
     const addresses = loadRecentAddresses();
@@ -1562,11 +1566,19 @@ window.GC_FORM_CONFIG = {
     document.querySelectorAll('.recent-address-control').forEach(control => {
       const targetId = control.dataset.target;
       const toggle = control.querySelector('.recent-toggle');
-      const trigger = control.querySelector('.recent-chevron');
+      const trigger = toggle;
       const panel = control.querySelector('.recent-panel');
 
       let lastTouchToggleAt = 0;
       let touchOpening = false;
+
+      const syncToggleLabels = () => {
+        document.querySelectorAll('.recent-address-control').forEach(item => {
+          const btn = item.querySelector('.recent-toggle');
+          const label = item.querySelector('.recent-action-label');
+          if (btn && label) label.textContent = btn.getAttribute('aria-expanded') === 'true' ? '收合' : '展開';
+        });
+      };
 
       const togglePanel = () => {
         const willOpen = panel.classList.contains('hidden');
@@ -1574,7 +1586,9 @@ window.GC_FORM_CONFIG = {
         document.querySelectorAll('.recent-toggle').forEach(other => other.setAttribute('aria-expanded', 'false'));
         panel.classList.toggle('hidden', !willOpen);
         toggle.setAttribute('aria-expanded', String(willOpen));
+        syncToggleLabels();
       };
+      syncToggleLabels();
 
       trigger?.addEventListener('touchstart', event => {
         event.preventDefault();
@@ -1622,6 +1636,7 @@ window.GC_FORM_CONFIG = {
             if (error) error.classList.remove('show');
             panel.classList.add('hidden');
             toggle.setAttribute('aria-expanded', 'false');
+            syncToggleLabels();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -1968,8 +1983,8 @@ window.GC_FORM_CONFIG = {
             </div>
             <form class="gc-fare-manual-form" id="serviceForm" novalidate>
               <div id="globalError" class="global-error"></div>
-              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
-              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
+              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, true)}
+              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, true)}
               <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
             </form>
           </section>
@@ -2523,6 +2538,7 @@ window.GC_FORM_CONFIG = {
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
           await sendFormMessages(lines.join('\n'));
           if (!preview) markSubmission(signature);
+          rememberRecentAddresses([destination, pickup]);
           renderSuccess(cfg);
         } catch (error) {
           sending = false;
@@ -2969,7 +2985,7 @@ window.GC_FORM_CONFIG = {
       let lines = [];
       if (v) {
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
-        lines.push('<span class="gc-match-warning">指定車型需依當下車況媒合，媒合速度與成功率可能降低。</span>');
+        lines.push('<span class="gc-match-warning">指定車型可能影響媒合速度與成功率。</span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
       vn.classList.toggle('hidden', lines.length === 0);
@@ -3306,6 +3322,7 @@ window.GC_FORM_CONFIG = {
     clearRouteAddressGuidance();
     const url = googleMapsUrl();
     if (!url) return;
+    window.GC_rememberRecentAddresses?.([trim(qs('destination')?.value), trim(qs('pickup')?.value)]);
     saveDraft();
     try {
       if (window.liff && typeof window.liff.isInClient === 'function' && window.liff.isInClient() && typeof window.liff.openWindow === 'function') {
@@ -3361,6 +3378,10 @@ window.GC_FORM_CONFIG = {
     routeStep.className = 'gc-fare-route-step';
     routeStep.id = 'gcFareRouteStep';
     routeStep.innerHTML = `
+      <div class="gc-fare-step-kicker">
+        <strong>${escapeHtml(cfg()['路線步驟標題'] || '① 查 Google 路線')}</strong>
+        <span>${escapeHtml(cfg()['路線步驟說明'] || '先看路線時間與公里')}</span>
+      </div>
       <div class="gc-fare-route-fields" id="gcFareRouteFields"></div>
       <div class="gc-fare-route-inline" aria-label="路線選擇提示">
         <span><b>${escapeHtml(cfg()['乘車偏好_省標題'] || '省車資')}</b> → ${escapeHtml(cfg()['路線重點說明1'] || '看公里數較少')}</span>
@@ -3396,6 +3417,9 @@ window.GC_FORM_CONFIG = {
       const panelTitle = document.createElement('strong');
       panelTitle.className = 'gc-manual-panel-title';
       panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
+      const warning = document.createElement('div');
+      warning.className = 'gc-fare-manual-warning';
+      warning.innerHTML = `<strong>${escapeHtml(cfg()['人工協助警示標題'] || '建議先自行試算')}</strong><p>${escapeHtml(cfg()['人工協助警示說明'] || '客服協助屬較慢流程；繁忙時可能先提供快速試算，如需人工估價需稍候小編依序回覆。')}</p>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra';
       const manualCopy = cfg()['人工協助補充'] || '請填寫上下車地址。客服繁忙時可能先提供快速試算；如需人工估價，請稍候小編協助。';
@@ -3406,6 +3430,7 @@ window.GC_FORM_CONFIG = {
       details.appendChild(summary);
       details.appendChild(inner);
       inner.appendChild(panelTitle);
+      inner.appendChild(warning);
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();

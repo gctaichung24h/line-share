@@ -321,7 +321,7 @@
       let lines = [];
       if (v) {
         lines.push(vf > 0 ? `<span class="gc-fee-line">加價資訊 <b>${v.label} +NT$${vf}</b></span>` : '<span class="gc-fee-line">加價資訊 <b>休旅車不加價</b></span>');
-        lines.push('<span class="gc-match-warning">指定車型需依當下車況媒合，媒合速度與成功率可能降低。</span>');
+        lines.push('<span class="gc-match-warning">指定車型可能影響媒合速度與成功率。</span>');
       }
       vn.innerHTML = lines.map(line => `<p>${line}</p>`).join('');
       vn.classList.toggle('hidden', lines.length === 0);

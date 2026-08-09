@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10g';
+  const GC_BUILD_VERSION = 'master202608r10h';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -182,9 +182,8 @@
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
           <button class="recent-toggle" type="button" aria-expanded="false">
-            <span>🕘 ${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</span>
-            <span class="recent-count"></span>
-            <span class="recent-chevron" aria-hidden="true">⌄</span>
+            <span class="recent-toggle-main"><span class="recent-clock" aria-hidden="true">🕘</span><span class="recent-title">${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</span></span>
+            <span class="recent-toggle-side"><span class="recent-count"></span><span class="recent-action-label">展開</span><span class="recent-chevron" aria-hidden="true">⌄</span></span>
           </button>
           <div class="recent-panel hidden"></div>
         </div>` : ''}
@@ -629,6 +628,9 @@
     saveRecentAddresses(next);
     refreshRecentAddressControls();
   }
+
+  // R10H: allow the fare module to reuse the same normalized recent-address writer.
+  window.GC_rememberRecentAddresses = rememberRecentAddresses;
 
   function deleteRecentAddress(index) {
     const addresses = loadRecentAddresses();
@@ -1343,11 +1345,19 @@
     document.querySelectorAll('.recent-address-control').forEach(control => {
       const targetId = control.dataset.target;
       const toggle = control.querySelector('.recent-toggle');
-      const trigger = control.querySelector('.recent-chevron');
+      const trigger = toggle;
       const panel = control.querySelector('.recent-panel');
 
       let lastTouchToggleAt = 0;
       let touchOpening = false;
+
+      const syncToggleLabels = () => {
+        document.querySelectorAll('.recent-address-control').forEach(item => {
+          const btn = item.querySelector('.recent-toggle');
+          const label = item.querySelector('.recent-action-label');
+          if (btn && label) label.textContent = btn.getAttribute('aria-expanded') === 'true' ? '收合' : '展開';
+        });
+      };
 
       const togglePanel = () => {
         const willOpen = panel.classList.contains('hidden');
@@ -1355,7 +1365,9 @@
         document.querySelectorAll('.recent-toggle').forEach(other => other.setAttribute('aria-expanded', 'false'));
         panel.classList.toggle('hidden', !willOpen);
         toggle.setAttribute('aria-expanded', String(willOpen));
+        syncToggleLabels();
       };
+      syncToggleLabels();
 
       trigger?.addEventListener('touchstart', event => {
         event.preventDefault();
@@ -1403,6 +1415,7 @@
             if (error) error.classList.remove('show');
             panel.classList.add('hidden');
             toggle.setAttribute('aria-expanded', 'false');
+            syncToggleLabels();
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
           }
@@ -1749,8 +1762,8 @@
             </div>
             <form class="gc-fare-manual-form" id="serviceForm" novalidate>
               <div id="globalError" class="global-error"></div>
-              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
-              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
+              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, true)}
+              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, true)}
               <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
             </form>
           </section>
@@ -2304,6 +2317,7 @@
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
           await sendFormMessages(lines.join('\n'));
           if (!preview) markSubmission(signature);
+          rememberRecentAddresses([destination, pickup]);
           renderSuccess(cfg);
         } catch (error) {
           sending = false;
