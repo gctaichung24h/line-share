@@ -35,32 +35,27 @@
   function relabel(field, text) { const label = field?.querySelector(':scope > label'); if (label) label.textContent = text; }
   function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
 
-  function makeLabelRow(field, action) {
+  // GC_MASTER_STABLE_2026_08R10M_ADDRESS_UTILITY_ROW
+  // Address input is always the protagonist. Recent/current-location/favorite shortcuts live
+  // in a consistent, quiet row below the input instead of floating beside the field label.
+  function ensureAddressUtilityRow(field) {
     if (!field) return null;
-    let row = field.querySelector(':scope > .field-label-row');
-    let label = row?.querySelector(':scope > label') || field.querySelector(':scope > label');
-    if (!label) return row || null;
-    if (!row) {
-      row = document.createElement('div');
-      row.className = 'field-label-row';
-      field.insertBefore(row, label);
-      row.appendChild(label);
-    }
-    let actions = row.querySelector(':scope > .field-inline-actions');
-    if (!actions) {
-      actions = document.createElement('div');
-      actions.className = 'field-inline-actions';
-      row.appendChild(actions);
-    }
-    if (action && !actions.contains(action)) actions.appendChild(action);
+    let row = field.querySelector(':scope > .gc-address-utility-row');
+    if (row) return row;
+    row = document.createElement('div');
+    row.className = 'gc-address-utility-row';
+    const suggest = field.querySelector(':scope > .gc-address-suggest');
+    const input = field.querySelector(':scope > .input');
+    if (suggest) suggest.after(row);
+    else if (input) input.after(row);
+    else field.appendChild(row);
     return row;
   }
 
   function attachRecentAddressShortcut(field) {
-    if (!field) return;
-    const recent = field.querySelector(':scope > .recent-address-control');
-    if (!recent) return;
-    makeLabelRow(field, recent);
+    const recent = field?.querySelector(':scope > .recent-address-control');
+    const row = ensureAddressUtilityRow(field);
+    if (recent && row && !row.contains(recent)) row.appendChild(recent);
   }
 
   function createFavoriteSheet(destination, favorite) {
@@ -71,7 +66,7 @@
     toggle.className = 'field-inline-btn';
     toggle.textContent = '常用行程';
     toggle.setAttribute('aria-expanded', 'false');
-    makeLabelRow(destination, toggle);
+    ensureAddressUtilityRow(destination)?.appendChild(toggle);
 
     const sheet = document.createElement('div');
     sheet.id = 'gcFavoriteSheet';
@@ -131,7 +126,6 @@
     sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
     sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
     sheet.addEventListener('click', event => {
-      // V8.1: capture 階段先關 Sheet，再讓儲存 Dialog 開啟，杜絕雙層視窗。
       if (event.target.closest('#favoriteSaveBtn')) close();
       if (event.target.closest('#favoriteClearBtn')) close();
       if (event.target.closest('.favorite-use')) setTimeout(close, 0);
@@ -151,20 +145,19 @@
     const locationStatus = document.getElementById('locationStatus');
     if (pickup) {
       pickup.classList.add('gc-primary-address', 'gc-pickup-address');
-      makeLabelRow(pickup, null);
-      attachRecentAddressShortcut(pickup);
-      if (locationAction) {
+      const utility = ensureAddressUtilityRow(pickup);
+      if (locationAction && utility) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
         if (button) button.textContent = '目前位置';
-        makeLabelRow(pickup, locationAction);
+        utility.appendChild(locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
       }
+      attachRecentAddressShortcut(pickup);
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
     if (destination) {
       destination.classList.add('gc-primary-address', 'gc-destination-address');
-      makeLabelRow(destination, null);
       createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
       attachRecentAddressShortcut(destination);
     }

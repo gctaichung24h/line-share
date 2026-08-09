@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10k';
+  const GC_BUILD_VERSION = 'master202608r10m';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -250,6 +250,29 @@
     return String(address || '').replace(/\s+/g, ' ').trim();
   }
 
+  // GC_MASTER_STABLE_2026_08R10M_GROUND_ADDRESS_ONLY
+  // Dispatch/navigation addresses stop at the street-level house number. Indoor floor/room
+  // information is intentionally removed because drivers navigate to the ground address;
+  // meeting-point details still belong in the optional note field.
+  function stripIndoorAddressInfo(address) {
+    let text = normalizeAddress(address).replace(/　/g, ' ').replace(/臺/g, '台').trim();
+    if (!text || !/[路街道段巷弄]/.test(text) || !text.includes('號')) return text;
+
+    const houseIndex = text.indexOf('號');
+    const base = text.slice(0, houseIndex + 1);
+    let suffix = text.slice(houseIndex + 1);
+    let houseSub = '';
+    const houseSubMatch = suffix.match(/^之[0-9０-９]+/);
+    if (houseSubMatch) {
+      houseSub = houseSubMatch[0];
+      suffix = suffix.slice(houseSub.length);
+    }
+
+    const indoor = /^\s*[,，、-]?\s*(?:地下\s*[0-9０-９]+\s*樓|[Bb]\s*[0-9０-９]+\s*(?:F|樓)?|[0-9０-９]+\s*(?:樓(?:之[0-9０-９]+)?|F|樓層|室))(?:\s*[-之]?\s*[A-Za-z0-9０-９]+\s*室?)?.*$/i;
+    if (indoor.test(suffix)) return `${base}${houseSub}`;
+    return text;
+  }
+
   // GC_MASTER_STABLE_2026_08R10J_DISPATCH_ADDRESS_SANITIZER
   // Final outbound address cleanup: strip Taiwan postal codes only when the remaining
   // text clearly starts with a Taiwan city/county, then compact structured Chinese addresses.
@@ -269,6 +292,7 @@
     // Taiwan city/county immediately follows, avoiding accidental deletion of door numbers.
     text = text.replace(/^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\s*[,，、]?\s*(?=(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))/, '');
 
+    text = stripIndoorAddressInfo(text);
     const structuredTaiwanAddress = TAIWAN_ADMIN_START.test(text) && /[市縣區鄉鎮村里路街道段巷弄號樓室]/.test(text);
     if (structuredTaiwanAddress) {
       text = text
@@ -280,7 +304,7 @@
 
   function smartNormalizeTaiwanAddress(address) {
     let text = cleanTaiwanAddressForUse(address);
-    if (!text || /[號樓室]$/.test(text)) return text;
+    if (!text || /號(?:之[0-9０-９]+)?$/.test(text) || /[樓室]$/.test(text)) return text;
     const match = text.match(/([0-9０-９]+(?:[-之][0-9０-９]+)?)$/);
     if (!match || !/[路街道巷弄]/.test(text)) return text;
     const mainDigits = match[1].split(/[-之]/)[0];
@@ -349,29 +373,50 @@
     return aliases.find(([, pattern]) => pattern.test(text))?.[0] || '';
   }
 
+  // GC_MASTER_STABLE_2026_08R10M_DISTRICT_SAFE_SUGGESTIONS
+  // ArcGIS can return duplicated municipality labels such as "台中市 台中市 公園路188號".
+  // Treat the second identical city as provider noise, never as a district, and require a
+  // real 區／鄉／鎮／市 for road-level suggestions so dispatch staff are not misled.
   function splitTaiwanSuggestionAddress(value) {
     const text = cleanSuggestedAddress(value).replace(/臺/g, '台');
     const county = canonicalTaiwanCounty(text);
     let remainder = text;
-    if (county) remainder = remainder.replace(county, ' ').replace(/\s+/g, ' ').trim();
 
-    let district = '';
-    const districtMatch = remainder.match(/(?:^|\s)([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))(?:\s|$)/) ||
-      remainder.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))/);
-    if (districtMatch) {
-      district = districtMatch[1];
-      remainder = remainder.replace(districtMatch[0], ' ').replace(/\s+/g, ' ').trim();
-    } else if (county) {
+    if (county) {
       const countyIndex = text.indexOf(county);
-      const afterCounty = text.slice(countyIndex + county.length).trim();
-      const compactMatch = afterCounty.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))/);
-      if (compactMatch) {
-        district = compactMatch[1];
-        remainder = afterCounty.slice(district.length).trim();
-      }
+      remainder = countyIndex >= 0 ? text.slice(countyIndex + county.length).trim() : text;
+      while (remainder.startsWith(county)) remainder = remainder.slice(county.length).trim();
     }
 
-    if (!remainder) remainder = text;
+    const pullDistrict = (source) => {
+      let chunk = normalizeAddress(source);
+      if (!chunk) return { district: '', remainder: '' };
+
+      let match = chunk.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))(?=\s|[\u3400-\u9fff0-9０-９]|$)/);
+      if (match && sameAddressPart(match[1], county)) {
+        chunk = chunk.slice(match[1].length).trim();
+        match = chunk.match(/^([\u3400-\u9fff]{1,7}?(?:區|鄉|鎮|市))(?=\s|[\u3400-\u9fff0-9０-９]|$)/);
+      }
+      if (match && !sameAddressPart(match[1], county)) {
+        return { district: match[1], remainder: chunk.slice(match[1].length).trim() };
+      }
+
+      const tokens = chunk.split(/\s+/).filter(Boolean);
+      const token = tokens.find(item => /(?:區|鄉|鎮|市)$/.test(item) && !sameAddressPart(item, county));
+      if (token) {
+        const idx = chunk.indexOf(token);
+        const left = chunk.slice(0, idx).trim();
+        const right = chunk.slice(idx + token.length).trim();
+        return { district: token, remainder: normalizeAddress(`${left} ${right}`) };
+      }
+      return { district: '', remainder: chunk };
+    };
+
+    const districtInfo = pullDistrict(remainder);
+    const district = districtInfo.district;
+    remainder = districtInfo.remainder;
+    remainder = stripIndoorAddressInfo(remainder || '').trim();
+    if (!remainder) remainder = stripIndoorAddressInfo(text);
     return { county, district, detail: remainder, full: text };
   }
 
@@ -415,8 +460,9 @@
 
   function renderAddressSuggestion(item, index) {
     const parts = splitTaiwanSuggestionAddress(item.text);
-    const admin = [parts.county, parts.district].filter(Boolean).join('｜');
-    const detail = parts.detail && parts.detail !== parts.full ? parts.detail : parts.full;
+    const adminParts = [parts.county, parts.district].filter((part, idx, list) => part && !list.slice(0, idx).some(prev => sameAddressPart(prev, part)));
+    const admin = adminParts.join('｜');
+    const detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
     if (!admin) {
       return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option"><span class="gc-address-suggest-detail">${escapeHtml(detail)}</span></button>`;
     }
@@ -484,6 +530,10 @@
           if (explicitCounty && county !== explicitCounty) return;
           if (sourceRegion && county && county !== sourceRegion) return;
 
+          const parts = splitTaiwanSuggestionAddress(cleaned);
+          const roadLevel = /[路街道巷弄]/.test(cleaned) || /[路街道巷弄]/.test(String(query || ''));
+          if (roadLevel && county && !parts.district) return;
+
           const dedupeKey = cleaned.replace(/\s+/g, '').toLocaleLowerCase();
           if (seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
@@ -513,8 +563,12 @@
         return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
       }).length;
 
-      if (!explicitCounty && centralDistrictCount < 4) {
-        const enrichedSets = await Promise.all(ADDRESS_PRIMARY_REGIONS.map(async region => {
+      const addressLikeQuery = /[路街道巷弄]|[0-9０-９]/.test(String(query || ''));
+      if (!explicitCounty && (centralDistrictCount < 4 || addressLikeQuery)) {
+        const enrichmentRegions = centralDistrictCount < 4
+          ? ADDRESS_PRIMARY_REGIONS
+          : ADDRESS_PRIMARY_REGIONS.filter(region => region.name === '台中市');
+        const enrichedSets = await Promise.all(enrichmentRegions.map(async region => {
           try {
             const items = await fetchArcgisSuggest(`${region.name} ${query}`, region.location, controller);
             return { items, region: region.name };
@@ -1301,11 +1355,93 @@
       control.classList.remove('hidden');
       if (count) count.textContent = `(${addresses.length})`;
     });
-    if (!addresses.length) closeRecentAddressSheet();
+    if (!addresses.length) {
+      if (recentManagementOpen) closeRecentAddressSheet();
+      else closeRecentQuickPicker();
+    }
   }
 
   let activeRecentTargetId = '';
   let activeRecentControl = null;
+  let recentManagementOpen = false;
+
+  // GC_MASTER_STABLE_2026_08R10M_RECENT_QUICK_PICKER
+  // Normal selection is a lightweight anchored popover. Destructive management remains
+  // separated in a locked sheet so choosing a recent address never feels like a new flow.
+  function fillRecentAddress(address, targetId) {
+    const input = document.getElementById(targetId);
+    const cleaned = smartNormalizeTaiwanAddress(address);
+    if (!input || !cleaned) return false;
+    if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
+    input.value = cleaned;
+    input.classList.remove('invalid');
+    input.removeAttribute('aria-invalid');
+    input.closest('.field')?.classList.remove('gc-validation-error');
+    const error = document.getElementById(`${targetId}Error`);
+    if (error) {
+      error.textContent = '';
+      error.classList.remove('show');
+      error.removeAttribute('role');
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function renderRecentQuickPanel(control) {
+    const panel = control?.querySelector('.recent-panel');
+    if (!panel) return;
+    const addresses = loadRecentAddresses().slice(0, RECENT_LIMIT);
+    panel.innerHTML = addresses.length ? `
+      <div class="recent-helper">快速選取最近地址</div>
+      <div class="recent-list">${addresses.map((address, index) => `
+        <button class="recent-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
+          <span>${escapeHtml(address)}</span>
+        </button>`).join('')}</div>
+      <button class="recent-manage" type="button">管理最近地址</button>` : '';
+  }
+
+  function positionRecentQuickPanel(control) {
+    const panel = control?.querySelector('.recent-panel');
+    if (!panel || panel.classList.contains('hidden')) return;
+    panel.classList.remove('is-upward');
+    const viewport = window.visualViewport;
+    const viewportHeight = viewport?.height || window.innerHeight;
+    const viewportTop = viewport?.offsetTop || 0;
+    const anchorRect = control.getBoundingClientRect();
+    const panelHeight = Math.min(panel.scrollHeight || 0, 340);
+    const below = viewportTop + viewportHeight - anchorRect.bottom;
+    const above = anchorRect.top - viewportTop;
+    if (below < panelHeight + 14 && above > below && above > 150) panel.classList.add('is-upward');
+  }
+
+  function closeRecentQuickPicker() {
+    if (!activeRecentControl || recentManagementOpen) return;
+    activeRecentControl.classList.remove('is-open');
+    activeRecentControl.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
+    activeRecentControl.querySelector('.recent-panel')?.classList.add('hidden');
+    activeRecentControl = null;
+    activeRecentTargetId = '';
+  }
+
+  function openRecentQuickPicker(control, targetId) {
+    const addresses = loadRecentAddresses();
+    if (!addresses.length || !control || !targetId) return;
+    if (activeRecentControl === control && control.classList.contains('is-open')) {
+      closeRecentQuickPicker();
+      return;
+    }
+    closeRecentQuickPicker();
+    recentManagementOpen = false;
+    activeRecentControl = control;
+    activeRecentTargetId = targetId;
+    renderRecentQuickPanel(control);
+    control.classList.add('is-open');
+    control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'true');
+    const panel = control.querySelector('.recent-panel');
+    panel?.classList.remove('hidden');
+    requestAnimationFrame(() => positionRecentQuickPanel(control));
+  }
 
   function ensureRecentAddressSheet() {
     let overlay = document.getElementById('gcRecentSheet');
@@ -1321,7 +1457,7 @@
         <div class="gc-recent-sheet-head">
           <div>
             <strong id="gcRecentSheetTitle">${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</strong>
-            <small>點選地址即可自動帶入</small>
+            <small>管理已儲存的最近地址</small>
           </div>
           <button type="button" class="gc-recent-sheet-close" aria-label="關閉">✕</button>
         </div>
@@ -1338,30 +1474,15 @@
       const useButton = event.target.closest('.gc-recent-sheet-use');
       if (useButton) {
         const address = loadRecentAddresses()[Number(useButton.dataset.index)];
-        const input = document.getElementById(activeRecentTargetId);
-        if (address && input) {
-          if (activeRecentTargetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
-          input.value = address;
-          input.classList.remove('invalid');
-          input.removeAttribute('aria-invalid');
-          input.closest('.field')?.classList.remove('gc-validation-error');
-          const error = document.getElementById(`${activeRecentTargetId}Error`);
-          if (error) {
-            error.textContent = '';
-            error.classList.remove('show');
-            error.removeAttribute('role');
-          }
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        if (address && activeRecentTargetId) fillRecentAddress(address, activeRecentTargetId);
         closeRecentAddressSheet();
         return;
       }
       const deleteButton = event.target.closest('.gc-recent-sheet-delete');
       if (deleteButton) {
         deleteRecentAddress(Number(deleteButton.dataset.index));
-        refreshRecentAddressControls();
         renderRecentAddressSheetList();
+        if (!loadRecentAddresses().length) closeRecentAddressSheet();
         return;
       }
       if (event.target.closest('.gc-recent-sheet-clear')) {
@@ -1369,7 +1490,6 @@
         openRecentClearModal(clearRecentAddresses);
       }
     });
-
     return overlay;
   }
 
@@ -1394,25 +1514,31 @@
       overlay.hidden = true;
       overlay.setAttribute('aria-hidden', 'true');
     }
+    if (recentManagementOpen) unlockViewport();
+    recentManagementOpen = false;
     document.body.classList.remove('gc-recent-sheet-open');
     if (activeRecentControl) {
       activeRecentControl.classList.remove('is-open');
       activeRecentControl.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
+      activeRecentControl.querySelector('.recent-panel')?.classList.add('hidden');
     }
     activeRecentControl = null;
     activeRecentTargetId = '';
   }
 
-  function openRecentAddressSheet(control, targetId) {
+  function openRecentAddressManagement(control, targetId) {
     const addresses = loadRecentAddresses();
     if (!addresses.length || !control || !targetId) return;
-    closeRecentAddressSheet();
+    if (activeRecentControl && activeRecentControl !== control) closeRecentQuickPicker();
     activeRecentControl = control;
     activeRecentTargetId = targetId;
+    control.classList.remove('is-open');
+    control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
+    control.querySelector('.recent-panel')?.classList.add('hidden');
     const overlay = ensureRecentAddressSheet();
     renderRecentAddressSheetList();
-    control.classList.add('is-open');
-    control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'true');
+    recentManagementOpen = true;
+    lockViewport();
     overlay.hidden = false;
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');
@@ -1453,22 +1579,41 @@
 
   function bindRecentAddressControls() {
     // GC_R10J_RECENT_POPOVER_AUTO_CLOSE compatibility marker.
-    // GC_R10K_RECENT_BOTTOM_SHEET: body-level sheet avoids field-label clipping on iPhone/LINE WebView.
+    // GC_R10K_RECENT_BOTTOM_SHEET remains as the management-only sheet.
+    // GC_MASTER_STABLE_2026_08R10M_RECENT_QUICK_PICKER is the normal selection flow.
     ensureRecentAddressSheet();
     document.querySelectorAll('.recent-address-control').forEach(control => {
+      if (control.dataset.gcRecentBound === '1') return;
+      control.dataset.gcRecentBound = '1';
       const targetId = control.dataset.target;
       const toggle = control.querySelector('.recent-toggle');
       toggle?.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
-        if (toggle.getAttribute('aria-expanded') === 'true') {
-          closeRecentAddressSheet();
+        if (toggle.getAttribute('aria-expanded') === 'true' && !recentManagementOpen) {
+          closeRecentQuickPicker();
           return;
         }
         const keyboardWasOpen = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '');
         blurActiveEditor();
-        if (keyboardWasOpen) waitForKeyboardToSettle(() => openRecentAddressSheet(control, targetId));
-        else openRecentAddressSheet(control, targetId);
+        if (keyboardWasOpen) waitForKeyboardToSettle(() => openRecentQuickPicker(control, targetId));
+        else openRecentQuickPicker(control, targetId);
+      });
+      control.addEventListener('click', event => {
+        const useButton = event.target.closest('.recent-use');
+        if (useButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          const address = loadRecentAddresses()[Number(useButton.dataset.index)];
+          if (address) fillRecentAddress(address, targetId);
+          closeRecentQuickPicker();
+          return;
+        }
+        if (event.target.closest('.recent-manage')) {
+          event.preventDefault();
+          event.stopPropagation();
+          openRecentAddressManagement(control, targetId);
+        }
       });
     });
     refreshRecentAddressControls();
@@ -1476,8 +1621,23 @@
     if (!document.documentElement.dataset.gcRecentEscapeBound) {
       document.documentElement.dataset.gcRecentEscapeBound = '1';
       document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') closeRecentAddressSheet();
+        if (event.key !== 'Escape') return;
+        if (recentManagementOpen) closeRecentAddressSheet();
+        else closeRecentQuickPicker();
       });
+      document.addEventListener('click', event => {
+        if (recentManagementOpen || !activeRecentControl) return;
+        if (!activeRecentControl.contains(event.target)) closeRecentQuickPicker();
+      });
+      window.addEventListener('scroll', () => {
+        if (!recentManagementOpen) closeRecentQuickPicker();
+      }, { passive: true });
+      window.addEventListener('resize', () => {
+        if (!recentManagementOpen) closeRecentQuickPicker();
+      }, { passive: true });
+      window.visualViewport?.addEventListener('resize', () => {
+        if (!recentManagementOpen) closeRecentQuickPicker();
+      }, { passive: true });
     }
   }
 
