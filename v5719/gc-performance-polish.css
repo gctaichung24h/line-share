@@ -1381,3 +1381,134 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
 .location-confirm-btn:active{background:#f8f4e7!important}
 @media(max-width:360px){.gc-fare-manual-details>summary strong{font-size:12.4px!important}.gc-fare-manual-details>summary small{font-size:10.4px!important}.recent-address-control.is-open .recent-panel{max-width:calc(100vw - 20px)!important}.location-review{align-items:stretch!important;gap:9px!important}.location-confirm-btn{align-self:flex-end!important}}
 @media(max-width:330px){.recent-address-control.is-open .recent-panel{width:284px!important;max-width:calc(100vw - 20px)!important}}
+
+/* GC_MASTER_STABLE_2026_08R10P_ACCESSIBILITY_PERFORMANCE_SEAL
+   Final seal: favorite-sheet finishing + zoom/reflow resilience. Normal 100% layout remains unchanged. */
+
+/* Favorite trips: floating-sheet finish; preserve a safe edge so corners never look cropped. */
+.gc-sheet-overlay{
+  padding-left:10px!important;
+  padding-right:10px!important;
+  padding-bottom:max(8px,env(safe-area-inset-bottom))!important;
+}
+.gc-sheet{
+  width:min(calc(100% - 4px),540px)!important;
+  height:min(56dvh,540px)!important;
+  max-height:calc(100dvh - 88px)!important;
+  margin:0 auto!important;
+  padding:8px 18px calc(16px + env(safe-area-inset-bottom))!important;
+  border:1px solid rgba(211,223,232,.92)!important;
+  border-radius:26px!important;
+  background:#fff!important;
+  box-shadow:0 22px 60px rgba(13,36,56,.24),0 4px 16px rgba(13,36,56,.10)!important;
+}
+.gc-sheet-handle{width:42px!important;height:4px!important;margin-top:1px!important;background:#cad5de!important}
+.gc-sheet-head{padding:5px 2px 13px!important}
+.gc-sheet-head strong{font-size:16px!important;font-weight:800!important;letter-spacing:-.01em!important}
+.gc-sheet-close{width:36px!important;height:36px!important;border:1px solid #e1e8ed!important;background:#f4f7f9!important}
+.gc-sheet-body{padding:12px 2px 1px!important}
+.favorite-list-viewport{padding:2px 2px 10px!important;scrollbar-gutter:stable both-edges}
+.favorite-list{gap:10px!important}
+.favorite-row{
+  grid-template-columns:minmax(0,1fr) 72px!important;
+  gap:10px!important;
+  height:auto!important;
+  min-height:82px!important;
+  max-height:none!important;
+  padding:1px!important;
+}
+.favorite-use,.favorite-delete{
+  height:auto!important;
+  min-height:80px!important;
+  max-height:none!important;
+  border-radius:17px!important;
+  box-shadow:0 3px 10px rgba(20,57,84,.045)!important;
+}
+.favorite-use{padding:12px 14px!important;border-color:#cbdbe7!important;background:#fff!important}
+.favorite-use strong{font-size:17px!important;margin-bottom:6px!important}
+.favorite-use span{font-size:12px!important;line-height:1.45!important}
+.favorite-delete{
+  padding:8px!important;
+  border-color:#ead4cf!important;
+  background:#fff8f6!important;
+  color:#914a42!important;
+  font-size:12.5px!important;
+  font-weight:740!important;
+}
+.favorite-actions{gap:9px!important;padding:10px 2px 2px!important;background:#fff!important}
+.favorite-actions .favorite-clear,.favorite-actions .favorite-save-btn{
+  min-height:48px!important;
+  max-height:none!important;
+  border-radius:15px!important;
+}
+.favorite-actions .favorite-clear{background:#fafcfd!important;border-color:#cddbe5!important;color:#61798a!important}
+.favorite-actions .favorite-save-btn{background:#eef6fc!important;border-color:#aec8dc!important;color:#183f61!important;font-weight:780!important}
+.favorite-status{padding-inline:2px!important}
+
+/* Concise but important location confirmation. */
+.location-review{padding:11px 12px!important;gap:12px!important}
+.location-review-copy strong{margin-bottom:3px!important}
+.location-review-copy>span{line-height:1.45!important}
+.location-confirm-btn{flex:0 0 auto!important;white-space:nowrap!important}
+
+/* User zoom / Display Zoom: do not block scaling; reflow instead of clipping. */
+html{overflow-x:hidden!important}
+body{overflow-x:hidden!important}
+img,svg,video,canvas{max-width:100%}
+button,input,select,textarea{max-width:100%}
+.confirm-card,.recent-clear-card,.favorite-save-card,.gc-sheet,.gc-recent-sheet{max-width:calc(100vw - 16px)!important}
+.confirm-card,.favorite-save-card,.gc-recent-sheet,.gc-sheet{overscroll-behavior:contain!important;-webkit-overflow-scrolling:touch!important}
+
+/* 280 CSS px corresponds to very large browser/page zoom on common phones. */
+@media(max-width:280px){
+  #app{padding-left:8px!important;padding-right:8px!important}
+  .brand-header{gap:8px!important}
+  .brand-copy strong{font-size:14px!important}
+  .brand-copy span{font-size:10.5px!important;letter-spacing:0!important}
+  .form-head,.form-body{padding-left:12px!important;padding-right:12px!important}
+  .segmented,.schedule-grid,.gc-fare-calc-grid,.confirm-actions,.recent-clear-actions{grid-template-columns:1fr!important}
+  .schedule-grid{gap:9px!important}
+  .choice span{min-height:46px!important;padding:9px 7px!important}
+  .gc-address-utility-row{flex-wrap:wrap!important;justify-content:flex-start!important;gap:6px!important}
+  .gc-address-utility-row>*{max-width:100%!important}
+  .recent-address-control{max-width:100%!important}
+  .recent-address-control.is-open .recent-panel{width:min(250px,calc(100vw - 18px))!important;max-width:calc(100vw - 18px)!important}
+  .location-review{align-items:stretch!important;flex-direction:column!important}
+  .location-confirm-btn{align-self:stretch!important;min-height:42px!important}
+  .gc-call-needs-box[open] .gc-vehicle-info-lead,.gc-vehicle-info-lead{grid-template-columns:1fr!important}
+  .gc-rate-head,.gc-fare-route-quick-row,.gc-fare-preference-row{grid-template-columns:1fr!important;gap:4px!important}
+  .gc-fare-route-quick-row>*:nth-child(2),.gc-fare-preference-row>*:nth-child(2){display:none!important}
+  .confirm-row{grid-template-columns:1fr!important;gap:4px!important;align-items:start!important}
+  .gc-confirm-extra-total{grid-template-columns:1fr!important;gap:5px!important}
+  .confirm-overlay,.favorite-save-overlay,.recent-clear-overlay{padding-left:8px!important;padding-right:8px!important}
+  .confirm-card,.favorite-save-card,.recent-clear-card{width:100%!important;padding-left:12px!important;padding-right:12px!important}
+  .gc-sheet-overlay{padding-left:7px!important;padding-right:7px!important}
+  .gc-sheet{width:100%!important;padding-left:12px!important;padding-right:12px!important;border-radius:22px!important}
+  .favorite-row,.gc-recent-sheet-row{grid-template-columns:1fr!important;height:auto!important;min-height:0!important}
+  .favorite-use,.favorite-delete,.gc-recent-sheet-use,.gc-recent-sheet-delete{height:auto!important;min-height:48px!important;max-height:none!important}
+  .favorite-delete,.gc-recent-sheet-delete{width:100%!important}
+  .gc-pet-row{grid-template-columns:1fr!important}
+  .gc-pet-row .choice span{min-height:44px!important}
+  .submit-btn,.back-btn,.gc-fare-map-btn,.gc-fare-call-btn{white-space:normal!important;height:auto!important;min-height:50px!important;line-height:1.35!important}
+}
+
+/* Extra-narrow emergency reflow: still usable at roughly 200% page zoom on a 390px phone. */
+@media(max-width:220px){
+  #app{padding-left:5px!important;padding-right:5px!important}
+  .brand-header{align-items:flex-start!important}
+  .brand-avatar{width:40px!important;height:40px!important;flex-basis:40px!important}
+  .brand-copy strong{font-size:12.5px!important;overflow-wrap:anywhere!important}
+  .brand-copy span{font-size:9.5px!important}
+  .form-head,.form-body{padding-left:9px!important;padding-right:9px!important}
+  .form-title{font-size:21px!important;overflow-wrap:anywhere!important}
+  .form-subtitle{font-size:12px!important}
+  .input,textarea,.gc-select{padding-left:10px!important;padding-right:10px!important}
+  .field-inline-btn,.field-inline-action .location-btn,.recent-toggle,#gcFavoriteToggle{white-space:normal!important;line-height:1.25!important}
+  .gc-sheet-head{gap:8px!important}
+  .gc-sheet-head strong{font-size:14px!important}
+  .gc-fare-calc{padding-left:10px!important;padding-right:10px!important}
+  .gc-fare-calc-input-wrap{min-width:0!important}
+  .gc-fare-calc-input{min-width:0!important;padding-left:8px!important;padding-right:4px!important}
+  .gc-fare-calc-input-wrap b{padding-left:3px!important;padding-right:7px!important}
+}
+

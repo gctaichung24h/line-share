@@ -1,10 +1,13 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10o';
+  const GC_BUILD_VERSION = 'master202608r10p';
+  // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
+  // Version safety stays enabled, but it no longer competes with the first usable paint.
   let gcLastVersionCheck = 0;
+  const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
-    if (!force && now - gcLastVersionCheck < 30000) return;
+    if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return;
     gcLastVersionCheck = now;
     try {
       const res = await fetch('version.json?t=' + now, { cache: 'no-store' });
@@ -18,8 +21,13 @@
       }
     } catch (_) {}
   }
-  window.addEventListener('pageshow', () => ensureLatestBuild(true));
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureLatestBuild(true); });
+  function scheduleLatestBuildCheck(force = false) {
+    const run = () => ensureLatestBuild(force);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2200 });
+    else setTimeout(run, 900);
+  }
+  window.addEventListener('pageshow', () => scheduleLatestBuildCheck(false));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleLatestBuildCheck(false); });
 
 
   const CONFIG = window.GC_FORM_CONFIG || {};
@@ -29,9 +37,9 @@
   const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
   const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_FINAL_ENTERPRISE_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
-  const RECENT_LIMIT = 3;
+  const RECENT_LIMIT = 5;
   const FAVORITE_STORAGE_KEY = 'gc_favorite_trips_v1';
-  const FAVORITE_LIMIT = 3;
+  const FAVORITE_LIMIT = 5;
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
@@ -595,12 +603,31 @@
     }
   }
 
+  let gcAddressServiceWarmed = false;
+  function warmAddressService() {
+    if (gcAddressServiceWarmed) return;
+    gcAddressServiceWarmed = true;
+    // GC_MASTER_STABLE_2026_08R10P_ADDRESS_SERVICE_WARMUP
+    // Do not spend a connection during startup; warm it only when an address field is actually used.
+    const preconnect = document.createElement('link');
+    preconnect.rel = 'preconnect';
+    preconnect.href = 'https://geocode.arcgis.com';
+    preconnect.crossOrigin = 'anonymous';
+    document.head.appendChild(preconnect);
+    const dns = document.createElement('link');
+    dns.rel = 'dns-prefetch';
+    dns.href = '//geocode.arcgis.com';
+    document.head.appendChild(dns);
+  }
+
   function bindSmartAddressInputs() {
     ['pickup', 'destination'].forEach(id => {
       const input = document.getElementById(id);
       const box = document.getElementById(`${id}Suggest`);
       if (!input || !box || input.dataset.gcSmartAddressBound === '1') return;
       input.dataset.gcSmartAddressBound = '1';
+      input.addEventListener('focus', warmAddressService, { passive: true });
+      input.addEventListener('pointerdown', warmAddressService, { passive: true });
       let timer = 0;
       let localToken = 0;
 
@@ -837,7 +864,7 @@
     const full = trips.length >= FAVORITE_LIMIT;
     saveButton.disabled = full;
     saveButton.textContent = full
-      ? (COMMON['常用行程已滿按鈕'] || '已達 3 組上限')
+      ? (COMMON['常用行程已滿按鈕'] || '已達 5 組上限')
       : `＋ ${COMMON['常用行程儲存'] || '儲存目前行程'}`;
   }
 
@@ -872,7 +899,7 @@
     }
     const trips = loadFavoriteTrips();
     if (trips.length >= FAVORITE_LIMIT) {
-      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 3 組，請先刪除一組。', 'error');
+      setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 5 組，請先刪除一組。', 'error');
       return;
     }
     // V8.1: 儲存常用行程時強制關閉 Bottom Sheet，中央 Dialog 是唯一焦點。
@@ -1286,10 +1313,8 @@
         // from becoming the dispatch address without the rider seeing it first.
         attachedLocation.requiresConfirmation = true;
         setLocationStatus('', 'success');
-        const accuracyNote = finiteAccuracy > LOCATION_AUTO_ACCEPT_ACCURACY_M
-          ? `（定位約 ±${Math.round(finiteAccuracy)}m）`
-          : '';
-        setLocationReview(`系統已帶入定位地址${accuracyNote}，送出前請再確認門牌是否正確。若不符，請直接修改${locationAddressLabel}。`, true);
+        // GC_MASTER_STABLE_2026_08R10P_CONCISE_LOCATION_REVIEW
+        setLocationReview(`請確認門牌是否正確；若不符，請直接修改${locationAddressLabel}。`, true);
       } catch (error) {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
@@ -2630,43 +2655,57 @@
     });
   }
 
-  async function initialize() {
-    const initialParams = new URLSearchParams(location.search);
-    const mightBeLiff = initialParams.has('liff.state') || initialParams.has('mode');
+  function renderRequestedMode(mode) {
+    if (mode === 'call') {
+      renderRideLike('call', CONFIG.call || {});
+      return true;
+    }
+    if (mode === 'driver') {
+      renderRideLike('driver', CONFIG.driver || {});
+      return true;
+    }
+    if (mode === 'fare') {
+      renderFare(CONFIG.fare || {});
+      return true;
+    }
+    return false;
+  }
 
-    if (!preview && mightBeLiff) {
+  async function initialize() {
+    // GC_MASTER_STABLE_2026_08R10P_PROGRESSIVE_LIFF_BOOT
+    // If Rich Menu already gave us a mode, paint the usable form first. LIFF then initializes
+    // in parallel; sendFormMessages still awaits ensureLiffReady(), so delivery safety is unchanged.
+    const initialParams = new URLSearchParams(location.search);
+    const initialMode = initialParams.get('mode');
+    const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));
+
+    if (preview) {
+      if (!initialModeRendered) renderQr();
+      return;
+    }
+
+    const mightBeLiff = initialParams.has('liff.state') || Boolean(initialMode);
+    if (mightBeLiff) {
       try {
-        // Keep LINE's required primary/secondary redirect flow unchanged.
-        // The SDK file itself is fetched without blocking HTML parsing, then init
-        // still completes before we read the final mode and render the form.
-        await ensureLiffReady();
+        const sdk = await ensureLiffReady();
+        if (!sdk || !sdk.isInClient()) {
+          renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
+          return;
+        }
       } catch (error) {
         renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
         return;
       }
     }
 
-    const params = new URLSearchParams(location.search);
-    const mode = params.get('mode');
-
-    if (!mode) {
-      renderQr();
+    // A first LIFF redirect may expose the final mode only after sdk.init().
+    const finalMode = new URLSearchParams(location.search).get('mode');
+    if (!finalMode) {
+      if (!initialModeRendered) renderQr();
       return;
     }
-
-    if (!preview && (!window.liff || !liff.isInClient())) {
-      renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
-      return;
-    }
-
-    if (mode === 'call') {
-      renderRideLike('call', CONFIG.call || {});
-    } else if (mode === 'driver') {
-      renderRideLike('driver', CONFIG.driver || {});
-    } else if (mode === 'fare') {
-      renderFare(CONFIG.fare || {});
-    } else {
-      renderQr();
+    if (!initialModeRendered || finalMode !== initialMode) {
+      if (!renderRequestedMode(finalMode)) renderQr();
     }
   }
 
