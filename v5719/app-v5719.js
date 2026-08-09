@@ -1,6 +1,8 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10s';
+  const GC_BUILD_VERSION = 'master202608r10u';
+  // GC_MASTER_STABLE_2026_08R10U_MODE_AWARE_ADDRESS_POLICY
+  // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_MASTER_STABLE_2026_08R10S_FINAL_SMART_LOCATION_AND_POLISH_SEAL
   // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
@@ -690,13 +692,16 @@
     return Boolean(parts.county && parts.district && parts.detail && !isBroadRoadOnlyAddress(parts.detail));
   }
 
-  function markAddressVerified(input, source = 'confirmed') {
+  function markAddressVerified(input, source = 'confirmed', resolvedAddress = '') {
     if (!input) return;
     const normalized = smartNormalizeTaiwanAddress(input.value);
     if (!normalized) return;
     input.dataset.gcAddressVerified = '1';
     input.dataset.gcAddressVerifiedKey = addressConfidenceKey(normalized);
     input.dataset.gcAddressVerifiedSource = source;
+    const resolved = smartNormalizeTaiwanAddress(resolvedAddress);
+    if (resolved) input.dataset.gcResolvedAddress = resolved;
+    else delete input.dataset.gcResolvedAddress;
     input.classList.add('gc-address-verified');
     input.classList.remove('gc-address-needs-choice');
   }
@@ -706,6 +711,7 @@
     delete input.dataset.gcAddressVerified;
     delete input.dataset.gcAddressVerifiedKey;
     delete input.dataset.gcAddressVerifiedSource;
+    delete input.dataset.gcResolvedAddress;
     input.classList.remove('gc-address-verified');
   }
 
@@ -810,6 +816,12 @@
     return isResolvedCandidateDispatchReady(query, resolved, options) ? { item: suggestions[0], resolved } : null;
   }
 
+  function isRelaxedRideDestination(id) {
+    if (id !== 'destination') return false;
+    const activeMode = new URLSearchParams(location.search).get('mode');
+    return activeMode === 'call' || activeMode === 'driver';
+  }
+
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
     if (isBroadRoadOnlyAddress(normalized)) {
@@ -837,27 +849,33 @@
     if (!input) return Boolean(options.allowEmpty);
     const normalized = normalizeAddressInput(id);
     if (!normalized) return Boolean(options.allowEmpty);
+
+    // R10U: pickup/driver-location stays strict; ride/driver drop-off can remain a broad
+    // human-readable destination. Fare keeps strict verification on both ends for Google Maps.
+    if (options.policy === 'relaxed') {
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
     if (isAddressVerified(input)) return true;
 
     const suggestions = await fetchAddressSuggestions(normalized);
     const exact = exactStructuredSuggestion(normalized, suggestions);
     if (exact) {
       const selected = canonicalizeSuggestedAddress(exact.text);
-      if (selected) input.value = selected;
-      markAddressVerified(input, 'auto-exact');
+      markAddressVerified(input, 'auto-exact', selected);
       hideAddressSuggestions(id);
       clearFieldValidation(id);
-      input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
     }
 
     const unique = await uniqueDispatchSuggestion(normalized, suggestions);
     if (unique) {
-      input.value = resolvedAddressForInput(normalized, unique.resolved, unique.item.text);
-      markAddressVerified(input, 'auto-resolved');
+      const resolvedAddress = resolvedAddressForInput(normalized, unique.resolved, unique.item.text);
+      markAddressVerified(input, 'auto-resolved', resolvedAddress);
       hideAddressSuggestions(id);
       clearFieldValidation(id);
-      input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
     }
 
@@ -946,23 +964,22 @@
 
           const exact = exactStructuredSuggestion(query, suggestions);
           if (exact) {
+            // Never rewrite a passenger's text while they are typing. Keep the visible text and
+            // retain the canonical resolved address only as hidden verification metadata.
             const selected = canonicalizeSuggestedAddress(exact.text);
-            if (selected) input.value = selected;
-            markAddressVerified(input, 'auto-exact');
+            markAddressVerified(input, 'auto-exact', selected);
             hideAddressSuggestions(id);
             clearFieldValidation(id);
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             return;
           }
 
           const unique = await uniqueDispatchSuggestion(query, suggestions);
           if (localToken !== token || normalizeAddress(input.value) !== query) return;
           if (unique) {
-            input.value = resolvedAddressForInput(query, unique.resolved, unique.item.text);
-            markAddressVerified(input, 'auto-resolved');
+            const resolvedAddress = resolvedAddressForInput(query, unique.resolved, unique.item.text);
+            markAddressVerified(input, 'auto-resolved', resolvedAddress);
             hideAddressSuggestions(id);
             clearFieldValidation(id);
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             return;
           }
 
@@ -993,9 +1010,10 @@
 
         const resolved = await resolveAddressSuggestion(item);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
-        const ready = resolved
+        const relaxedDestination = isRelaxedRideDestination(id);
+        const ready = relaxedDestination || (resolved
           ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
-          : (!broad && isLocallyDispatchReady(selected));
+          : (!broad && isLocallyDispatchReady(selected)));
 
         input.value = resolvedAddressForInput(selected, resolved, item.text) || selected;
         input.dataset.gcSkipSuggestOnce = '1';
@@ -1011,7 +1029,7 @@
           return;
         }
 
-        markAddressVerified(input, 'suggestion');
+        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddressForInput(selected, resolved, item.text) || selected);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
@@ -2764,7 +2782,9 @@
         if (!(await verifyAddressField('pickup', { showError: true }))) valid = false;
       }
       if (valid && destination) {
-        if (!(await verifyAddressField('destination', { showError: true }))) valid = false;
+        // Call / drunk-driver drop-off is descriptive dispatch context, not a Google route input.
+        // Keep smart suggestions available, but do not block a valid request just because it is broad.
+        if (!(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) valid = false;
       }
       if (!valid) {
         focusFirstValidationError();

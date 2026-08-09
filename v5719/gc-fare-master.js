@@ -7,6 +7,8 @@
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
+  // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
+  // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -33,6 +35,20 @@
   };
   const safeSessionSet = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
   const safeSessionRemove = key => { try { sessionStorage.removeItem(key); } catch (_) {} };
+  const safeLocalGet = key => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.createdAt || Date.now() - parsed.createdAt > TTL_MS) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return parsed;
+    } catch (_) { return null; }
+  };
+  const safeLocalSet = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
+  const safeLocalRemove = key => { try { localStorage.removeItem(key); } catch (_) {} };
   const clearLegacyFareStorage = () => {
     try { localStorage.removeItem(LEGACY_DRAFT_KEY); localStorage.removeItem(LEGACY_HANDOFF_KEY); } catch (_) {}
   };
@@ -150,6 +166,14 @@
     return true;
   }
 
+  function mapAddressFromInput(input) {
+    if (!input) return '';
+    const visible = cleanMapAddress(input.value);
+    const resolved = cleanMapAddress(input.dataset?.gcResolvedAddress || '');
+    if (input.dataset?.gcAddressVerified === '1' && resolved) return resolved;
+    return visible;
+  }
+
   function googleMapsUrl(pickupValue = '', destinationValue = '') {
     const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
     const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
@@ -194,8 +218,8 @@
     const destinationInput = qs('destination');
     const pickup = cleanMapAddress(pickupInput?.value);
     const destination = cleanMapAddress(destinationInput?.value);
-    if (pickupInput && pickup && pickupInput.value !== pickup) pickupInput.value = pickup;
-    if (destinationInput && destination && destinationInput.value !== destination) destinationInput.value = destination;
+    // Opening Google Maps must not visibly replace what the passenger typed. The stricter
+    // canonical result is carried separately and is used only for map routing.
 
     const missingPickup = !pickup;
     const missingDestination = !destination;
@@ -212,8 +236,8 @@
       if (!pickupReady || !destinationReady) return;
     }
 
-    const verifiedPickup = cleanMapAddress(pickupInput?.value);
-    const verifiedDestination = cleanMapAddress(destinationInput?.value);
+    const verifiedPickup = mapAddressFromInput(pickupInput);
+    const verifiedDestination = mapAddressFromInput(destinationInput);
     const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
@@ -258,17 +282,26 @@
   }
 
   function toCall() {
-    const pickup = trim(qs('pickup')?.value);
-    const destination = trim(qs('destination')?.value);
-    // 自助試算只需要分鐘＋公里；地址是「開 Google 地圖」的便利資料，不是進叫車頁的門檻。
-    // 有填就安全帶入，沒填就讓既有叫車表格照原規則由客人補填；下車地址仍維持叫車端選填。
+    const pickupInput = qs('pickup');
+    const destinationInput = qs('destination');
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();
     const state = history.state && typeof history.state === 'object' ? history.state : {};
     const flowId = currentFareFlow(true);
     history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
-    safeSessionSet(HANDOFF_KEY, { pickup, destination, flowId, createdAt: Date.now() });
+    const handoff = {
+      pickup,
+      destination,
+      pickupVerified: pickupInput?.dataset.gcAddressVerified === '1',
+      destinationVerified: destinationInput?.dataset.gcAddressVerified === '1',
+      flowId,
+      createdAt: Date.now()
+    };
+    safeSessionSet(HANDOFF_KEY, handoff);
+    safeLocalSet(HANDOFF_KEY, handoff);
     const url = new URL(location.href);
     url.searchParams.set('mode', 'call');
     url.searchParams.delete('_r');
@@ -421,13 +454,19 @@
     const pickup = qs('pickup');
     const destination = qs('destination');
     if (!pickup || !destination || !document.querySelector('#serviceForm')) return false;
+    const handoff = safeSessionGet(HANDOFF_KEY) || safeLocalGet(HANDOFF_KEY);
     document.documentElement.dataset.gcFareHandoffDone = '1';
-    const handoff = safeSessionGet(HANDOFF_KEY);
-    if (!handoff) return true;
-    if (!trim(pickup.value) && trim(handoff.pickup)) setAddressValueSilently(pickup, handoff.pickup);
-    if (!trim(destination.value) && trim(handoff.destination)) setAddressValueSilently(destination, handoff.destination);
-    // 只消耗「帶入叫車」資料；原車資快照保留 20 分鐘，供瀏覽器返回查看。
+    if (!handoff) {
+      safeSessionRemove(HANDOFF_KEY);
+      safeLocalRemove(HANDOFF_KEY);
+      return true;
+    }
+    const pickupApplied = !trim(pickup.value) && trim(handoff.pickup) ? setAddressValueSilently(pickup, handoff.pickup) : false;
+    const destinationApplied = !trim(destination.value) && trim(handoff.destination) ? setAddressValueSilently(destination, handoff.destination) : false;
+    if (pickupApplied && handoff.pickupVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('pickup', 'fare-handoff');
+    if (destinationApplied && handoff.destinationVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('destination', 'fare-handoff');
     safeSessionRemove(HANDOFF_KEY);
+    safeLocalRemove(HANDOFF_KEY);
     return true;
   }
 

@@ -226,7 +226,9 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10s';
+  const GC_BUILD_VERSION = 'master202608r10u';
+  // GC_MASTER_STABLE_2026_08R10U_MODE_AWARE_ADDRESS_POLICY
+  // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_MASTER_STABLE_2026_08R10S_FINAL_SMART_LOCATION_AND_POLISH_SEAL
   // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
@@ -916,13 +918,16 @@ window.GC_FORM_CONFIG = {
     return Boolean(parts.county && parts.district && parts.detail && !isBroadRoadOnlyAddress(parts.detail));
   }
 
-  function markAddressVerified(input, source = 'confirmed') {
+  function markAddressVerified(input, source = 'confirmed', resolvedAddress = '') {
     if (!input) return;
     const normalized = smartNormalizeTaiwanAddress(input.value);
     if (!normalized) return;
     input.dataset.gcAddressVerified = '1';
     input.dataset.gcAddressVerifiedKey = addressConfidenceKey(normalized);
     input.dataset.gcAddressVerifiedSource = source;
+    const resolved = smartNormalizeTaiwanAddress(resolvedAddress);
+    if (resolved) input.dataset.gcResolvedAddress = resolved;
+    else delete input.dataset.gcResolvedAddress;
     input.classList.add('gc-address-verified');
     input.classList.remove('gc-address-needs-choice');
   }
@@ -932,6 +937,7 @@ window.GC_FORM_CONFIG = {
     delete input.dataset.gcAddressVerified;
     delete input.dataset.gcAddressVerifiedKey;
     delete input.dataset.gcAddressVerifiedSource;
+    delete input.dataset.gcResolvedAddress;
     input.classList.remove('gc-address-verified');
   }
 
@@ -1036,6 +1042,12 @@ window.GC_FORM_CONFIG = {
     return isResolvedCandidateDispatchReady(query, resolved, options) ? { item: suggestions[0], resolved } : null;
   }
 
+  function isRelaxedRideDestination(id) {
+    if (id !== 'destination') return false;
+    const activeMode = new URLSearchParams(location.search).get('mode');
+    return activeMode === 'call' || activeMode === 'driver';
+  }
+
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
     if (isBroadRoadOnlyAddress(normalized)) {
@@ -1063,27 +1075,33 @@ window.GC_FORM_CONFIG = {
     if (!input) return Boolean(options.allowEmpty);
     const normalized = normalizeAddressInput(id);
     if (!normalized) return Boolean(options.allowEmpty);
+
+    // R10U: pickup/driver-location stays strict; ride/driver drop-off can remain a broad
+    // human-readable destination. Fare keeps strict verification on both ends for Google Maps.
+    if (options.policy === 'relaxed') {
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
     if (isAddressVerified(input)) return true;
 
     const suggestions = await fetchAddressSuggestions(normalized);
     const exact = exactStructuredSuggestion(normalized, suggestions);
     if (exact) {
       const selected = canonicalizeSuggestedAddress(exact.text);
-      if (selected) input.value = selected;
-      markAddressVerified(input, 'auto-exact');
+      markAddressVerified(input, 'auto-exact', selected);
       hideAddressSuggestions(id);
       clearFieldValidation(id);
-      input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
     }
 
     const unique = await uniqueDispatchSuggestion(normalized, suggestions);
     if (unique) {
-      input.value = resolvedAddressForInput(normalized, unique.resolved, unique.item.text);
-      markAddressVerified(input, 'auto-resolved');
+      const resolvedAddress = resolvedAddressForInput(normalized, unique.resolved, unique.item.text);
+      markAddressVerified(input, 'auto-resolved', resolvedAddress);
       hideAddressSuggestions(id);
       clearFieldValidation(id);
-      input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
     }
 
@@ -1172,23 +1190,22 @@ window.GC_FORM_CONFIG = {
 
           const exact = exactStructuredSuggestion(query, suggestions);
           if (exact) {
+            // Never rewrite a passenger's text while they are typing. Keep the visible text and
+            // retain the canonical resolved address only as hidden verification metadata.
             const selected = canonicalizeSuggestedAddress(exact.text);
-            if (selected) input.value = selected;
-            markAddressVerified(input, 'auto-exact');
+            markAddressVerified(input, 'auto-exact', selected);
             hideAddressSuggestions(id);
             clearFieldValidation(id);
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             return;
           }
 
           const unique = await uniqueDispatchSuggestion(query, suggestions);
           if (localToken !== token || normalizeAddress(input.value) !== query) return;
           if (unique) {
-            input.value = resolvedAddressForInput(query, unique.resolved, unique.item.text);
-            markAddressVerified(input, 'auto-resolved');
+            const resolvedAddress = resolvedAddressForInput(query, unique.resolved, unique.item.text);
+            markAddressVerified(input, 'auto-resolved', resolvedAddress);
             hideAddressSuggestions(id);
             clearFieldValidation(id);
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             return;
           }
 
@@ -1219,9 +1236,10 @@ window.GC_FORM_CONFIG = {
 
         const resolved = await resolveAddressSuggestion(item);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
-        const ready = resolved
+        const relaxedDestination = isRelaxedRideDestination(id);
+        const ready = relaxedDestination || (resolved
           ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
-          : (!broad && isLocallyDispatchReady(selected));
+          : (!broad && isLocallyDispatchReady(selected)));
 
         input.value = resolvedAddressForInput(selected, resolved, item.text) || selected;
         input.dataset.gcSkipSuggestOnce = '1';
@@ -1237,7 +1255,7 @@ window.GC_FORM_CONFIG = {
           return;
         }
 
-        markAddressVerified(input, 'suggestion');
+        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddressForInput(selected, resolved, item.text) || selected);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
@@ -2990,7 +3008,9 @@ window.GC_FORM_CONFIG = {
         if (!(await verifyAddressField('pickup', { showError: true }))) valid = false;
       }
       if (valid && destination) {
-        if (!(await verifyAddressField('destination', { showError: true }))) valid = false;
+        // Call / drunk-driver drop-off is descriptive dispatch context, not a Google route input.
+        // Keep smart suggestions available, but do not block a valid request just because it is broad.
+        if (!(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) valid = false;
       }
       if (!valid) {
         focusFirstValidationError();
@@ -3910,6 +3930,8 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
+  // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
+  // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -3936,6 +3958,20 @@ window.GC_FORM_CONFIG = {
   };
   const safeSessionSet = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
   const safeSessionRemove = key => { try { sessionStorage.removeItem(key); } catch (_) {} };
+  const safeLocalGet = key => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.createdAt || Date.now() - parsed.createdAt > TTL_MS) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return parsed;
+    } catch (_) { return null; }
+  };
+  const safeLocalSet = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} };
+  const safeLocalRemove = key => { try { localStorage.removeItem(key); } catch (_) {} };
   const clearLegacyFareStorage = () => {
     try { localStorage.removeItem(LEGACY_DRAFT_KEY); localStorage.removeItem(LEGACY_HANDOFF_KEY); } catch (_) {}
   };
@@ -4053,6 +4089,14 @@ window.GC_FORM_CONFIG = {
     return true;
   }
 
+  function mapAddressFromInput(input) {
+    if (!input) return '';
+    const visible = cleanMapAddress(input.value);
+    const resolved = cleanMapAddress(input.dataset?.gcResolvedAddress || '');
+    if (input.dataset?.gcAddressVerified === '1' && resolved) return resolved;
+    return visible;
+  }
+
   function googleMapsUrl(pickupValue = '', destinationValue = '') {
     const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
     const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
@@ -4097,8 +4141,8 @@ window.GC_FORM_CONFIG = {
     const destinationInput = qs('destination');
     const pickup = cleanMapAddress(pickupInput?.value);
     const destination = cleanMapAddress(destinationInput?.value);
-    if (pickupInput && pickup && pickupInput.value !== pickup) pickupInput.value = pickup;
-    if (destinationInput && destination && destinationInput.value !== destination) destinationInput.value = destination;
+    // Opening Google Maps must not visibly replace what the passenger typed. The stricter
+    // canonical result is carried separately and is used only for map routing.
 
     const missingPickup = !pickup;
     const missingDestination = !destination;
@@ -4115,8 +4159,8 @@ window.GC_FORM_CONFIG = {
       if (!pickupReady || !destinationReady) return;
     }
 
-    const verifiedPickup = cleanMapAddress(pickupInput?.value);
-    const verifiedDestination = cleanMapAddress(destinationInput?.value);
+    const verifiedPickup = mapAddressFromInput(pickupInput);
+    const verifiedDestination = mapAddressFromInput(destinationInput);
     const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
@@ -4161,17 +4205,26 @@ window.GC_FORM_CONFIG = {
   }
 
   function toCall() {
-    const pickup = trim(qs('pickup')?.value);
-    const destination = trim(qs('destination')?.value);
-    // 自助試算只需要分鐘＋公里；地址是「開 Google 地圖」的便利資料，不是進叫車頁的門檻。
-    // 有填就安全帶入，沒填就讓既有叫車表格照原規則由客人補填；下車地址仍維持叫車端選填。
+    const pickupInput = qs('pickup');
+    const destinationInput = qs('destination');
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();
     const state = history.state && typeof history.state === 'object' ? history.state : {};
     const flowId = currentFareFlow(true);
     history.replaceState({ ...state, [FLOW_STATE_KEY]: flowId, [FLOW_RETURN_KEY]: true }, '', location.href);
-    safeSessionSet(HANDOFF_KEY, { pickup, destination, flowId, createdAt: Date.now() });
+    const handoff = {
+      pickup,
+      destination,
+      pickupVerified: pickupInput?.dataset.gcAddressVerified === '1',
+      destinationVerified: destinationInput?.dataset.gcAddressVerified === '1',
+      flowId,
+      createdAt: Date.now()
+    };
+    safeSessionSet(HANDOFF_KEY, handoff);
+    safeLocalSet(HANDOFF_KEY, handoff);
     const url = new URL(location.href);
     url.searchParams.set('mode', 'call');
     url.searchParams.delete('_r');
@@ -4324,13 +4377,19 @@ window.GC_FORM_CONFIG = {
     const pickup = qs('pickup');
     const destination = qs('destination');
     if (!pickup || !destination || !document.querySelector('#serviceForm')) return false;
+    const handoff = safeSessionGet(HANDOFF_KEY) || safeLocalGet(HANDOFF_KEY);
     document.documentElement.dataset.gcFareHandoffDone = '1';
-    const handoff = safeSessionGet(HANDOFF_KEY);
-    if (!handoff) return true;
-    if (!trim(pickup.value) && trim(handoff.pickup)) setAddressValueSilently(pickup, handoff.pickup);
-    if (!trim(destination.value) && trim(handoff.destination)) setAddressValueSilently(destination, handoff.destination);
-    // 只消耗「帶入叫車」資料；原車資快照保留 20 分鐘，供瀏覽器返回查看。
+    if (!handoff) {
+      safeSessionRemove(HANDOFF_KEY);
+      safeLocalRemove(HANDOFF_KEY);
+      return true;
+    }
+    const pickupApplied = !trim(pickup.value) && trim(handoff.pickup) ? setAddressValueSilently(pickup, handoff.pickup) : false;
+    const destinationApplied = !trim(destination.value) && trim(handoff.destination) ? setAddressValueSilently(destination, handoff.destination) : false;
+    if (pickupApplied && handoff.pickupVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('pickup', 'fare-handoff');
+    if (destinationApplied && handoff.destinationVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('destination', 'fare-handoff');
     safeSessionRemove(HANDOFF_KEY);
+    safeLocalRemove(HANDOFF_KEY);
     return true;
   }
 
