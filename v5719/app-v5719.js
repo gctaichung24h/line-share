@@ -1,8 +1,12 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10y';
+  const GC_BUILD_VERSION = 'master202608r10z2';
+  // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
   // GC_MASTER_STABLE_2026_08R10Y_LARGE_FLEET_ADDRESS_RESOLUTION
+  // GC_MASTER_STABLE_2026_08R10Z_DISPATCH_CORE_FINAL
+  // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
+  // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Preserve provider identity (text + magicKey), clean only display/route copies, and direct-geocode manual full addresses.
   // GC_MASTER_STABLE_2026_08R10X_PROVIDER_POSTAL_LABEL_SANITIZER
   // Provider-only cleanup: remove Taiwan postal-code prefixes/commas from explicit suggestions; never rewrite manual typing.
@@ -668,21 +672,34 @@
       .toLocaleLowerCase();
   }
 
+  // GC_R10Z1_TAIWAN_AVENUE_SAFE
+  // Do not strip the leading characters of real roads such as 台灣大道.
   function addressDetailOnly(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
     const parts = splitTaiwanSuggestionAddress(normalized);
     return normalizeAddress(parts.detail || normalized)
-      .replace(/^(?:台灣|臺灣)/, '')
       .replace(/(?:附近|這邊|那邊|周邊|一帶)$/g, '')
       .trim();
   }
 
-  function isStructuredDoorAddress(value) {
+  // GC_MASTER_STABLE_2026_08R10Z_DISPATCH_ADDRESS_CORE
+  // Ground-address completeness is based on the fields a driver actually needs:
+  // 縣市 + 行政區 + 路/街/道名 + (段/巷/弄 when present) + 門牌號.
+  // 巷/弄 are preserved when present but are NOT mandatory for roads that have direct door numbers.
+  // Floor/room data is intentionally excluded from routing/verification.
+  function dispatchDoorAddressCore(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
-    if (!normalized) return false;
+    if (!normalized) return { normalized: '', county: '', district: '', detail: '', road: '', house: '' };
     const parts = splitTaiwanSuggestionAddress(normalized);
-    if (!parts.county || !parts.district) return false;
-    return /(?:路|街|道|巷|弄)[^號]{0,36}\d+(?:[-之]\d+)?號/.test(normalized);
+    const detail = normalizeAddress(parts.detail || normalized).replace(/\s+/g, '');
+    const road = detail.match(/^(.{1,42}?(?:大道|路|街|道)(?:[一二三四五六七八九十百0-9０-９]+段)?)/)?.[1] || '';
+    const house = detail.match(/([0-9０-９]+(?:[-之][0-9０-９]+)?)號/)?.[1]?.replace(/-/g, '之') || '';
+    return { normalized, county: parts.county || '', district: parts.district || '', detail, road, house };
+  }
+
+  function isStructuredDoorAddress(value) {
+    const core = dispatchDoorAddressCore(value);
+    return Boolean(core.county && core.district && core.road && core.house);
   }
 
   function isBroadRoadOnlyAddress(value) {
@@ -971,7 +988,7 @@
     if (/(?:路|街|道|巷|弄).{0,40}[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(normalized)) {
       return suggestions.length
         ? '找到相近門牌，請點選最符合的一筆。'
-        : '暫時無法定位此門牌，請補上縣市／行政區後再試一次。';
+        : '暫時無法定位此門牌，請確認縣市／行政區／路名／門牌號是否完整。';
     }
     if (suggestions.length) return '請從建議地址中選擇明確地點。';
     return '地點還不夠明確，請補充門牌、路口、巷口或附近明確地標。';
@@ -1002,11 +1019,22 @@
 
     if (isAddressVerified(input)) return true;
 
+    // GC_MASTER_STABLE_2026_08R10Z1_MANUAL_COMPLETE_FIRST
+    // A complete Taiwan ground address is accepted LOCALLY before any network call.
+    // Contract: county/city + district/township + road/street/avenue + door number.
+    // Section/alley/lane are preserved when present; floor/room is excluded only from the
+    // private routing copy. Autocomplete/geocoding remains assistance and can never block
+    // a passenger who already typed a complete ground address.
+    if (isStructuredDoorAddress(normalized)) {
+      markAddressVerified(input, 'structured-manual', normalized);
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
     // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_FALLBACK
-    // Large-fleet behaviour: autocomplete is assistance, not a gate. If the passenger typed a
-    // complete/specific address or POI and ArcGIS can geocode it confidently, accept it without
-    // forcing a suggestion tap. Keep the passenger text visible; store only the canonical route
-    // address/coordinates as hidden verification metadata.
+    // Incomplete addresses / POIs may still be resolved by the provider without forcing a tap.
+    // Passenger-visible text remains authoritative; only hidden route metadata may be canonicalized.
     const typedCandidates = await resolveTypedAddress(normalized);
     const typedResolved = chooseConfidentTypedResolution(normalized, typedCandidates);
     if (typedResolved && isResolvedCandidateDispatchReady(normalized, typedResolved, { fromSelection: false })) {
@@ -1112,6 +1140,18 @@
           hideAddressSuggestions(id);
           return;
         }
+
+        // GC_R10Z1_COMPLETE_TYPED_NO_AUTOCOMPLETE_GATE
+        // A passenger who has already entered a complete ground address must not be sent back
+        // through autocomplete. Keep the visible text untouched and verify a private route copy.
+        // This prevents a later provider response from replacing or re-resolving a complete manual address.
+        if (isStructuredDoorAddress(query)) {
+          markAddressVerified(input, 'structured-manual-live', smartNormalizeTaiwanAddress(query));
+          hideAddressSuggestions(id);
+          clearFieldValidation(id);
+          return;
+        }
+
         const token = ++addressSuggestRequestToken;
         localToken = token;
         timer = setTimeout(async () => {

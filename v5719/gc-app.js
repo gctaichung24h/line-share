@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  // GC_ADDRESS_GUARD_R10Y
+  // GC_ADDRESS_GUARD_ACTIVE
+  // GC_ADDRESS_GUARD_R10Z1
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -10,7 +11,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10y-address-guard-20260810';
+  const VERSION = 'r10z1-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -31,6 +32,15 @@
 
   const noSpace = value => compact(value).replace(/[，,、\s]+/g, '');
 
+  // R10Z ground-route sanitizer: floors/rooms are not routing components.
+  // Preserve the house-number suffix (including 號之N) and discard only indoor data after it.
+  function stripIndoorProviderSuffix(value) {
+    let text = compact(value);
+    if (!text || !/(?:路|街|道|大道)/.test(text) || !text.includes('號')) return text;
+    const m = text.match(/^(.*?號(?:之[0-9０-９]+)?)(?:\s*[,，、-]?\s*(?:地下\s*[0-9０-９]+\s*樓|[Bb]\s*[0-9０-９]+\s*(?:F|樓)?|[0-9０-９]+\s*(?:樓(?:之[0-9０-９]+)?|F|樓層|室))).*$/i);
+    return m ? compact(m[1]) : text;
+  }
+
   // R10X: ArcGIS can prefix a Taiwan postal code before an otherwise valid address,
   // e.g. "413 台中市 霧峰區, 六股路138號". Strip it only when a recognized
   // Taiwan county/city follows, so real house numbers such as "43 自由路二段" stay intact.
@@ -50,10 +60,12 @@
     return COUNTIES.find(county => text.includes(county)) || '';
   }
 
+  // GC_R10Z1_TAIWAN_AVENUE_SAFE
+  // Country labels may be standalone/trailing tokens, but "台灣大道" is a real road name.
+  // Never delete a leading 台灣/臺灣 merely because it starts a provider token.
   function cleanToken(value) {
     return compact(value)
-      .replace(/^(?:台灣|臺灣)\s*/i, '')
-      .replace(/\s*(?:台灣|臺灣|Taiwan|TWN)$/i, '')
+      .replace(/\s*(?:Taiwan|TWN)$/i, '')
       .trim();
   }
 
@@ -86,7 +98,7 @@
   }
 
   function parseCommaLabel(value) {
-    const raw = stripLeadingTaiwanPostalPrefix(value);
+    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
     if (!raw) return null;
     const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
     if (tokens.length < 2) return null;
@@ -150,15 +162,20 @@
     }
 
     let detail = '';
+    const addrType = compact(attrs.Addr_type);
     const place = compact(attrs.PlaceName);
     const streetName = compact(attrs.StName);
     const addNum = compact(attrs.AddNum).replace(/號$/, '');
     const addressField = compact(attrs.Address);
     const shortLabel = compact(attrs.ShortLabel);
+    const streetAddressType = /^(?:PointAddress|PointAddressInt|StreetAddress|Subaddress|StreetMidBlock|StreetBetween|StreetInt)$/i.test(addrType);
 
-    if (place && !samePart(place, county) && !samePart(place, district)) detail = place;
-    if (!detail && streetName) detail = addNum ? `${streetName}${addNum}號` : streetName;
+    // GC_ADDRESS_CONTRACT_TW_GROUND_V1
+    // For street-address candidates, structured street + door number outrank PlaceName.
+    // POI/building candidates may use PlaceName only when a street address is not available.
+    if (streetName && (addNum || streetAddressType)) detail = addNum ? `${streetName}${addNum}號` : streetName;
     if (!detail && addressField && !samePart(addressField, county) && !samePart(addressField, district)) detail = normalizeStreetToken(addressField);
+    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
     if (!detail && shortLabel && !samePart(shortLabel, county) && !samePart(shortLabel, district)) detail = normalizeStreetToken(shortLabel);
 
     if ((!county || !detail) && fallback) {
@@ -201,7 +218,7 @@
   }
 
   function canonicalTaiwanAddress(value, attrs = {}) {
-    const raw = stripLeadingTaiwanPostalPrefix(value);
+    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
     if (!raw) return '';
 
     // Fast path for provider labels already starting with county/city, with or without spaces:
@@ -216,7 +233,7 @@
         const district = compact(adminMatch[1]);
         const detail = normalizeStreetToken(adminMatch[2]);
         if (detail) {
-          const direct = noSpace(`${leadingCounty}${district}${detail}`);
+          const direct = noSpace(stripIndoorProviderSuffix(`${leadingCounty}${district}${detail}`));
           if (!isStructurallyCorruptAddress(direct)) return direct;
         }
       }
@@ -242,7 +259,7 @@
     if (district) detail = detail.replace(new RegExp(`^${district}`), '').trim();
     if (!detail) return '';
 
-    const result = noSpace(`${county}${district || ''}${detail}`);
+    const result = noSpace(stripIndoorProviderSuffix(`${county}${district || ''}${detail}`));
     return isStructurallyCorruptAddress(result) ? '' : result;
   }
 
@@ -336,6 +353,7 @@
   window.GC_ADDRESS_GUARD = Object.freeze({
     version: VERSION,
     stripLeadingTaiwanPostalPrefix,
+    stripIndoorProviderSuffix,
     canonicalTaiwanAddress,
     isStructurallyCorruptAddress
   });
@@ -570,9 +588,13 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10y';
+  const GC_BUILD_VERSION = 'master202608r10z2';
+  // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
   // GC_MASTER_STABLE_2026_08R10Y_LARGE_FLEET_ADDRESS_RESOLUTION
+  // GC_MASTER_STABLE_2026_08R10Z_DISPATCH_CORE_FINAL
+  // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
+  // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Preserve provider identity (text + magicKey), clean only display/route copies, and direct-geocode manual full addresses.
   // GC_MASTER_STABLE_2026_08R10X_PROVIDER_POSTAL_LABEL_SANITIZER
   // Provider-only cleanup: remove Taiwan postal-code prefixes/commas from explicit suggestions; never rewrite manual typing.
@@ -1238,21 +1260,34 @@ window.GC_FORM_CONFIG = {
       .toLocaleLowerCase();
   }
 
+  // GC_R10Z1_TAIWAN_AVENUE_SAFE
+  // Do not strip the leading characters of real roads such as 台灣大道.
   function addressDetailOnly(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
     const parts = splitTaiwanSuggestionAddress(normalized);
     return normalizeAddress(parts.detail || normalized)
-      .replace(/^(?:台灣|臺灣)/, '')
       .replace(/(?:附近|這邊|那邊|周邊|一帶)$/g, '')
       .trim();
   }
 
-  function isStructuredDoorAddress(value) {
+  // GC_MASTER_STABLE_2026_08R10Z_DISPATCH_ADDRESS_CORE
+  // Ground-address completeness is based on the fields a driver actually needs:
+  // 縣市 + 行政區 + 路/街/道名 + (段/巷/弄 when present) + 門牌號.
+  // 巷/弄 are preserved when present but are NOT mandatory for roads that have direct door numbers.
+  // Floor/room data is intentionally excluded from routing/verification.
+  function dispatchDoorAddressCore(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
-    if (!normalized) return false;
+    if (!normalized) return { normalized: '', county: '', district: '', detail: '', road: '', house: '' };
     const parts = splitTaiwanSuggestionAddress(normalized);
-    if (!parts.county || !parts.district) return false;
-    return /(?:路|街|道|巷|弄)[^號]{0,36}\d+(?:[-之]\d+)?號/.test(normalized);
+    const detail = normalizeAddress(parts.detail || normalized).replace(/\s+/g, '');
+    const road = detail.match(/^(.{1,42}?(?:大道|路|街|道)(?:[一二三四五六七八九十百0-9０-９]+段)?)/)?.[1] || '';
+    const house = detail.match(/([0-9０-９]+(?:[-之][0-9０-９]+)?)號/)?.[1]?.replace(/-/g, '之') || '';
+    return { normalized, county: parts.county || '', district: parts.district || '', detail, road, house };
+  }
+
+  function isStructuredDoorAddress(value) {
+    const core = dispatchDoorAddressCore(value);
+    return Boolean(core.county && core.district && core.road && core.house);
   }
 
   function isBroadRoadOnlyAddress(value) {
@@ -1541,7 +1576,7 @@ window.GC_FORM_CONFIG = {
     if (/(?:路|街|道|巷|弄).{0,40}[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(normalized)) {
       return suggestions.length
         ? '找到相近門牌，請點選最符合的一筆。'
-        : '暫時無法定位此門牌，請補上縣市／行政區後再試一次。';
+        : '暫時無法定位此門牌，請確認縣市／行政區／路名／門牌號是否完整。';
     }
     if (suggestions.length) return '請從建議地址中選擇明確地點。';
     return '地點還不夠明確，請補充門牌、路口、巷口或附近明確地標。';
@@ -1572,11 +1607,22 @@ window.GC_FORM_CONFIG = {
 
     if (isAddressVerified(input)) return true;
 
+    // GC_MASTER_STABLE_2026_08R10Z1_MANUAL_COMPLETE_FIRST
+    // A complete Taiwan ground address is accepted LOCALLY before any network call.
+    // Contract: county/city + district/township + road/street/avenue + door number.
+    // Section/alley/lane are preserved when present; floor/room is excluded only from the
+    // private routing copy. Autocomplete/geocoding remains assistance and can never block
+    // a passenger who already typed a complete ground address.
+    if (isStructuredDoorAddress(normalized)) {
+      markAddressVerified(input, 'structured-manual', normalized);
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
     // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_FALLBACK
-    // Large-fleet behaviour: autocomplete is assistance, not a gate. If the passenger typed a
-    // complete/specific address or POI and ArcGIS can geocode it confidently, accept it without
-    // forcing a suggestion tap. Keep the passenger text visible; store only the canonical route
-    // address/coordinates as hidden verification metadata.
+    // Incomplete addresses / POIs may still be resolved by the provider without forcing a tap.
+    // Passenger-visible text remains authoritative; only hidden route metadata may be canonicalized.
     const typedCandidates = await resolveTypedAddress(normalized);
     const typedResolved = chooseConfidentTypedResolution(normalized, typedCandidates);
     if (typedResolved && isResolvedCandidateDispatchReady(normalized, typedResolved, { fromSelection: false })) {
@@ -1682,6 +1728,18 @@ window.GC_FORM_CONFIG = {
           hideAddressSuggestions(id);
           return;
         }
+
+        // GC_R10Z1_COMPLETE_TYPED_NO_AUTOCOMPLETE_GATE
+        // A passenger who has already entered a complete ground address must not be sent back
+        // through autocomplete. Keep the visible text untouched and verify a private route copy.
+        // This prevents a later provider response from replacing or re-resolving a complete manual address.
+        if (isStructuredDoorAddress(query)) {
+          markAddressVerified(input, 'structured-manual-live', smartNormalizeTaiwanAddress(query));
+          hideAddressSuggestions(id);
+          clearFieldValidation(id);
+          return;
+        }
+
         const token = ++addressSuggestRequestToken;
         localToken = token;
         timer = setTimeout(async () => {
@@ -4469,6 +4527,8 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
   // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_ROUTE_RESOLUTION
+  // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
+  // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
@@ -4622,10 +4682,11 @@ window.GC_FORM_CONFIG = {
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const target = qs('fareCalcResult');
-      if (target?.classList.contains('is-ready')) target.scrollIntoView({ behavior: 'auto', block: 'center' });
-    }));
+    // GC_R10Z2_FARE_RETURN_SCROLL_STABLE:
+    // When the passenger returns from the call page, let the LINE/iOS WebView restore
+    // its own history scroll position. Do NOT auto-center the fare result here; that
+    // second programmatic scroll was racing the browser's native restoration and caused
+    // the visible one-frame/two-frame jump reported on iPhone.
     return true;
   }
 

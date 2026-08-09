@@ -8,6 +8,8 @@
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
   // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
   // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_ROUTE_RESOLUTION
+  // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
+  // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
@@ -161,10 +163,11 @@
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const target = qs('fareCalcResult');
-      if (target?.classList.contains('is-ready')) target.scrollIntoView({ behavior: 'auto', block: 'center' });
-    }));
+    // GC_R10Z2_FARE_RETURN_SCROLL_STABLE:
+    // When the passenger returns from the call page, let the LINE/iOS WebView restore
+    // its own history scroll position. Do NOT auto-center the fare result here; that
+    // second programmatic scroll was racing the browser's native restoration and caused
+    // the visible one-frame/two-frame jump reported on iPhone.
     return true;
   }
 

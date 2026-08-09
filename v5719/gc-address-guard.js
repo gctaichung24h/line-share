@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  // GC_ADDRESS_GUARD_R10Y
+  // GC_ADDRESS_GUARD_ACTIVE
+  // GC_ADDRESS_GUARD_R10Z1
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -10,7 +11,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10y-address-guard-20260810';
+  const VERSION = 'r10z1-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -31,6 +32,15 @@
 
   const noSpace = value => compact(value).replace(/[，,、\s]+/g, '');
 
+  // R10Z ground-route sanitizer: floors/rooms are not routing components.
+  // Preserve the house-number suffix (including 號之N) and discard only indoor data after it.
+  function stripIndoorProviderSuffix(value) {
+    let text = compact(value);
+    if (!text || !/(?:路|街|道|大道)/.test(text) || !text.includes('號')) return text;
+    const m = text.match(/^(.*?號(?:之[0-9０-９]+)?)(?:\s*[,，、-]?\s*(?:地下\s*[0-9０-９]+\s*樓|[Bb]\s*[0-9０-９]+\s*(?:F|樓)?|[0-9０-９]+\s*(?:樓(?:之[0-9０-９]+)?|F|樓層|室))).*$/i);
+    return m ? compact(m[1]) : text;
+  }
+
   // R10X: ArcGIS can prefix a Taiwan postal code before an otherwise valid address,
   // e.g. "413 台中市 霧峰區, 六股路138號". Strip it only when a recognized
   // Taiwan county/city follows, so real house numbers such as "43 自由路二段" stay intact.
@@ -50,10 +60,12 @@
     return COUNTIES.find(county => text.includes(county)) || '';
   }
 
+  // GC_R10Z1_TAIWAN_AVENUE_SAFE
+  // Country labels may be standalone/trailing tokens, but "台灣大道" is a real road name.
+  // Never delete a leading 台灣/臺灣 merely because it starts a provider token.
   function cleanToken(value) {
     return compact(value)
-      .replace(/^(?:台灣|臺灣)\s*/i, '')
-      .replace(/\s*(?:台灣|臺灣|Taiwan|TWN)$/i, '')
+      .replace(/\s*(?:Taiwan|TWN)$/i, '')
       .trim();
   }
 
@@ -86,7 +98,7 @@
   }
 
   function parseCommaLabel(value) {
-    const raw = stripLeadingTaiwanPostalPrefix(value);
+    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
     if (!raw) return null;
     const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
     if (tokens.length < 2) return null;
@@ -150,15 +162,20 @@
     }
 
     let detail = '';
+    const addrType = compact(attrs.Addr_type);
     const place = compact(attrs.PlaceName);
     const streetName = compact(attrs.StName);
     const addNum = compact(attrs.AddNum).replace(/號$/, '');
     const addressField = compact(attrs.Address);
     const shortLabel = compact(attrs.ShortLabel);
+    const streetAddressType = /^(?:PointAddress|PointAddressInt|StreetAddress|Subaddress|StreetMidBlock|StreetBetween|StreetInt)$/i.test(addrType);
 
-    if (place && !samePart(place, county) && !samePart(place, district)) detail = place;
-    if (!detail && streetName) detail = addNum ? `${streetName}${addNum}號` : streetName;
+    // GC_ADDRESS_CONTRACT_TW_GROUND_V1
+    // For street-address candidates, structured street + door number outrank PlaceName.
+    // POI/building candidates may use PlaceName only when a street address is not available.
+    if (streetName && (addNum || streetAddressType)) detail = addNum ? `${streetName}${addNum}號` : streetName;
     if (!detail && addressField && !samePart(addressField, county) && !samePart(addressField, district)) detail = normalizeStreetToken(addressField);
+    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
     if (!detail && shortLabel && !samePart(shortLabel, county) && !samePart(shortLabel, district)) detail = normalizeStreetToken(shortLabel);
 
     if ((!county || !detail) && fallback) {
@@ -201,7 +218,7 @@
   }
 
   function canonicalTaiwanAddress(value, attrs = {}) {
-    const raw = stripLeadingTaiwanPostalPrefix(value);
+    const raw = stripIndoorProviderSuffix(stripLeadingTaiwanPostalPrefix(value));
     if (!raw) return '';
 
     // Fast path for provider labels already starting with county/city, with or without spaces:
@@ -216,7 +233,7 @@
         const district = compact(adminMatch[1]);
         const detail = normalizeStreetToken(adminMatch[2]);
         if (detail) {
-          const direct = noSpace(`${leadingCounty}${district}${detail}`);
+          const direct = noSpace(stripIndoorProviderSuffix(`${leadingCounty}${district}${detail}`));
           if (!isStructurallyCorruptAddress(direct)) return direct;
         }
       }
@@ -242,7 +259,7 @@
     if (district) detail = detail.replace(new RegExp(`^${district}`), '').trim();
     if (!detail) return '';
 
-    const result = noSpace(`${county}${district || ''}${detail}`);
+    const result = noSpace(stripIndoorProviderSuffix(`${county}${district || ''}${detail}`));
     return isStructurallyCorruptAddress(result) ? '' : result;
   }
 
@@ -336,6 +353,7 @@
   window.GC_ADDRESS_GUARD = Object.freeze({
     version: VERSION,
     stripLeadingTaiwanPostalPrefix,
+    stripIndoorProviderSuffix,
     canonicalTaiwanAddress,
     isStructurallyCorruptAddress
   });
