@@ -6,6 +6,7 @@
   // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
+  // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -188,7 +189,7 @@
     });
   }
 
-  function openMaps() {
+  async function openMaps() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
     const pickup = cleanMapAddress(pickupInput?.value);
@@ -204,7 +205,16 @@
       return;
     }
 
-    const sameAddress = addressComparisonKey(pickup) && addressComparisonKey(pickup) === addressComparisonKey(destination);
+    const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
+    if (verify) {
+      const pickupReady = await verify('pickup', { showError: true });
+      const destinationReady = pickupReady ? await verify('destination', { showError: true }) : false;
+      if (!pickupReady || !destinationReady) return;
+    }
+
+    const verifiedPickup = cleanMapAddress(pickupInput?.value);
+    const verifiedDestination = cleanMapAddress(destinationInput?.value);
+    const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
       setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
@@ -223,7 +233,7 @@
     setFieldError('pickup', '');
     setFieldError('destination', '');
     clearRouteAddressGuidance();
-    const url = googleMapsUrl(pickup, destination);
+    const url = googleMapsUrl(verifiedPickup, verifiedDestination);
     if (!url) return;
     // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();

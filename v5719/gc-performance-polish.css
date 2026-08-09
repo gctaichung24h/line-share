@@ -1512,3 +1512,131 @@ button,input,select,textarea{max-width:100%}
   .gc-fare-calc-input-wrap b{padding-left:3px!important;padding-right:7px!important}
 }
 
+/* GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_VISUAL
+   Final cross-device consistency, scroll-safe sheets, address confidence states, and fare hierarchy. */
+
+/* Normal iPhones keep one visual structure; only truly narrow / enlarged layouts stack these helper titles. */
+@media(min-width:361px){
+  .gc-fare-step-kicker,.gc-fare-calc-kicker{
+    display:flex!important;
+    align-items:baseline!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+  }
+  .gc-fare-step-kicker strong,.gc-fare-calc-kicker strong{
+    display:block!important;
+    flex:0 1 auto!important;
+    white-space:nowrap!important;
+  }
+  .gc-fare-step-kicker span,.gc-fare-calc-kicker span{
+    display:block!important;
+    flex:0 1 auto!important;
+    margin-top:0!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+  }
+}
+@media(max-width:360px){
+  .gc-fare-step-kicker,.gc-fare-calc-kicker{display:block!important}
+  .gc-fare-step-kicker span,.gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;text-align:left!important;white-space:normal!important}
+}
+
+/* Recent quick picker: swipes scroll the list; they never mean "close". */
+.recent-address-control.is-open .recent-panel{
+  touch-action:pan-y!important;
+  overscroll-behavior:contain!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  scrollbar-gutter:stable!important;
+}
+.recent-list{touch-action:pan-y!important}
+.recent-use{touch-action:manipulation!important}
+
+/* Favorite trips: header stays fixed, list owns scrolling, actions are always reachable. */
+.gc-sheet{
+  height:min(66dvh,610px)!important;
+  max-height:calc(100dvh - 70px)!important;
+}
+.gc-sheet-body{
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  padding-bottom:1px!important;
+}
+.gc-favorite-sheet-box{
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+}
+.gc-favorite-sheet-box>.favorite-content{
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) auto auto!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+}
+.favorite-list-viewport{
+  min-height:0!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important;
+  padding-bottom:12px!important;
+}
+.favorite-actions{
+  position:relative!important;
+  z-index:2!important;
+  padding-top:10px!important;
+  padding-bottom:max(3px,env(safe-area-inset-bottom))!important;
+  border-top:1px solid #e8eef2!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),#fff 22%)!important;
+}
+.favorite-status{position:relative!important;z-index:2!important;background:#fff!important}
+
+/* Address confidence: errors remain dominant; verified state stays deliberately quiet. */
+.address-field>.input.gc-address-verified:not(.invalid){border-color:#b8cddb!important}
+.address-field>.input.gc-address-needs-choice.invalid{border-color:#c65151!important}
+.gc-address-suggest{transition:opacity .16s ease,transform .16s ease!important;transform-origin:top center!important}
+
+/* Fare input is a core action, not a passive information card. */
+.gc-fare-calc-grid{
+  border-color:#bfd7e7!important;
+  background:linear-gradient(180deg,#eaf4fb 0%,#eef6fb 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 5px 14px rgba(26,70,101,.045)!important;
+}
+.gc-fare-calc-input-wrap{
+  border-color:#abc6d9!important;
+  background:#fff!important;
+  box-shadow:0 3px 9px rgba(25,66,96,.05)!important;
+}
+
+/* Long-distance benefit gets its own warm surface, while brand navy remains the content color. */
+.gc-rate-long-benefit{
+  border-color:#e5ca83!important;
+  background:linear-gradient(180deg,#fff9e9 0%,#fff5dd 100%)!important;
+  box-shadow:inset 4px 0 0 #d5ad4e,0 4px 12px rgba(115,85,24,.045)!important;
+}
+.gc-rate-long-benefit>span{
+  border-color:#ddc27a!important;
+  background:#f5e7bd!important;
+  color:#6f5018!important;
+}
+.gc-rate-long-benefit>strong{color:#174b70!important}
+
+/* Micro-polish: consistent surface rhythm without adding decoration. */
+.input,textarea,.gc-select,.gc-fare-calc-input-wrap,.recent-use,.favorite-use,.favorite-delete,
+.location-review,.gc-rate-long-benefit,.gc-fare-calc-grid{transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease!important}
+@media(prefers-reduced-motion:reduce){
+  .input,textarea,.gc-select,.gc-fare-calc-input-wrap,.recent-use,.favorite-use,.favorite-delete,
+  .location-review,.gc-rate-long-benefit,.gc-fare-calc-grid,.gc-address-suggest{transition:none!important}
+}
+
+@media(max-height:700px){
+  .gc-sheet{height:min(72dvh,560px)!important;max-height:calc(100dvh - 52px)!important}
+}
+

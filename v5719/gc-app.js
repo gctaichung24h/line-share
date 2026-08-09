@@ -32,6 +32,7 @@ window.GC_FORM_CONFIG = {
                    "常用行程定位限制":  "目前定位無法直接儲存，請改填完整地址。",
                    "常用行程已滿":  "最多可儲存 5 組，請先刪除一組。",
                    "常用行程儲存成功":  "常用行程已儲存。",
+                   "常用行程重複":  "此行程已儲存於常用行程。",
                    "常用行程清除確認":  "確定要清除全部常用行程嗎？",
                    "定位按鈕":  "📍 使用目前位置",
                    "定位重新取得":  "📍 重新取得位置",
@@ -196,12 +197,13 @@ window.GC_FORM_CONFIG = {
                  "送出按鈕":  "送出估價需求",
                  "錯誤_上車地址":  "請填寫資料。",
                  "錯誤_下車地址":  "請填寫資料。",
-                 "訊息標題":  "🧾 我要【估價協助】",
+                 "訊息標題":  "🧾【車資估價｜非叫車】",
                  "訊息分隔線":  "━─━─━─━─━─━─",
+                 "訊息提醒":  "※ 僅為估價需求，尚未成立叫車或預約訂單。",
                  "訊息欄位_估價方式":  "回覆管道",
                  "訊息內容_估價方式":  "LINE 聊天室",
-                 "訊息欄位_上車":  "上車地址",
-                 "訊息欄位_下車":  "下車地址",
+                 "訊息欄位_上車":  "估價起點",
+                 "訊息欄位_下車":  "估價終點",
                  "訊息欄位_備註":  "",
                  "成功標題":  "✅ 估價需求已送出",
                  "成功內容1":  "需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。",
@@ -223,7 +225,8 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10p';
+  const GC_BUILD_VERSION = 'master202608r10q';
+  // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
   // Version safety stays enabled, but it no longer competes with the first usable paint.
   let gcLastVersionCheck = 0;
@@ -826,6 +829,108 @@ window.GC_FORM_CONFIG = {
     }
   }
 
+  // GC_MASTER_STABLE_2026_08R10Q_ADDRESS_CONFIDENCE_GATE
+  // A typed address is not considered dispatch-ready merely because the field is non-empty.
+  // Recent/favorite/location/suggestion choices are trusted. Manual text is trusted only when
+  // it resolves to one exact structured address; vague landmarks must be chosen from suggestions.
+  function addressConfidenceKey(value) {
+    return smartNormalizeTaiwanAddress(value)
+      .replace(/[\s,，、。．·・\-—_()（）]/g, '')
+      .replace(/臺/g, '台')
+      .toLocaleLowerCase();
+  }
+
+  function isStructuredDoorAddress(value) {
+    const normalized = smartNormalizeTaiwanAddress(value);
+    if (!normalized) return false;
+    const parts = splitTaiwanSuggestionAddress(normalized);
+    if (!parts.county || !parts.district) return false;
+    return /(?:路|街|道|巷|弄)[^號]{0,36}\d+(?:[-之]\d+)?號/.test(normalized);
+  }
+
+  function markAddressVerified(input, source = 'confirmed') {
+    if (!input) return;
+    const normalized = smartNormalizeTaiwanAddress(input.value);
+    if (!normalized) return;
+    input.dataset.gcAddressVerified = '1';
+    input.dataset.gcAddressVerifiedKey = addressConfidenceKey(normalized);
+    input.dataset.gcAddressVerifiedSource = source;
+    input.classList.add('gc-address-verified');
+    input.classList.remove('gc-address-needs-choice');
+  }
+
+  function clearAddressVerified(input) {
+    if (!input) return;
+    delete input.dataset.gcAddressVerified;
+    delete input.dataset.gcAddressVerifiedKey;
+    delete input.dataset.gcAddressVerifiedSource;
+    input.classList.remove('gc-address-verified');
+  }
+
+  function isAddressVerified(input) {
+    if (!input || input.dataset.gcAddressVerified !== '1') return false;
+    const key = addressConfidenceKey(input.value);
+    return Boolean(key && key === input.dataset.gcAddressVerifiedKey);
+  }
+
+  function exactStructuredSuggestion(query, suggestions) {
+    if (!isStructuredDoorAddress(query) || !Array.isArray(suggestions) || !suggestions.length) return null;
+    const key = addressConfidenceKey(query);
+    const exact = suggestions.filter(item => addressConfidenceKey(canonicalizeSuggestedAddress(item?.text || '')) === key);
+    return exact.length === 1 ? exact[0] : null;
+  }
+
+  function showAddressChoiceSuggestions(id, suggestions) {
+    const input = document.getElementById(id);
+    const box = document.getElementById(`${id}Suggest`);
+    if (!input || !box || !Array.isArray(suggestions) || !suggestions.length) return;
+    box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
+    box._gcSuggestions = suggestions;
+    box.classList.remove('hidden');
+  }
+
+  async function verifyAddressField(id, options = {}) {
+    const input = document.getElementById(id);
+    if (!input) return Boolean(options.allowEmpty);
+    const normalized = normalizeAddressInput(id);
+    if (!normalized) return Boolean(options.allowEmpty);
+    if (isAddressVerified(input)) return true;
+
+    const suggestions = await fetchAddressSuggestions(normalized);
+    const exact = exactStructuredSuggestion(normalized, suggestions);
+    if (exact) {
+      const selected = canonicalizeSuggestedAddress(exact.text);
+      if (selected) input.value = selected;
+      markAddressVerified(input, 'auto-exact');
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+
+    // Network/geocoder can occasionally be unavailable. A fully structured Taiwan door address
+    // is still operationally clear, so fail open only for that strict shape — never for "長億" etc.
+    if (!suggestions.length && isStructuredDoorAddress(normalized)) {
+      markAddressVerified(input, 'structured-fallback');
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
+    input.classList.add('gc-address-needs-choice');
+    if (options.showError !== false) {
+      showFieldError(id, options.message || '請從建議地址中選擇明確地點。');
+      showAddressChoiceSuggestions(id, suggestions);
+    }
+    return false;
+  }
+
+  window.GC_verifyAddressField = verifyAddressField;
+  window.GC_markAddressVerified = (id, source = 'external') => {
+    const input = typeof id === 'string' ? document.getElementById(id) : id;
+    markAddressVerified(input, source);
+  };
+
   let gcAddressServiceWarmed = false;
   function warmAddressService() {
     if (gcAddressServiceWarmed) return;
@@ -871,6 +976,8 @@ window.GC_FORM_CONFIG = {
           cancelSmartSuggestionSession();
           return;
         }
+        clearAddressVerified(input);
+        input.classList.remove('gc-address-needs-choice');
         const query = normalizeAddress(input.value);
         if (query.length < 2 || query === LOCATION_MARKER) {
           hideAddressSuggestions(id);
@@ -881,7 +988,21 @@ window.GC_FORM_CONFIG = {
         timer = setTimeout(async () => {
           const suggestions = await fetchAddressSuggestions(query);
           if (localToken !== token || normalizeAddress(input.value) !== query) return;
+
+          const exact = exactStructuredSuggestion(query, suggestions);
+          if (exact) {
+            const selected = canonicalizeSuggestedAddress(exact.text);
+            if (selected) input.value = selected;
+            markAddressVerified(input, 'auto-exact');
+            hideAddressSuggestions(id);
+            clearFieldValidation(id);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+
           if (!suggestions.length) { hideAddressSuggestions(id); return; }
+          // If focus has already moved elsewhere, keep the typed text but do not leave a stale panel behind.
+          if (document.activeElement !== input) { hideAddressSuggestions(id); return; }
           box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
           box._gcSuggestions = suggestions;
           box.classList.remove('hidden');
@@ -904,6 +1025,7 @@ window.GC_FORM_CONFIG = {
         const selected = smartNormalizeTaiwanAddress(cleanSuggestedAddress(item.text));
         if (!selected) return;
         input.value = selected;
+        markAddressVerified(input, 'suggestion');
         input.dataset.gcSkipSuggestOnce = '1';
         input.classList.remove('invalid');
         document.getElementById(`${id}Error`)?.classList.remove('show');
@@ -990,10 +1112,13 @@ window.GC_FORM_CONFIG = {
       const parsed = JSON.parse(localStorage.getItem(FAVORITE_STORAGE_KEY) || '[]');
       if (!Array.isArray(parsed)) return [];
       const trips = [];
+      const seenRoutes = new Set();
       for (const item of parsed) {
         const trip = normalizeFavoriteTrip(item);
         if (!trip) continue;
-        // V8.5: 常用行程以「每筆命名」為獨立項目；即使上下車地址相同，也允許保存不同名稱。
+        const routeKey = `${addressConfidenceKey(trip.pickup)}→${addressConfidenceKey(trip.destination)}`;
+        if (!routeKey || seenRoutes.has(routeKey)) continue;
+        seenRoutes.add(routeKey);
         trips.push(trip);
         if (trips.length >= FAVORITE_LIMIT) break;
       }
@@ -1109,7 +1234,7 @@ window.GC_FORM_CONFIG = {
     setTimeout(normalizeViewport, 320);
   }
 
-  function openFavoriteSaveModal() {
+  async function openFavoriteSaveModal() {
     const pickup = value('pickup');
     const destination = value('destination');
     if (!pickup || !destination) {
@@ -1120,7 +1245,20 @@ window.GC_FORM_CONFIG = {
       setFavoriteStatus(COMMON['常用行程定位限制'] || '目前定位無法直接儲存，請改填完整地址。', 'error');
       return;
     }
+    const pickupReady = await verifyAddressField('pickup', { showError: true });
+    const destinationReady = pickupReady ? await verifyAddressField('destination', { showError: true }) : false;
+    if (!pickupReady || !destinationReady) {
+      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
+      document.querySelector('#gcFavoriteSheet .gc-sheet-close')?.click();
+      focusFirstValidationError();
+      return;
+    }
     const trips = loadFavoriteTrips();
+    const routeKey = `${addressConfidenceKey(pickup)}→${addressConfidenceKey(destination)}`;
+    if (trips.some(trip => `${addressConfidenceKey(trip.pickup)}→${addressConfidenceKey(trip.destination)}` === routeKey)) {
+      setFavoriteStatus(COMMON['常用行程重複'] || '此行程已儲存於常用行程。', 'error');
+      return;
+    }
     if (trips.length >= FAVORITE_LIMIT) {
       setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 5 組，請先刪除一組。', 'error');
       return;
@@ -1164,7 +1302,13 @@ window.GC_FORM_CONFIG = {
       const name = String(input?.value || '').trim() || `常用行程 ${loadFavoriteTrips().length + 1}`;
       if (!pickup || !destination) return;
       const trips = loadFavoriteTrips();
-      // V8.5: 新增即新增，不再因相同路線覆蓋舊的常用行程。
+      const routeKey = `${addressConfidenceKey(pickup)}→${addressConfidenceKey(destination)}`;
+      if (trips.some(trip => `${addressConfidenceKey(trip.pickup)}→${addressConfidenceKey(trip.destination)}` === routeKey)) {
+        closeFavoriteSaveModal();
+        refreshFavoriteTrips();
+        setFavoriteStatus(COMMON['常用行程重複'] || '此行程已儲存於常用行程。', 'error');
+        return;
+      }
       trips.unshift({ name: name.slice(0, 30), pickup, destination });
       saveFavoriteTrips(trips);
       closeFavoriteSaveModal();
@@ -1189,11 +1333,13 @@ window.GC_FORM_CONFIG = {
           pickupInput._gcCancelSmartSuggestions?.();
           pickupInput.dataset.gcSkipSuggestOnce = '1';
           pickupInput.value = trip.pickup;
+          markAddressVerified(pickupInput, 'favorite');
         }
         if (destinationInput) {
           destinationInput._gcCancelSmartSuggestions?.();
           destinationInput.dataset.gcSkipSuggestOnce = '1';
           destinationInput.value = trip.destination;
+          markAddressVerified(destinationInput, 'favorite');
         }
         ['pickup', 'destination'].forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
@@ -1425,7 +1571,7 @@ window.GC_FORM_CONFIG = {
       if (!generatedAddress || current !== generatedAddress) {
         attachedLocation.address = smartNormalizeTaiwanAddress(current);
         attachedLocation.manualAddress = attachedLocation.address;
-        attachedLocation.confirmed = true;
+        attachedLocation.confirmed = false;
         attachedLocation.requiresConfirmation = false;
         const keepMap = generatedAddress && manualAddressLikelyMatchesGenerated(current, generatedAddress) && attachedLocation.accuracy <= LOCATION_REVIEW_ACCURACY_M;
         attachedLocation.sendMap = Boolean(keepMap);
@@ -1441,6 +1587,7 @@ window.GC_FORM_CONFIG = {
       attachedLocation.confirmed = true;
       attachedLocation.requiresConfirmation = false;
       attachedLocation.address = smartNormalizeTaiwanAddress(pickupInput.value);
+      markAddressVerified(pickupInput, 'location-confirmed');
       setLocationReview('', false);
       setLocationStatus('地址已確認，定位會一併附上。', 'success');
     });
@@ -1452,6 +1599,7 @@ window.GC_FORM_CONFIG = {
       }
       const requestToken = ++locationRequestToken;
       const previousPickup = smartNormalizeTaiwanAddress(pickupInput.value);
+      const previousPickupVerified = isAddressVerified(pickupInput);
       pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
@@ -1490,7 +1638,9 @@ window.GC_FORM_CONFIG = {
           if (previousPickup) {
             attachedLocation.address = previousPickup;
             attachedLocation.manualAddress = previousPickup;
-            attachedLocation.confirmed = true;
+            attachedLocation.confirmed = previousPickupVerified;
+            if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
+            else clearAddressVerified(pickupInput);
           }
           setLocationStatus(previousPickup
             ? `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，已保留原本輸入的地址；為避免跑錯地點，本次不附上不精準定位。`
@@ -1510,7 +1660,9 @@ window.GC_FORM_CONFIG = {
           if (previousPickup) {
             attachedLocation.address = previousPickup;
             attachedLocation.manualAddress = previousPickup;
-            attachedLocation.confirmed = true;
+            attachedLocation.confirmed = previousPickupVerified;
+            if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
+            else clearAddressVerified(pickupInput);
             attachedLocation.sendMap = false;
             setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
           } else {
@@ -1525,6 +1677,7 @@ window.GC_FORM_CONFIG = {
         pickupInput._gcCancelSmartSuggestions?.();
         pickupInput.dataset.gcSkipSuggestOnce = '1';
         pickupInput.value = address;
+        markAddressVerified(pickupInput, 'location-geocode');
         pickupInput.classList.remove('invalid');
         document.getElementById('pickupError')?.classList.remove('show');
         pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1650,6 +1803,7 @@ window.GC_FORM_CONFIG = {
     input._gcCancelSmartSuggestions?.();
     input.dataset.gcSkipSuggestOnce = '1';
     input.value = cleaned;
+    markAddressVerified(input, 'recent');
     input.classList.remove('invalid');
     input.removeAttribute('aria-invalid');
     input.closest('.field')?.classList.remove('gc-validation-error');
@@ -1905,8 +2059,10 @@ window.GC_FORM_CONFIG = {
         if (recentManagementOpen || !activeRecentControl) return;
         if (!activeRecentControl.contains(event.target)) closeRecentQuickPicker();
       });
+      // R10Q: scrolling/dragging inside the recent list is a browse gesture, not a close gesture.
+      // The anchored panel naturally moves with its control during page scroll, so keep it open.
       window.addEventListener('scroll', () => {
-        if (!recentManagementOpen) closeRecentQuickPicker();
+        if (!recentManagementOpen && activeRecentControl) requestAnimationFrame(() => positionRecentQuickPanel(activeRecentControl));
       }, { passive: true });
       window.addEventListener('resize', () => {
         if (!recentManagementOpen) closeRecentQuickPicker();
@@ -2558,7 +2714,7 @@ window.GC_FORM_CONFIG = {
     });
 
     let sending = false;
-    document.getElementById('serviceForm').addEventListener('submit', event => {
+    document.getElementById('serviceForm').addEventListener('submit', async event => {
       event.preventDefault();
       if (sending) return;
       clearErrors();
@@ -2588,8 +2744,14 @@ window.GC_FORM_CONFIG = {
       }
       if (serviceType === 'instant' && attachedLocation?.requiresConfirmation && !attachedLocation.confirmed) {
         showFieldError('pickup', '請確認定位地址。');
-        setLocationReview('請確認門牌是否為實際上車地點；不對可直接修改。', true);
+        setLocationReview('請確認門牌是否正確；若不符，請直接修改地址。', true);
         valid = false;
+      }
+      if (valid && pickup && !(attachedLocation?.requiresConfirmation && !attachedLocation.confirmed)) {
+        if (!(await verifyAddressField('pickup', { showError: true }))) valid = false;
+      }
+      if (valid && destination) {
+        if (!(await verifyAddressField('destination', { showError: true }))) valid = false;
       }
       if (!valid) {
         focusFirstValidationError();
@@ -2754,7 +2916,7 @@ window.GC_FORM_CONFIG = {
     bindRecentClearModal();
 
     let sending = false;
-    document.getElementById('serviceForm').addEventListener('submit', event => {
+    document.getElementById('serviceForm').addEventListener('submit', async event => {
       event.preventDefault();
       if (sending) return;
       clearErrors();
@@ -2773,10 +2935,16 @@ window.GC_FORM_CONFIG = {
         showFieldError('destination', cfg['錯誤_下車地址']);
         valid = false;
       }
-      if (!valid) return;
+      if (valid && !(await verifyAddressField('pickup', { showError: true }))) valid = false;
+      if (valid && !(await verifyAddressField('destination', { showError: true }))) valid = false;
+      if (!valid) {
+        focusFirstValidationError();
+        return;
+      }
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
+      if (cfg['訊息提醒']) lines.push(cfg['訊息提醒']);
       appendLine(lines, cfg['訊息欄位_估價方式'] || '回覆管道', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
@@ -2942,6 +3110,7 @@ window.GC_FORM_CONFIG = {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
   // GC_MASTER_STABLE_2026_08R10J_PRIMARY_TASK_FIRST_LAYOUT
+  // GC_MASTER_STABLE_2026_08R10Q_FAVORITE_SHEET_SCROLL_FIX
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -3067,7 +3236,6 @@ window.GC_FORM_CONFIG = {
     sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
     sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
     sheet.addEventListener('click', event => {
-      if (event.target.closest('#favoriteSaveBtn')) close();
       if (event.target.closest('#favoriteClearBtn')) close();
       if (event.target.closest('.favorite-use')) setTimeout(close, 0);
     }, true);
@@ -3438,6 +3606,7 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R6_FIELD_VALIDATION_VISUAL
   // GC_MASTER_STABLE_2026_08R8_QUICK_SELF_FARE
   // GC_MASTER_STABLE_2026_08R10J_FARE_PRIMARY_FLOW
+  // GC_MASTER_STABLE_2026_08R10Q_FARE_ADDRESS_CONFIDENCE
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -3620,7 +3789,7 @@ window.GC_FORM_CONFIG = {
     });
   }
 
-  function openMaps() {
+  async function openMaps() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
     const pickup = cleanMapAddress(pickupInput?.value);
@@ -3636,7 +3805,16 @@ window.GC_FORM_CONFIG = {
       return;
     }
 
-    const sameAddress = addressComparisonKey(pickup) && addressComparisonKey(pickup) === addressComparisonKey(destination);
+    const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
+    if (verify) {
+      const pickupReady = await verify('pickup', { showError: true });
+      const destinationReady = pickupReady ? await verify('destination', { showError: true }) : false;
+      if (!pickupReady || !destinationReady) return;
+    }
+
+    const verifiedPickup = cleanMapAddress(pickupInput?.value);
+    const verifiedDestination = cleanMapAddress(destinationInput?.value);
+    const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
       setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
@@ -3655,7 +3833,7 @@ window.GC_FORM_CONFIG = {
     setFieldError('pickup', '');
     setFieldError('destination', '');
     clearRouteAddressGuidance();
-    const url = googleMapsUrl(pickup, destination);
+    const url = googleMapsUrl(verifiedPickup, verifiedDestination);
     if (!url) return;
     // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();

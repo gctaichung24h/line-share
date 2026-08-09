@@ -2,6 +2,7 @@
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
   // GC_MASTER_STABLE_2026_08R10J_PRIMARY_TASK_FIRST_LAYOUT
+  // GC_MASTER_STABLE_2026_08R10Q_FAVORITE_SHEET_SCROLL_FIX
 
   const params = new URLSearchParams(location.search);
   const mode = params.get('mode');
@@ -127,7 +128,6 @@
     sheet.querySelector('.gc-sheet-close')?.addEventListener('click', close);
     sheet.addEventListener('click', event => { if (event.target === sheet) close(); });
     sheet.addEventListener('click', event => {
-      if (event.target.closest('#favoriteSaveBtn')) close();
       if (event.target.closest('#favoriteClearBtn')) close();
       if (event.target.closest('.favorite-use')) setTimeout(close, 0);
     }, true);
