@@ -314,7 +314,7 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要估價協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -322,9 +322,9 @@
       panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '送出前請留意';
-      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時段可能先提供試算資訊供您參考。';
-      const warningAssist = cfg()['人工協助補充'] || '如仍需協助，可直接送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
+      const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
+      const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';

@@ -181,12 +181,12 @@ window.GC_FORM_CONFIG = {
                  "費率標題":  "▍中部地區費率",
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
-                 "人工協助標題":  "需要估價協助？",
-                 "人工協助提示":  "繁忙時可能先提供試算資訊",
+                 "人工協助標題":  "其他估價協助",
+                 "人工協助提示":  "無法完成上方試算時可使用｜繁忙時可能先提供試算資訊",
                  "人工協助展開標題":  "估價協助",
-                 "人工協助補充":  "如仍需協助，可直接送出估價需求。",
-                 "人工協助警示標題":  "送出前請留意",
-                 "人工協助警示說明":  "繁忙時段可能先提供試算資訊供您參考。",
+                 "人工協助補充":  "繁忙時段可能先提供試算資訊供您參考。",
+                 "人工協助警示標題":  "估價協助說明",
+                 "人工協助警示說明":  "若無法完成上方試算，可送出估價需求。",
                  "自助上車標題":  "上車地址",
                  "自助下車標題":  "下車地址",
                  "上車標題":  "上車地址",
@@ -196,15 +196,15 @@ window.GC_FORM_CONFIG = {
                  "送出按鈕":  "送出估價需求",
                  "錯誤_上車地址":  "請填寫資料。",
                  "錯誤_下車地址":  "請填寫資料。",
-                 "訊息標題":  "🆘 我要【估價協助】",
+                 "訊息標題":  "🧾 我要【估價協助】",
                  "訊息分隔線":  "━─━─━─━─━─━─",
-                 "訊息欄位_估價方式":  "協助方式",
-                 "訊息內容_估價方式":  "LINE 聊天室回覆",
+                 "訊息欄位_估價方式":  "回覆管道",
+                 "訊息內容_估價方式":  "LINE 聊天室",
                  "訊息欄位_上車":  "上車地址",
                  "訊息欄位_下車":  "下車地址",
                  "訊息欄位_備註":  "",
-                 "成功標題":  "✅ 已收到您的估價需求",
-                 "成功內容1":  "稍後將於 LINE 聊天室提供估價資訊；繁忙時段可能先提供試算資訊供您參考。",
+                 "成功標題":  "✅ 估價需求已送出",
+                 "成功內容1":  "需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。",
                  "成功內容2":  "本次僅為估價需求，尚未成立叫車或預約訂單。",
                  "成功內容3":  "",
                  "返回按鈕":  "返回 LINE 聊天室",
@@ -223,7 +223,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10n';
+  const GC_BUILD_VERSION = 'master202608r10o';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -399,8 +399,11 @@ window.GC_FORM_CONFIG = {
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
-            <span id="locationReviewText"></span>
-            <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 地址正確</button>
+            <div class="location-review-copy">
+              <strong>定位地址確認</strong>
+              <span id="locationReviewText"></span>
+            </div>
+            <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 確認地址</button>
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
@@ -1381,6 +1384,8 @@ window.GC_FORM_CONFIG = {
     const pickupInput = document.getElementById('pickup');
     const confirmButton = document.getElementById('locationConfirmBtn');
     if (!button || !pickupInput) return;
+    // GC_MASTER_STABLE_2026_08R10O_LOCATION_CONFIRMATION_COPY
+    const locationAddressLabel = mode === 'driver' ? '代駕地址' : '上車地址';
 
     pickupInput.addEventListener('input', () => {
       if (!attachedLocation || attachedLocation.settingInput) return;
@@ -1400,7 +1405,7 @@ window.GC_FORM_CONFIG = {
         setLocationReview('', false);
         setLocationStatus(keepMap
           ? '已修正文字地址，定位仍會一併附上。'
-          : '已改用你輸入的文字上車地址，避免舊定位與地址不一致。', 'success');
+          : `已改用你輸入的文字${locationAddressLabel}，避免舊定位與地址不一致。`, 'success');
       }
     });
 
@@ -1462,7 +1467,7 @@ window.GC_FORM_CONFIG = {
           }
           setLocationStatus(previousPickup
             ? `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，已保留原本輸入的地址；為避免跑錯地點，本次不附上不精準定位。`
-            : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入上車地址。`, 'error');
+            : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入${locationAddressLabel}。`, 'error');
           return;
         }
 
@@ -1482,7 +1487,7 @@ window.GC_FORM_CONFIG = {
             attachedLocation.sendMap = false;
             setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
           } else {
-            setLocationStatus('已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際上車地址。', 'error');
+            setLocationStatus(`已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際${locationAddressLabel}。`, 'error');
           }
           return;
         }
@@ -1503,12 +1508,11 @@ window.GC_FORM_CONFIG = {
         // This keeps current-location convenient while preventing a plausible-but-wrong door number
         // from becoming the dispatch address without the rider seeing it first.
         attachedLocation.requiresConfirmation = true;
-        if (finiteAccuracy <= LOCATION_AUTO_ACCEPT_ACCURACY_M) {
-          setLocationStatus('已取得定位與文字地址，請確認門牌是否正確。', 'success');
-        } else {
-          setLocationStatus(`已辨識到附近地址（定位約 ±${Math.round(finiteAccuracy)}m）。`, 'success');
-        }
-        setLocationReview('正確只要按一下「✓ 地址正確」；不對可直接修改上車地址。', true);
+        setLocationStatus('', 'success');
+        const accuracyNote = finiteAccuracy > LOCATION_AUTO_ACCEPT_ACCURACY_M
+          ? `（定位約 ±${Math.round(finiteAccuracy)}m）`
+          : '';
+        setLocationReview(`系統已帶入定位地址${accuracyNote}，送出前請再確認門牌是否正確。若不符，請直接修改${locationAddressLabel}。`, true);
       } catch (error) {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
@@ -1640,12 +1644,12 @@ window.GC_FORM_CONFIG = {
     if (!panel) return;
     const addresses = loadRecentAddresses().slice(0, RECENT_LIMIT);
     panel.innerHTML = addresses.length ? `
-      <div class="recent-helper">快速選取最近地址</div>
+      <div class="recent-helper"><strong>快速選取最近地址</strong><small>點一下即可帶入</small></div>
       <div class="recent-list">${addresses.map((address, index) => `
         <button class="recent-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
           <span>${escapeHtml(address)}</span>
         </button>`).join('')}</div>
-      <button class="recent-manage" type="button">管理最近地址</button>` : '';
+      <button class="recent-manage" type="button">管理地址紀錄</button>` : '';
   }
 
   function positionRecentQuickPanel(control) {
@@ -2734,7 +2738,7 @@ window.GC_FORM_CONFIG = {
 
       const pickup = value('pickup');
       const destination = value('destination');
-      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室回覆';
+      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室';
       let valid = true;
       if (!pickup) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
@@ -2748,7 +2752,7 @@ window.GC_FORM_CONFIG = {
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      appendLine(lines, cfg['訊息欄位_估價方式'] || '協助方式', estimateMethod);
+      appendLine(lines, cfg['訊息欄位_估價方式'] || '回覆管道', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -2759,7 +2763,7 @@ window.GC_FORM_CONFIG = {
       }
 
       const rows = [
-        { label: cfg['訊息欄位_估價方式'] || '協助方式', value: estimateMethod },
+        { label: cfg['訊息欄位_估價方式'] || '回覆管道', value: estimateMethod },
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
       ];
@@ -3703,7 +3707,7 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要估價協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -3711,9 +3715,9 @@ window.GC_FORM_CONFIG = {
       panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '送出前請留意';
-      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時段可能先提供試算資訊供您參考。';
-      const warningAssist = cfg()['人工協助補充'] || '如仍需協助，可直接送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
+      const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
+      const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';

@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10n';
+  const GC_BUILD_VERSION = 'master202608r10o';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -176,8 +176,11 @@
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
-            <span id="locationReviewText"></span>
-            <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 地址正確</button>
+            <div class="location-review-copy">
+              <strong>定位地址確認</strong>
+              <span id="locationReviewText"></span>
+            </div>
+            <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 確認地址</button>
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
@@ -1158,6 +1161,8 @@
     const pickupInput = document.getElementById('pickup');
     const confirmButton = document.getElementById('locationConfirmBtn');
     if (!button || !pickupInput) return;
+    // GC_MASTER_STABLE_2026_08R10O_LOCATION_CONFIRMATION_COPY
+    const locationAddressLabel = mode === 'driver' ? '代駕地址' : '上車地址';
 
     pickupInput.addEventListener('input', () => {
       if (!attachedLocation || attachedLocation.settingInput) return;
@@ -1177,7 +1182,7 @@
         setLocationReview('', false);
         setLocationStatus(keepMap
           ? '已修正文字地址，定位仍會一併附上。'
-          : '已改用你輸入的文字上車地址，避免舊定位與地址不一致。', 'success');
+          : `已改用你輸入的文字${locationAddressLabel}，避免舊定位與地址不一致。`, 'success');
       }
     });
 
@@ -1239,7 +1244,7 @@
           }
           setLocationStatus(previousPickup
             ? `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，已保留原本輸入的地址；為避免跑錯地點，本次不附上不精準定位。`
-            : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入上車地址。`, 'error');
+            : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入${locationAddressLabel}。`, 'error');
           return;
         }
 
@@ -1259,7 +1264,7 @@
             attachedLocation.sendMap = false;
             setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
           } else {
-            setLocationStatus('已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際上車地址。', 'error');
+            setLocationStatus(`已取得定位，但無法確認正確門牌。請再按一次重新取得，或手動輸入實際${locationAddressLabel}。`, 'error');
           }
           return;
         }
@@ -1280,12 +1285,11 @@
         // This keeps current-location convenient while preventing a plausible-but-wrong door number
         // from becoming the dispatch address without the rider seeing it first.
         attachedLocation.requiresConfirmation = true;
-        if (finiteAccuracy <= LOCATION_AUTO_ACCEPT_ACCURACY_M) {
-          setLocationStatus('已取得定位與文字地址，請確認門牌是否正確。', 'success');
-        } else {
-          setLocationStatus(`已辨識到附近地址（定位約 ±${Math.round(finiteAccuracy)}m）。`, 'success');
-        }
-        setLocationReview('正確只要按一下「✓ 地址正確」；不對可直接修改上車地址。', true);
+        setLocationStatus('', 'success');
+        const accuracyNote = finiteAccuracy > LOCATION_AUTO_ACCEPT_ACCURACY_M
+          ? `（定位約 ±${Math.round(finiteAccuracy)}m）`
+          : '';
+        setLocationReview(`系統已帶入定位地址${accuracyNote}，送出前請再確認門牌是否正確。若不符，請直接修改${locationAddressLabel}。`, true);
       } catch (error) {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
@@ -1417,12 +1421,12 @@
     if (!panel) return;
     const addresses = loadRecentAddresses().slice(0, RECENT_LIMIT);
     panel.innerHTML = addresses.length ? `
-      <div class="recent-helper">快速選取最近地址</div>
+      <div class="recent-helper"><strong>快速選取最近地址</strong><small>點一下即可帶入</small></div>
       <div class="recent-list">${addresses.map((address, index) => `
         <button class="recent-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
           <span>${escapeHtml(address)}</span>
         </button>`).join('')}</div>
-      <button class="recent-manage" type="button">管理最近地址</button>` : '';
+      <button class="recent-manage" type="button">管理地址紀錄</button>` : '';
   }
 
   function positionRecentQuickPanel(control) {
@@ -2511,7 +2515,7 @@
 
       const pickup = value('pickup');
       const destination = value('destination');
-      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室回覆';
+      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室';
       let valid = true;
       if (!pickup) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
@@ -2525,7 +2529,7 @@
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      appendLine(lines, cfg['訊息欄位_估價方式'] || '協助方式', estimateMethod);
+      appendLine(lines, cfg['訊息欄位_估價方式'] || '回覆管道', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -2536,7 +2540,7 @@
       }
 
       const rows = [
-        { label: cfg['訊息欄位_估價方式'] || '協助方式', value: estimateMethod },
+        { label: cfg['訊息欄位_估價方式'] || '回覆管道', value: estimateMethod },
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
       ];
