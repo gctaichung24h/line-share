@@ -9,10 +9,11 @@ window.GC_FORM_CONFIG = {
                    "預覽模式提醒":  "目前為電腦預覽模式，不會真的傳送到 LINE。",
                    "缺少傳送權限提醒":  "此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。",
                    "訊息欄位符號":  "•",
-                   "最近地址標題":  "最近使用地址",
+                   "最近地址標題":  "最近地址",
+                   "最近地址按鈕":  "最近地址",
                    "最近地址刪除":  "刪除",
                    "最近地址清除全部":  "清除全部",
-                   "最近地址清除確認":  "確定要清除全部最近使用地址嗎？",
+                   "最近地址清除確認":  "確定要清除全部最近地址嗎？",
                    "確認提醒":  "請確認上、下車地點與資料是否正確。",
                    "確認返回按鈕":  "返回修改",
                    "確認送出按鈕":  "確認送出",
@@ -180,12 +181,12 @@ window.GC_FORM_CONFIG = {
                  "費率標題":  "▍中部地區費率",
                  "費率_全天同價文案":  "24H同一費率｜無夜間加成",
                  "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
-                 "人工協助標題":  "其他估價方式",
-                 "人工協助提示":  "快速試算最快｜仍需協助可展開",
-                 "人工協助展開標題":  "客服協助估價",
-                 "人工協助補充":  "仍需協助可直接送出估價需求。",
-                 "人工協助警示標題":  "快速試算最快",
-                 "人工協助警示說明":  "繁忙時客服可能先提供試算資訊。",
+                 "人工協助標題":  "需要估價協助？",
+                 "人工協助提示":  "繁忙時可能先提供試算資訊",
+                 "人工協助展開標題":  "估價協助",
+                 "人工協助補充":  "如仍需協助，可直接送出估價需求。",
+                 "人工協助警示標題":  "送出前請留意",
+                 "人工協助警示說明":  "繁忙時段可能先提供試算資訊供您參考。",
                  "自助上車標題":  "上車地址",
                  "自助下車標題":  "下車地址",
                  "上車標題":  "上車地址",
@@ -195,16 +196,16 @@ window.GC_FORM_CONFIG = {
                  "送出按鈕":  "送出估價需求",
                  "錯誤_上車地址":  "請填寫資料。",
                  "錯誤_下車地址":  "請填寫資料。",
-                 "訊息標題":  "🆘 我要【客服協助估價】",
+                 "訊息標題":  "🆘 我要【估價協助】",
                  "訊息分隔線":  "━─━─━─━─━─━─",
-                 "訊息欄位_估價方式":  "估價方式",
-                 "訊息內容_估價方式":  "由客服協助估價",
+                 "訊息欄位_估價方式":  "協助方式",
+                 "訊息內容_估價方式":  "LINE 聊天室回覆",
                  "訊息欄位_上車":  "上車地址",
                  "訊息欄位_下車":  "下車地址",
                  "訊息欄位_備註":  "",
-                 "成功標題":  "✅ 估價需求已送出",
-                 "成功內容1":  "估價需求已送出；繁忙時客服可能先提供試算資訊，請留意聊天室。",
-                 "成功內容2":  "本次僅為車資試算，尚未建立叫車或預約需求。",
+                 "成功標題":  "✅ 已收到您的估價需求",
+                 "成功內容1":  "稍後將於 LINE 聊天室提供估價資訊；繁忙時段可能先提供試算資訊供您參考。",
+                 "成功內容2":  "本次僅為估價需求，尚未成立叫車或預約訂單。",
                  "成功內容3":  "",
                  "返回按鈕":  "返回 LINE 聊天室",
                  "計價_起跳":  "70",
@@ -222,7 +223,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10m';
+  const GC_BUILD_VERSION = 'master202608r10n';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -403,13 +404,13 @@ window.GC_FORM_CONFIG = {
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
-          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="最近使用地址">
+          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
-            <span class="recent-title">最近</span>
+            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="recent-panel hidden" role="dialog" aria-label="最近使用地址"></div>
+          <div class="recent-panel hidden" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
         </div>` : ''}
         <div class="error-text" id="${id}Error"></div>
       </div>`;
@@ -823,11 +824,21 @@ window.GC_FORM_CONFIG = {
       let timer = 0;
       let localToken = 0;
 
+      // GC_MASTER_STABLE_2026_08R10N_PROGRAMMATIC_ADDRESS_SUGGEST_GUARD
+      // Recent/favorite/location fills are already confirmed choices. They must invalidate any
+      // pending async lookup and must never reopen the smart-suggestion card. Manual edits still do.
+      const cancelSmartSuggestionSession = () => {
+        clearTimeout(timer);
+        localToken = ++addressSuggestRequestToken;
+        hideAddressSuggestions(id);
+      };
+      input._gcCancelSmartSuggestions = cancelSmartSuggestionSession;
+
       input.addEventListener('input', () => {
         clearTimeout(timer);
         if (input.dataset.gcSkipSuggestOnce === '1') {
           delete input.dataset.gcSkipSuggestOnce;
-          hideAddressSuggestions(id);
+          cancelSmartSuggestionSession();
           return;
         }
         const query = normalizeAddress(input.value);
@@ -1144,8 +1155,16 @@ window.GC_FORM_CONFIG = {
         const pickupInput = document.getElementById('pickup');
         const destinationInput = document.getElementById('destination');
         if (attachedLocation) clearAttachedLocation(false);
-        if (pickupInput) pickupInput.value = trip.pickup;
-        if (destinationInput) destinationInput.value = trip.destination;
+        if (pickupInput) {
+          pickupInput._gcCancelSmartSuggestions?.();
+          pickupInput.dataset.gcSkipSuggestOnce = '1';
+          pickupInput.value = trip.pickup;
+        }
+        if (destinationInput) {
+          destinationInput._gcCancelSmartSuggestions?.();
+          destinationInput.dataset.gcSkipSuggestOnce = '1';
+          destinationInput.value = trip.destination;
+        }
         ['pickup', 'destination'].forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
           document.getElementById(`${id}Error`)?.classList.remove('show');
@@ -1401,6 +1420,7 @@ window.GC_FORM_CONFIG = {
       }
       const requestToken = ++locationRequestToken;
       const previousPickup = smartNormalizeTaiwanAddress(pickupInput.value);
+      pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
       setLocationReview('', false);
@@ -1470,9 +1490,12 @@ window.GC_FORM_CONFIG = {
         attachedLocation.address = address;
         attachedLocation.generatedAddress = address;
         attachedLocation.settingInput = true;
+        pickupInput._gcCancelSmartSuggestions?.();
+        pickupInput.dataset.gcSkipSuggestOnce = '1';
         pickupInput.value = address;
         pickupInput.classList.remove('invalid');
         document.getElementById('pickupError')?.classList.remove('show');
+        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
         pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
         attachedLocation.settingInput = false;
 
@@ -1595,6 +1618,8 @@ window.GC_FORM_CONFIG = {
     const cleaned = smartNormalizeTaiwanAddress(address);
     if (!input || !cleaned) return false;
     if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
+    input._gcCancelSmartSuggestions?.();
+    input.dataset.gcSkipSuggestOnce = '1';
     input.value = cleaned;
     input.classList.remove('invalid');
     input.removeAttribute('aria-invalid');
@@ -2709,7 +2734,7 @@ window.GC_FORM_CONFIG = {
 
       const pickup = value('pickup');
       const destination = value('destination');
-      const estimateMethod = cfg['訊息內容_估價方式'] || '請客服協助估價';
+      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室回覆';
       let valid = true;
       if (!pickup) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
@@ -2723,7 +2748,7 @@ window.GC_FORM_CONFIG = {
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      appendLine(lines, cfg['訊息欄位_估價方式'] || '估價方式', estimateMethod);
+      appendLine(lines, cfg['訊息欄位_估價方式'] || '協助方式', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -2734,7 +2759,7 @@ window.GC_FORM_CONFIG = {
       }
 
       const rows = [
-        { label: cfg['訊息欄位_估價方式'] || '估價方式', value: estimateMethod },
+        { label: cfg['訊息欄位_估價方式'] || '協助方式', value: estimateMethod },
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
       ];
@@ -2908,6 +2933,7 @@ window.GC_FORM_CONFIG = {
   function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
 
   // GC_MASTER_STABLE_2026_08R10M_ADDRESS_UTILITY_ROW
+  // GC_MASTER_STABLE_2026_08R10N_ADDRESS_HELPER_LABELS
   // Address input is always the protagonist. Recent/current-location/favorite shortcuts live
   // in a consistent, quiet row below the input instead of floating beside the field label.
   function ensureAddressUtilityRow(field) {
@@ -2936,7 +2962,7 @@ window.GC_FORM_CONFIG = {
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '常用行程';
+    toggle.textContent = '⭐ 常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     ensureAddressUtilityRow(destination)?.appendChild(toggle);
 
@@ -3021,7 +3047,7 @@ window.GC_FORM_CONFIG = {
       if (locationAction && utility) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
-        if (button) button.textContent = '目前位置';
+        if (button) button.textContent = '📍 目前位置';
         utility.appendChild(locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
       }
@@ -3661,7 +3687,7 @@ window.GC_FORM_CONFIG = {
     if (destinationField) routeFields.appendChild(destinationField);
 
     // 車資自助試算可直接填「分鐘＋公里」，不強迫先輸入地址。
-    // 只有按 Google 地圖或人工估價時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
+    // 只有按 Google 地圖或估價協助時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
     [
       [pickup, cfg()['自助上車標題'] || '上車地點'],
       [destination, cfg()['自助下車標題'] || '下車地點']
@@ -3677,17 +3703,17 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價方式')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要估價協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
       panelTitle.className = 'gc-manual-panel-title';
-      panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
+      panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '快速試算最快';
-      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時客服可能先提供試算資訊。';
-      const warningAssist = cfg()['人工協助補充'] || '仍需協助可直接送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '送出前請留意';
+      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時段可能先提供試算資訊供您參考。';
+      const warningAssist = cfg()['人工協助補充'] || '如仍需協助，可直接送出估價需求。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
@@ -3704,7 +3730,7 @@ window.GC_FORM_CONFIG = {
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
-      // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
+      // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
       // 必須直接把畫面帶到第一個缺少的地址並顯示原本錯誤提示。
       form.addEventListener('submit', event => {
         const missingPickup = !trim(pickup.value);
@@ -3713,7 +3739,7 @@ window.GC_FORM_CONFIG = {
         event.preventDefault();
         event.stopImmediatePropagation();
         details.open = true;
-        // 自助試算時地址不是強制欄位；人工估價這個動作需要上下車地址。
+        // 自助試算時地址不是強制欄位；估價協助這個動作需要上下車地址。
         // 缺哪一格就直接紅框＋短提示，並帶到第一個缺少欄位。
         showRouteAddressGuidance('manual', missingPickup, missingDestination);
       }, true);

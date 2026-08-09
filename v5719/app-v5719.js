@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10m';
+  const GC_BUILD_VERSION = 'master202608r10n';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -181,13 +181,13 @@
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
-          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="最近使用地址">
+          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
-            <span class="recent-title">最近</span>
+            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="recent-panel hidden" role="dialog" aria-label="最近使用地址"></div>
+          <div class="recent-panel hidden" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
         </div>` : ''}
         <div class="error-text" id="${id}Error"></div>
       </div>`;
@@ -601,11 +601,21 @@
       let timer = 0;
       let localToken = 0;
 
+      // GC_MASTER_STABLE_2026_08R10N_PROGRAMMATIC_ADDRESS_SUGGEST_GUARD
+      // Recent/favorite/location fills are already confirmed choices. They must invalidate any
+      // pending async lookup and must never reopen the smart-suggestion card. Manual edits still do.
+      const cancelSmartSuggestionSession = () => {
+        clearTimeout(timer);
+        localToken = ++addressSuggestRequestToken;
+        hideAddressSuggestions(id);
+      };
+      input._gcCancelSmartSuggestions = cancelSmartSuggestionSession;
+
       input.addEventListener('input', () => {
         clearTimeout(timer);
         if (input.dataset.gcSkipSuggestOnce === '1') {
           delete input.dataset.gcSkipSuggestOnce;
-          hideAddressSuggestions(id);
+          cancelSmartSuggestionSession();
           return;
         }
         const query = normalizeAddress(input.value);
@@ -922,8 +932,16 @@
         const pickupInput = document.getElementById('pickup');
         const destinationInput = document.getElementById('destination');
         if (attachedLocation) clearAttachedLocation(false);
-        if (pickupInput) pickupInput.value = trip.pickup;
-        if (destinationInput) destinationInput.value = trip.destination;
+        if (pickupInput) {
+          pickupInput._gcCancelSmartSuggestions?.();
+          pickupInput.dataset.gcSkipSuggestOnce = '1';
+          pickupInput.value = trip.pickup;
+        }
+        if (destinationInput) {
+          destinationInput._gcCancelSmartSuggestions?.();
+          destinationInput.dataset.gcSkipSuggestOnce = '1';
+          destinationInput.value = trip.destination;
+        }
         ['pickup', 'destination'].forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
           document.getElementById(`${id}Error`)?.classList.remove('show');
@@ -1179,6 +1197,7 @@
       }
       const requestToken = ++locationRequestToken;
       const previousPickup = smartNormalizeTaiwanAddress(pickupInput.value);
+      pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
       setLocationReview('', false);
@@ -1248,9 +1267,12 @@
         attachedLocation.address = address;
         attachedLocation.generatedAddress = address;
         attachedLocation.settingInput = true;
+        pickupInput._gcCancelSmartSuggestions?.();
+        pickupInput.dataset.gcSkipSuggestOnce = '1';
         pickupInput.value = address;
         pickupInput.classList.remove('invalid');
         document.getElementById('pickupError')?.classList.remove('show');
+        pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
         pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
         attachedLocation.settingInput = false;
 
@@ -1373,6 +1395,8 @@
     const cleaned = smartNormalizeTaiwanAddress(address);
     if (!input || !cleaned) return false;
     if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
+    input._gcCancelSmartSuggestions?.();
+    input.dataset.gcSkipSuggestOnce = '1';
     input.value = cleaned;
     input.classList.remove('invalid');
     input.removeAttribute('aria-invalid');
@@ -2487,7 +2511,7 @@
 
       const pickup = value('pickup');
       const destination = value('destination');
-      const estimateMethod = cfg['訊息內容_估價方式'] || '請客服協助估價';
+      const estimateMethod = cfg['訊息內容_估價方式'] || 'LINE 聊天室回覆';
       let valid = true;
       if (!pickup) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
@@ -2501,7 +2525,7 @@
 
       const lines = [cfg['訊息標題']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      appendLine(lines, cfg['訊息欄位_估價方式'] || '估價方式', estimateMethod);
+      appendLine(lines, cfg['訊息欄位_估價方式'] || '協助方式', estimateMethod);
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -2512,7 +2536,7 @@
       }
 
       const rows = [
-        { label: cfg['訊息欄位_估價方式'] || '估價方式', value: estimateMethod },
+        { label: cfg['訊息欄位_估價方式'] || '協助方式', value: estimateMethod },
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         { label: cfg['訊息欄位_下車'], value: destination, emphasis: true }
       ];

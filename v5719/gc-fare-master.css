@@ -86,7 +86,7 @@
 
 
 /* GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
-   自助地址維持選填；只有查路線／人工估價需要地址時，顯示中性情境提示，不使用紅色必填錯誤。 */
+   自助地址維持選填；只有查路線／估價協助需要地址時，顯示中性情境提示，不使用紅色必填錯誤。 */
 .gc-fare-action-note{margin:0 0 13px;padding:11px 12px;border:1px solid #b9d2e4;border-radius:12px;background:#f2f8fc;color:#315d7b;font-size:13.2px;font-weight:720;line-height:1.52;box-shadow:0 4px 12px rgba(31,83,119,.035)}
 @media(max-width:360px){.gc-fare-action-note{font-size:12.7px;padding:10px 11px}}
 

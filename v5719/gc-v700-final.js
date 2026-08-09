@@ -36,6 +36,7 @@
   function removeFieldByInputName(name) { document.querySelector(`input[name="${name}"]`)?.closest('.field')?.remove(); }
 
   // GC_MASTER_STABLE_2026_08R10M_ADDRESS_UTILITY_ROW
+  // GC_MASTER_STABLE_2026_08R10N_ADDRESS_HELPER_LABELS
   // Address input is always the protagonist. Recent/current-location/favorite shortcuts live
   // in a consistent, quiet row below the input instead of floating beside the field label.
   function ensureAddressUtilityRow(field) {
@@ -64,7 +65,7 @@
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '常用行程';
+    toggle.textContent = '⭐ 常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     ensureAddressUtilityRow(destination)?.appendChild(toggle);
 
@@ -149,7 +150,7 @@
       if (locationAction && utility) {
         locationAction.classList.add('field-inline-action');
         const button = locationAction.querySelector('.location-btn');
-        if (button) button.textContent = '目前位置';
+        if (button) button.textContent = '📍 目前位置';
         utility.appendChild(locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
       }

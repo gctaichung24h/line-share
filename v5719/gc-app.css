@@ -2334,7 +2334,7 @@ body{
 
 
 /* GC_MASTER_STABLE_2026_08R5_OPTIONAL_CONTEXT_GUIDANCE
-   自助地址維持選填；只有查路線／人工估價需要地址時，顯示中性情境提示，不使用紅色必填錯誤。 */
+   自助地址維持選填；只有查路線／估價協助需要地址時，顯示中性情境提示，不使用紅色必填錯誤。 */
 .gc-fare-action-note{margin:0 0 13px;padding:11px 12px;border:1px solid #b9d2e4;border-radius:12px;background:#f2f8fc;color:#315d7b;font-size:13.2px;font-weight:720;line-height:1.52;box-shadow:0 4px 12px rgba(31,83,119,.035)}
 @media(max-width:360px){.gc-fare-action-note{font-size:12.7px;padding:10px 11px}}
 
@@ -3731,5 +3731,128 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
   .gc-vehicle-info-lead,.gc-call-needs-box[open] .gc-vehicle-info-lead{grid-template-columns:minmax(0,108px) minmax(0,1fr)!important;padding:12px!important;gap:9px!important}
   .gc-vehicle-info-lead strong{font-size:14.4px!important}
   .gc-vehicle-info-lead span{font-size:13px!important}
+}
+
+
+/* GC_MASTER_STABLE_2026_08R10N_VISUAL_EXPECTATION_PASS
+   Final approved pass: explicit address helper labels, stronger field subheads,
+   calm ice-blue fare inputs, premium vehicle price scan, and soft-yellow estimate notice. */
+
+/* Helper controls stay secondary, but the icon makes each action instantly distinguishable. */
+.gc-address-utility-row .field-inline-btn,
+.gc-address-utility-row .location-btn,
+.gc-address-utility-row .recent-toggle{
+  white-space:nowrap!important;
+  letter-spacing:-.005em!important;
+}
+.gc-address-utility-row .field-inline-btn,
+.gc-address-utility-row .location-btn{font-weight:700!important;color:#526f83!important}
+.recent-title{font-weight:700!important;color:#60798b!important}
+
+/* The five small field titles inside the expanded call-needs area need one clear level above inputs. */
+.gc-call-needs-box[open] .optional-content>.field>label,
+.gc-call-needs-box[open] .optional-content>.field>.field-label{
+  font-size:15.8px!important;
+  line-height:1.35!important;
+  font-weight:820!important;
+  color:#143d60!important;
+  letter-spacing:-.012em!important;
+}
+
+/* Vehicle rule stays champagne-gold; prices below remain neutral and easier to scan. */
+.gc-vehicle-info-lead,
+.gc-call-needs-box[open] .gc-vehicle-info-lead{
+  min-height:56px!important;
+  margin-bottom:10px!important;
+  padding:14px 15px!important;
+}
+.gc-vehicle-info-lead strong{font-size:15.6px!important;font-weight:820!important}
+.gc-vehicle-info-lead span{font-size:14px!important;font-weight:620!important}
+.gc-call-needs-box[open] .gc-vehicle-price-list{
+  margin:4px 0 2px!important;
+  padding:2px 11px!important;
+  border:1px solid #dfe8ee!important;
+  border-radius:13px!important;
+  background:#f9fbfc!important;
+  overflow:hidden!important;
+}
+.gc-call-needs-box[open] .gc-vehicle-price-list>div{
+  min-height:43px!important;
+  padding:8px 4px!important;
+  border-bottom:1px solid #e7edf1!important;
+}
+.gc-call-needs-box[open] .gc-vehicle-price-list>div:last-child{border-bottom:0!important}
+.gc-call-needs-box[open] .gc-vehicle-price-list span{
+  color:#38576d!important;
+  font-size:13.8px!important;
+  font-weight:660!important;
+}
+.gc-call-needs-box[open] .gc-vehicle-price-list b{
+  min-width:78px!important;
+  color:#174e73!important;
+  font-size:14px!important;
+  font-weight:820!important;
+  text-align:right!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.gc-call-needs-box[open] .gc-vehicle-price-list>div:first-child b{
+  color:#7a8c99!important;
+  font-weight:650!important;
+}
+
+/* "Return and fill two numbers" is the second action: noticeable, but below the dark-blue Maps CTA. */
+.gc-fare-calc-grid{
+  padding:11px!important;
+  border:1px solid #d3e2ec!important;
+  border-radius:16px!important;
+  background:linear-gradient(180deg,#f1f7fb 0%,#f5f9fc 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.82)!important;
+}
+.gc-fare-calc-field>span{
+  color:#244f6d!important;
+  font-size:14.1px!important;
+  font-weight:810!important;
+}
+.gc-fare-calc-input-wrap{
+  border-color:#b8cddd!important;
+  background:#fff!important;
+  box-shadow:0 2px 7px rgba(24,65,94,.035)!important;
+}
+.gc-fare-calc-input-wrap:focus-within{
+  border-color:#4f84ad!important;
+  box-shadow:0 0 0 3px rgba(45,112,166,.09)!important;
+}
+
+/* Estimate assistance is a warm explanatory notice, not a CTA, error, or manual-service promise. */
+.gc-fare-manual-warning{
+  border:1px solid #eadcae!important;
+  border-left:4px solid #d2b45d!important;
+  background:linear-gradient(180deg,#fffdf3 0%,#fff9e4 100%)!important;
+  box-shadow:0 4px 12px rgba(104,82,28,.035)!important;
+}
+.gc-fare-manual-warning strong{
+  color:#3f5261!important;
+  font-weight:810!important;
+}
+.gc-fare-manual-warning p{
+  color:#4f5f69!important;
+  font-weight:720!important;
+}
+.gc-fare-manual-warning small{
+  color:#74766e!important;
+  font-weight:580!important;
+}
+
+@media(max-width:360px){
+  .gc-call-needs-box[open] .optional-content>.field>label,
+  .gc-call-needs-box[open] .optional-content>.field>.field-label{font-size:15.2px!important}
+  .gc-vehicle-info-lead,.gc-call-needs-box[open] .gc-vehicle-info-lead{min-height:54px!important;padding:13px 12px!important}
+  .gc-vehicle-info-lead strong{font-size:14.8px!important}
+  .gc-vehicle-info-lead span{font-size:13.2px!important}
+  .gc-call-needs-box[open] .gc-vehicle-price-list{padding-left:9px!important;padding-right:9px!important}
+  .gc-call-needs-box[open] .gc-vehicle-price-list span{font-size:13.3px!important}
+  .gc-call-needs-box[open] .gc-vehicle-price-list b{min-width:70px!important;font-size:13.5px!important}
+  .gc-fare-calc-grid{padding:9px!important;gap:8px!important}
+  .gc-fare-calc-field>span{font-size:13.5px!important}
 }
 

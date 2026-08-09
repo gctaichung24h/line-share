@@ -298,7 +298,7 @@
     if (destinationField) routeFields.appendChild(destinationField);
 
     // 車資自助試算可直接填「分鐘＋公里」，不強迫先輸入地址。
-    // 只有按 Google 地圖或人工估價時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
+    // 只有按 Google 地圖或估價協助時才需要地址；這裡只改 fare 模式，叫車/代駕欄位規則不動。
     [
       [pickup, cfg()['自助上車標題'] || '上車地點'],
       [destination, cfg()['自助下車標題'] || '下車地點']
@@ -314,17 +314,17 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價方式')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '需要估價協助？')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
       panelTitle.className = 'gc-manual-panel-title';
-      panelTitle.textContent = cfg()['人工協助展開標題'] || '客服協助估價';
+      panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '快速試算最快';
-      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時客服可能先提供試算資訊。';
-      const warningAssist = cfg()['人工協助補充'] || '仍需協助可直接送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '送出前請留意';
+      const warningBusy = cfg()['人工協助警示說明'] || '繁忙時段可能先提供試算資訊供您參考。';
+      const warningAssist = cfg()['人工協助補充'] || '如仍需協助，可直接送出估價需求。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
@@ -341,7 +341,7 @@
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
-      // 人工估價按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
+      // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
       // 必須直接把畫面帶到第一個缺少的地址並顯示原本錯誤提示。
       form.addEventListener('submit', event => {
         const missingPickup = !trim(pickup.value);
@@ -350,7 +350,7 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         details.open = true;
-        // 自助試算時地址不是強制欄位；人工估價這個動作需要上下車地址。
+        // 自助試算時地址不是強制欄位；估價協助這個動作需要上下車地址。
         // 缺哪一格就直接紅框＋短提示，並帶到第一個缺少欄位。
         showRouteAddressGuidance('manual', missingPickup, missingDestination);
       }, true);
