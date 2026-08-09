@@ -78,7 +78,7 @@
     sheet.className = 'gc-sheet-overlay hidden';
     sheet.innerHTML = `<section class="gc-sheet" role="dialog" aria-modal="true" aria-label="常用行程">
       <div class="gc-sheet-handle"></div>
-      <div class="gc-sheet-head"><strong>⭐ 常用行程</strong><button type="button" class="gc-sheet-close" aria-label="關閉">✕</button></div>
+      <div class="gc-sheet-head"><strong>常用行程</strong><button type="button" class="gc-sheet-close" aria-label="關閉">✕</button></div>
       <div class="gc-sheet-body"></div>
     </section>`;
     favorite.classList.add('gc-favorite-sheet-box');

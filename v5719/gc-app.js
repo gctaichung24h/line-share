@@ -20,7 +20,7 @@ window.GC_FORM_CONFIG = {
                    "確認標題_代駕":  "請確認代駕資料",
                    "確認標題_估價":  "請確認估價資料",
                    "選填未填寫":  "未填寫（選填）",
-                   "常用行程標題":  "⭐ 常用行程",
+                   "常用行程標題":  "常用行程",
                    "常用行程儲存":  "儲存目前行程",
                    "常用行程儲存標題":  "儲存常用行程",
                    "常用行程名稱標題":  "行程名稱",
@@ -152,6 +152,7 @@ window.GC_FORM_CONFIG = {
                  "路線按鈕":  "開啟 Google 地圖",
                  "已知數字捷徑":  "",
                  "錯誤_情境缺資料":  "請填寫資料。",
+                 "錯誤_相同地址":  "上下車地址不能相同，請確認目的地。",
                  "計算器標題":  "回來填 2 個數字",
                  "計算器徽章":  "",
                  "計算器說明":  "照 Google 地圖顯示填入即可",
@@ -221,7 +222,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10j';
+  const GC_BUILD_VERSION = 'master202608r10k';
   let gcLastVersionCheck = 0;
   async function ensureLatestBuild(force = false) {
     const now = Date.now();
@@ -863,6 +864,8 @@ window.GC_FORM_CONFIG = {
 
   // R10J: keep the normalized recent-address writer exposed for compatibility; fare mode itself does not read/write recents.
   window.GC_rememberRecentAddresses = rememberRecentAddresses;
+  // GC_R10K_EXTERNAL_ADDRESS_SANITIZER: every external map handoff uses the exact same clean Taiwan address rule as LINE dispatch.
+  window.GC_cleanAddressForExternalUse = smartNormalizeTaiwanAddress;
 
   function deleteRecentAddress(index) {
     const addresses = loadRecentAddresses();
@@ -922,7 +925,7 @@ window.GC_FORM_CONFIG = {
   function renderFavoriteTripsBox() {
     return `
       <details class="optional-box favorite-box" id="favoriteTripsBox">
-        <summary>${escapeHtml(COMMON['常用行程標題'] || '⭐ 常用行程')}</summary>
+        <summary>${escapeHtml(COMMON['常用行程標題'] || '常用行程')}</summary>
         <div class="favorite-content">
           <div class="favorite-list-viewport">
             <div class="favorite-list" id="favoriteTripsList"></div>
@@ -1510,50 +1513,149 @@ window.GC_FORM_CONFIG = {
   function refreshRecentAddressControls() {
     const addresses = loadRecentAddresses();
     document.querySelectorAll('.recent-address-control').forEach(control => {
-      const panel = control.querySelector('.recent-panel');
       const count = control.querySelector('.recent-count');
       if (!addresses.length) {
         control.classList.add('hidden');
-        if (panel) panel.classList.add('hidden');
+        control.classList.remove('is-open');
+        control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
         return;
       }
-
       control.classList.remove('hidden');
       if (count) count.textContent = `(${addresses.length})`;
-      if (!panel) return;
-      panel.innerHTML = `
-        <div class="recent-helper">點選地址即可自動帶入</div>
-        <div class="recent-list">
-          ${addresses.map((address, index) => `
-            <div class="recent-row">
-              <button class="recent-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
-                <span>${escapeHtml(address)}</span>
-              </button>
-              <button class="recent-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
-            </div>`).join('')}
-        </div>
-        <button class="recent-clear" type="button">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>`;
     });
+    if (!addresses.length) closeRecentAddressSheet();
+  }
+
+  let activeRecentTargetId = '';
+  let activeRecentControl = null;
+
+  function ensureRecentAddressSheet() {
+    let overlay = document.getElementById('gcRecentSheet');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'gcRecentSheet';
+    overlay.className = 'gc-recent-sheet-overlay hidden';
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+      <section class="gc-recent-sheet" role="dialog" aria-modal="true" aria-labelledby="gcRecentSheetTitle">
+        <div class="gc-recent-sheet-handle" aria-hidden="true"></div>
+        <div class="gc-recent-sheet-head">
+          <div>
+            <strong id="gcRecentSheetTitle">${escapeHtml(COMMON['最近地址標題'] || '最近使用地址')}</strong>
+            <small>點選地址即可自動帶入</small>
+          </div>
+          <button type="button" class="gc-recent-sheet-close" aria-label="關閉">✕</button>
+        </div>
+        <div class="gc-recent-sheet-list"></div>
+        <button class="gc-recent-sheet-clear" type="button">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>
+      </section>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay || event.target.closest('.gc-recent-sheet-close')) {
+        closeRecentAddressSheet();
+        return;
+      }
+      const useButton = event.target.closest('.gc-recent-sheet-use');
+      if (useButton) {
+        const address = loadRecentAddresses()[Number(useButton.dataset.index)];
+        const input = document.getElementById(activeRecentTargetId);
+        if (address && input) {
+          if (activeRecentTargetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
+          input.value = address;
+          input.classList.remove('invalid');
+          input.removeAttribute('aria-invalid');
+          input.closest('.field')?.classList.remove('gc-validation-error');
+          const error = document.getElementById(`${activeRecentTargetId}Error`);
+          if (error) {
+            error.textContent = '';
+            error.classList.remove('show');
+            error.removeAttribute('role');
+          }
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeRecentAddressSheet();
+        return;
+      }
+      const deleteButton = event.target.closest('.gc-recent-sheet-delete');
+      if (deleteButton) {
+        deleteRecentAddress(Number(deleteButton.dataset.index));
+        refreshRecentAddressControls();
+        renderRecentAddressSheetList();
+        return;
+      }
+      if (event.target.closest('.gc-recent-sheet-clear')) {
+        closeRecentAddressSheet();
+        openRecentClearModal(clearRecentAddresses);
+      }
+    });
+
+    return overlay;
+  }
+
+  function renderRecentAddressSheetList() {
+    const overlay = document.getElementById('gcRecentSheet');
+    const list = overlay?.querySelector('.gc-recent-sheet-list');
+    if (!list) return;
+    const addresses = loadRecentAddresses();
+    list.innerHTML = addresses.map((address, index) => `
+      <div class="gc-recent-sheet-row">
+        <button class="gc-recent-sheet-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
+          <span>${escapeHtml(address)}</span>
+        </button>
+        <button class="gc-recent-sheet-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
+      </div>`).join('');
+  }
+
+  function closeRecentAddressSheet() {
+    const overlay = document.getElementById('gcRecentSheet');
+    if (overlay) {
+      overlay.classList.add('hidden');
+      overlay.hidden = true;
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.remove('gc-recent-sheet-open');
+    if (activeRecentControl) {
+      activeRecentControl.classList.remove('is-open');
+      activeRecentControl.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
+    }
+    activeRecentControl = null;
+    activeRecentTargetId = '';
+  }
+
+  function openRecentAddressSheet(control, targetId) {
+    const addresses = loadRecentAddresses();
+    if (!addresses.length || !control || !targetId) return;
+    closeRecentAddressSheet();
+    activeRecentControl = control;
+    activeRecentTargetId = targetId;
+    const overlay = ensureRecentAddressSheet();
+    renderRecentAddressSheetList();
+    control.classList.add('is-open');
+    control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'true');
+    overlay.hidden = false;
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('gc-recent-sheet-open');
   }
 
   function waitForKeyboardToSettle(callback) {
     const viewport = window.visualViewport;
     if (!viewport) {
-      setTimeout(callback, 320);
+      setTimeout(callback, 260);
       return;
     }
-
     const startedAt = performance.now();
     let lastHeight = viewport.height;
     let stableSince = startedAt;
     let completed = false;
-
     const finish = () => {
       if (completed) return;
       completed = true;
       callback();
     };
-
     const check = () => {
       if (completed) return;
       const now = performance.now();
@@ -1562,125 +1664,42 @@ window.GC_FORM_CONFIG = {
         lastHeight = currentHeight;
         stableSince = now;
       }
-
-      if ((now - stableSince >= 110 && now - startedAt >= 220) || now - startedAt >= 520) {
+      if ((now - stableSince >= 90 && now - startedAt >= 180) || now - startedAt >= 460) {
         finish();
         return;
       }
       requestAnimationFrame(check);
     };
-
     requestAnimationFrame(check);
   }
 
   function bindRecentAddressControls() {
+    // GC_R10J_RECENT_POPOVER_AUTO_CLOSE compatibility marker.
+    // GC_R10K_RECENT_BOTTOM_SHEET: body-level sheet avoids field-label clipping on iPhone/LINE WebView.
+    ensureRecentAddressSheet();
     document.querySelectorAll('.recent-address-control').forEach(control => {
       const targetId = control.dataset.target;
       const toggle = control.querySelector('.recent-toggle');
-      const trigger = toggle;
-      const panel = control.querySelector('.recent-panel');
-
-      let lastTouchToggleAt = 0;
-      let touchOpening = false;
-
-      const syncToggleLabels = () => {};
-
-      const togglePanel = () => {
-        const willOpen = panel.classList.contains('hidden');
-        document.querySelectorAll('.recent-panel').forEach(other => other.classList.add('hidden'));
-        document.querySelectorAll('.recent-toggle').forEach(other => other.setAttribute('aria-expanded', 'false'));
-        document.querySelectorAll('.recent-address-control').forEach(other => other.classList.remove('is-open'));
-        panel.classList.toggle('hidden', !willOpen);
-        toggle.setAttribute('aria-expanded', String(willOpen));
-        control.classList.toggle('is-open', willOpen);
-        syncToggleLabels();
-      };
-      syncToggleLabels();
-
-      trigger?.addEventListener('touchstart', event => {
-        event.preventDefault();
-      }, { passive: false });
-
-      trigger?.addEventListener('touchend', event => {
+      toggle?.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
-        if (touchOpening) return;
-
-        lastTouchToggleAt = Date.now();
+        if (toggle.getAttribute('aria-expanded') === 'true') {
+          closeRecentAddressSheet();
+          return;
+        }
         const keyboardWasOpen = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '');
-        if (!keyboardWasOpen) {
-          togglePanel();
-          return;
-        }
-
-        touchOpening = true;
         blurActiveEditor();
-        waitForKeyboardToSettle(() => {
-          togglePanel();
-          touchOpening = false;
-        });
-      }, { passive: false });
-
-      trigger?.addEventListener('click', event => {
-        if (Date.now() - lastTouchToggleAt < 700) {
-          event.preventDefault();
-          return;
-        }
-        blurActiveEditor();
-        togglePanel();
-      });
-
-      control.addEventListener('click', event => {
-        const useButton = event.target.closest('.recent-use');
-        if (useButton) {
-          const address = loadRecentAddresses()[Number(useButton.dataset.index)];
-          const input = document.getElementById(targetId);
-          if (address && input) {
-            if (targetId === 'pickup' && attachedLocation) clearAttachedLocation(false);
-            input.value = address;
-            input.classList.remove('invalid');
-            const error = document.getElementById(`${targetId}Error`);
-            if (error) error.classList.remove('show');
-            panel.classList.add('hidden');
-            toggle.setAttribute('aria-expanded', 'false');
-            control.classList.remove('is-open');
-            syncToggleLabels();
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-          return;
-        }
-
-        const deleteButton = event.target.closest('.recent-delete');
-        if (deleteButton) {
-          deleteRecentAddress(Number(deleteButton.dataset.index));
-          return;
-        }
-
-        if (event.target.closest('.recent-clear')) {
-          openRecentClearModal(clearRecentAddresses);
-        }
+        if (keyboardWasOpen) waitForKeyboardToSettle(() => openRecentAddressSheet(control, targetId));
+        else openRecentAddressSheet(control, targetId);
       });
     });
     refreshRecentAddressControls();
 
-    // GC_R10J_RECENT_POPOVER_AUTO_CLOSE: 最近地址以輕量浮層呈現；點外部立即收合，不推動主表單版面。
-    if (!document.documentElement.dataset.gcRecentOutsideCloseBound) {
-      document.documentElement.dataset.gcRecentOutsideCloseBound = '1';
-      const closeRecentOutside = event => {
-        if (event.target?.closest?.('.recent-address-control')) return;
-        document.querySelectorAll('.recent-address-control').forEach(control => {
-          const toggle = control.querySelector('.recent-toggle');
-          const panel = control.querySelector('.recent-panel');
-          if (toggle?.getAttribute('aria-expanded') === 'true' || (panel && !panel.classList.contains('hidden'))) {
-            toggle?.setAttribute('aria-expanded', 'false');
-            panel?.classList.add('hidden');
-            control.classList.remove('is-open');
-          }
-        });
-      };
-      document.addEventListener('pointerdown', closeRecentOutside, { passive: true });
-      document.addEventListener('focusin', closeRecentOutside);
+    if (!document.documentElement.dataset.gcRecentEscapeBound) {
+      document.documentElement.dataset.gcRecentEscapeBound = '1';
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeRecentAddressSheet();
+      });
     }
   }
 
@@ -1968,7 +1987,7 @@ window.GC_FORM_CONFIG = {
       [`第 ${formatFareRuleValue(rules.extraFromKm)} 公里起`, `每公里 +$${formatFareRuleValue(rules.extraPerKm)}`],
       ['最低消費', `$${formatFareRuleValue(rules.minimum)}`]
     ];
-    const noteRows = [...allDayParts, longText];
+    const noteRows = [...allDayParts];
     return `
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
@@ -1983,6 +2002,7 @@ window.GC_FORM_CONFIG = {
           <section class="gc-rate-section" aria-label="費率說明">
             <strong class="gc-rate-section-title">費率說明</strong>
             <div class="gc-rate-note-list">${noteRows.map(line => `<div class="gc-rate-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('')}</div>
+            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong>${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，可享直收優惠價`)}</strong></div>
           </section>
         </div>
       </details>`;
@@ -2770,7 +2790,7 @@ window.GC_FORM_CONFIG = {
     sheet.className = 'gc-sheet-overlay hidden';
     sheet.innerHTML = `<section class="gc-sheet" role="dialog" aria-modal="true" aria-label="常用行程">
       <div class="gc-sheet-handle"></div>
-      <div class="gc-sheet-head"><strong>⭐ 常用行程</strong><button type="button" class="gc-sheet-close" aria-label="關閉">✕</button></div>
+      <div class="gc-sheet-head"><strong>常用行程</strong><button type="button" class="gc-sheet-close" aria-label="關閉">✕</button></div>
       <div class="gc-sheet-body"></div>
     </section>`;
     favorite.classList.add('gc-favorite-sheet-box');
@@ -3245,6 +3265,23 @@ window.GC_FORM_CONFIG = {
   }
   const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 
+
+  // GC_R10K_MAP_ADDRESS_GUARD: sanitize map addresses exactly like dispatch and compare canonical forms before opening Google Maps.
+  function cleanMapAddress(value) {
+    const raw = trim(value);
+    if (!raw) return '';
+    try {
+      if (typeof window.GC_cleanAddressForExternalUse === 'function') return trim(window.GC_cleanAddressForExternalUse(raw));
+    } catch (_) {}
+    return raw.replace(/臺/g, '台').replace(/[，,、\s]+/g, '');
+  }
+
+  function addressComparisonKey(value) {
+    return cleanMapAddress(value)
+      .replace(/[\s,，、。．·・\-—_()（）]/g, '')
+      .toLocaleLowerCase();
+  }
+
   function currentMode() {
     return new URLSearchParams(location.search).get('mode') || '';
   }
@@ -3322,9 +3359,9 @@ window.GC_FORM_CONFIG = {
     return true;
   }
 
-  function googleMapsUrl() {
-    const pickup = trim(qs('pickup')?.value);
-    const destination = trim(qs('destination')?.value);
+  function googleMapsUrl(pickupValue = '', destinationValue = '') {
+    const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
+    const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
     if (!pickup || !destination) return '';
 
     const base = trim(cfg()['Google地圖路線網址']) || 'https://www.google.com/maps/dir/?api=1';
@@ -3362,18 +3399,41 @@ window.GC_FORM_CONFIG = {
   }
 
   function openMaps() {
-    const missingPickup = !trim(qs('pickup')?.value);
-    const missingDestination = !trim(qs('destination')?.value);
-    // 地址在自助試算不是強制欄位；只有按「查看 Google 地圖」這個動作時才需要。
-    // R6 直接把缺少欄位紅框並顯示短提示，不再占用大面積提示區。
+    const pickupInput = qs('pickup');
+    const destinationInput = qs('destination');
+    const pickup = cleanMapAddress(pickupInput?.value);
+    const destination = cleanMapAddress(destinationInput?.value);
+    if (pickupInput && pickup && pickupInput.value !== pickup) pickupInput.value = pickup;
+    if (destinationInput && destination && destinationInput.value !== destination) destinationInput.value = destination;
+
+    const missingPickup = !pickup;
+    const missingDestination = !destination;
+    // 地址在自助試算不是強制欄位；只有按「開啟 Google 地圖」時才需要。
     if (missingPickup || missingDestination) {
       showRouteAddressGuidance('map', missingPickup, missingDestination);
       return;
     }
+
+    const sameAddress = addressComparisonKey(pickup) && addressComparisonKey(pickup) === addressComparisonKey(destination);
+    if (sameAddress) {
+      setFieldError('pickup', '');
+      setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
+      clearRouteAddressGuidance();
+      requestAnimationFrame(() => {
+        destinationInput?.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+          try { destinationInput?.focus({ preventScroll: true }); }
+          catch (_) { try { destinationInput?.focus(); } catch (_) {} }
+          setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
+        }, 220);
+      });
+      return;
+    }
+
     setFieldError('pickup', '');
     setFieldError('destination', '');
     clearRouteAddressGuidance();
-    const url = googleMapsUrl();
+    const url = googleMapsUrl(pickup, destination);
     if (!url) return;
     // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();

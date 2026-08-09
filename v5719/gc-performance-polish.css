@@ -902,3 +902,112 @@ body{background:linear-gradient(180deg,#eef5fa 0%,#f7f9fb 205px,#f7f9fb 100%)!im
   .gc-fare-step-kicker span,.gc-fare-calc-kicker span{display:block!important;margin-top:2px!important;text-align:left!important}
 }
 .recent-address-control.is-open{z-index:260!important}
+
+/* GC_MASTER_STABLE_R10K_FINAL_FIELD_FIXES
+   Reliable recent-address sheet + clearer vehicle rule + long-distance benefit + semantic validation priority. */
+
+/* The old inline recent panel is intentionally retired; the trigger stays compact beside the field label. */
+.recent-panel{display:none!important}
+.recent-address-control.is-open{z-index:auto!important}
+body.gc-recent-sheet-open{overflow:hidden!important}
+.gc-recent-sheet-overlay{
+  position:fixed!important;
+  inset:0!important;
+  z-index:16000!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  padding:18px 12px calc(12px + env(safe-area-inset-bottom))!important;
+  background:rgba(12,31,48,.34)!important;
+  backdrop-filter:blur(2px)!important;
+  -webkit-backdrop-filter:blur(2px)!important;
+}
+.gc-recent-sheet-overlay.hidden{display:none!important}
+.gc-recent-sheet{
+  width:min(100%,430px)!important;
+  max-height:min(68vh,520px)!important;
+  overflow:auto!important;
+  padding:9px 12px 12px!important;
+  border:1px solid #d4e0e8!important;
+  border-radius:20px!important;
+  background:#fff!important;
+  box-shadow:0 24px 64px rgba(12,35,55,.24)!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.gc-recent-sheet-handle{width:38px!important;height:4px!important;margin:0 auto 8px!important;border-radius:999px!important;background:#d4dee5!important}
+.gc-recent-sheet-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;padding:3px 2px 10px!important;border-bottom:1px solid #edf1f4!important}
+.gc-recent-sheet-head>div{min-width:0!important}
+.gc-recent-sheet-head strong{display:block!important;font-size:16px!important;line-height:1.35!important;font-weight:750!important;color:#173f5d!important}
+.gc-recent-sheet-head small{display:block!important;margin-top:2px!important;font-size:11.5px!important;line-height:1.4!important;font-weight:500!important;color:#8496a3!important}
+.gc-recent-sheet-close{flex:0 0 34px!important;width:34px!important;height:34px!important;padding:0!important;border:1px solid #dfe7ec!important;border-radius:11px!important;background:#f8fafb!important;color:#617989!important;font-size:15px!important;font-weight:600!important;cursor:pointer!important}
+.gc-recent-sheet-list{display:grid!important;gap:7px!important;padding-top:10px!important}
+.gc-recent-sheet-row{display:grid!important;grid-template-columns:minmax(0,1fr) 54px!important;gap:7px!important;align-items:stretch!important}
+.gc-recent-sheet-use{min-width:0!important;min-height:48px!important;padding:10px 11px!important;border:1px solid #dbe5eb!important;border-radius:12px!important;background:#fbfcfd!important;color:#173f5d!important;text-align:left!important;font-size:14px!important;line-height:1.45!important;font-weight:600!important;cursor:pointer!important}
+.gc-recent-sheet-use span{display:block!important;overflow-wrap:anywhere!important;word-break:break-word!important}
+.gc-recent-sheet-delete{min-height:48px!important;padding:8px 6px!important;border:1px solid #edd4cf!important;border-radius:12px!important;background:#fff7f5!important;color:#93483f!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important}
+.gc-recent-sheet-clear{display:block!important;width:100%!important;min-height:42px!important;margin-top:9px!important;padding:8px 10px!important;border:1px solid #d5e0e7!important;border-radius:11px!important;background:#f7fafc!important;color:#60798a!important;font-size:12.5px!important;font-weight:650!important;cursor:pointer!important}
+@media(max-width:360px){
+  .gc-recent-sheet-overlay{padding-left:9px!important;padding-right:9px!important}
+  .gc-recent-sheet{border-radius:18px!important;padding-left:10px!important;padding-right:10px!important}
+  .gc-recent-sheet-row{grid-template-columns:minmax(0,1fr) 50px!important;gap:6px!important}
+  .gc-recent-sheet-use{font-size:13.5px!important;padding-left:9px!important;padding-right:9px!important}
+}
+
+/* Expanded vehicle disclosure: the rule is a clear pale-gold title band, prices stay neutral below. */
+.gc-vehicle-info-lead,
+.gc-call-needs-box[open] .gc-vehicle-info-lead{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.55fr)!important;
+  gap:10px!important;
+  margin:0 0 6px!important;
+  padding:9px 10px!important;
+  border:1px solid #ead6a0!important;
+  border-radius:10px!important;
+  background:#fff9eb!important;
+  box-shadow:inset 3px 0 0 #d2aa4f!important;
+}
+.gc-vehicle-info-lead strong{font-weight:760!important;color:#684d18!important}
+.gc-vehicle-info-lead span{font-weight:550!important;color:#79663e!important}
+.gc-vehicle-price-list{margin-top:1px!important}
+
+/* Long-distance direct-pay advantage: benefit callout, not a warning. */
+.gc-rate-long-benefit{
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  margin-top:9px!important;
+  padding:10px 11px!important;
+  border:1px solid #d4e4ee!important;
+  border-radius:11px!important;
+  background:#f2f8fc!important;
+}
+.gc-rate-long-benefit>span{
+  flex:0 0 auto!important;
+  padding:3px 7px!important;
+  border-radius:7px!important;
+  background:#e0eef7!important;
+  color:#2d6488!important;
+  font-size:11.5px!important;
+  line-height:1.2!important;
+  font-weight:750!important;
+}
+.gc-rate-long-benefit>strong{min-width:0!important;color:#174b70!important;font-size:14px!important;line-height:1.45!important;font-weight:750!important}
+@media(max-width:360px){.gc-rate-long-benefit{align-items:flex-start!important}.gc-rate-long-benefit>strong{font-size:13.3px!important}}
+
+/* Invalid beats focus, always. This block is deliberately last to win every earlier focus patch. */
+.field.gc-validation-error>.input,
+.field.gc-validation-error>.input.invalid,
+.field.gc-validation-error>.input:focus,
+.field.gc-validation-error>.input:focus-visible,
+.field.gc-validation-error>textarea,
+.field.gc-validation-error>textarea:focus,
+.field.gc-validation-error>textarea:focus-visible,
+.gc-fare-route-fields .field.gc-validation-error.gc-primary-address>.input,
+.gc-fare-route-fields .field.gc-validation-error.gc-primary-address>.input:focus,
+.gc-fare-route-fields .field.gc-validation-error.gc-primary-address>.input:focus-visible{
+  border-color:#c83b32!important;
+  background:#fffafa!important;
+  box-shadow:0 0 0 3px rgba(180,35,24,.11)!important;
+  outline:none!important;
+}
+

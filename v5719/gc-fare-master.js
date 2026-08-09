@@ -55,6 +55,23 @@
   }
   const escapeHtml = text => String(text ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 
+
+  // GC_R10K_MAP_ADDRESS_GUARD: sanitize map addresses exactly like dispatch and compare canonical forms before opening Google Maps.
+  function cleanMapAddress(value) {
+    const raw = trim(value);
+    if (!raw) return '';
+    try {
+      if (typeof window.GC_cleanAddressForExternalUse === 'function') return trim(window.GC_cleanAddressForExternalUse(raw));
+    } catch (_) {}
+    return raw.replace(/臺/g, '台').replace(/[，,、\s]+/g, '');
+  }
+
+  function addressComparisonKey(value) {
+    return cleanMapAddress(value)
+      .replace(/[\s,，、。．·・\-—_()（）]/g, '')
+      .toLocaleLowerCase();
+  }
+
   function currentMode() {
     return new URLSearchParams(location.search).get('mode') || '';
   }
@@ -132,9 +149,9 @@
     return true;
   }
 
-  function googleMapsUrl() {
-    const pickup = trim(qs('pickup')?.value);
-    const destination = trim(qs('destination')?.value);
+  function googleMapsUrl(pickupValue = '', destinationValue = '') {
+    const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
+    const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
     if (!pickup || !destination) return '';
 
     const base = trim(cfg()['Google地圖路線網址']) || 'https://www.google.com/maps/dir/?api=1';
@@ -172,18 +189,41 @@
   }
 
   function openMaps() {
-    const missingPickup = !trim(qs('pickup')?.value);
-    const missingDestination = !trim(qs('destination')?.value);
-    // 地址在自助試算不是強制欄位；只有按「查看 Google 地圖」這個動作時才需要。
-    // R6 直接把缺少欄位紅框並顯示短提示，不再占用大面積提示區。
+    const pickupInput = qs('pickup');
+    const destinationInput = qs('destination');
+    const pickup = cleanMapAddress(pickupInput?.value);
+    const destination = cleanMapAddress(destinationInput?.value);
+    if (pickupInput && pickup && pickupInput.value !== pickup) pickupInput.value = pickup;
+    if (destinationInput && destination && destinationInput.value !== destination) destinationInput.value = destination;
+
+    const missingPickup = !pickup;
+    const missingDestination = !destination;
+    // 地址在自助試算不是強制欄位；只有按「開啟 Google 地圖」時才需要。
     if (missingPickup || missingDestination) {
       showRouteAddressGuidance('map', missingPickup, missingDestination);
       return;
     }
+
+    const sameAddress = addressComparisonKey(pickup) && addressComparisonKey(pickup) === addressComparisonKey(destination);
+    if (sameAddress) {
+      setFieldError('pickup', '');
+      setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
+      clearRouteAddressGuidance();
+      requestAnimationFrame(() => {
+        destinationInput?.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => {
+          try { destinationInput?.focus({ preventScroll: true }); }
+          catch (_) { try { destinationInput?.focus(); } catch (_) {} }
+          setFieldError('destination', cfg()['錯誤_相同地址'] || '上下車地址不能相同，請確認目的地。');
+        }, 220);
+      });
+      return;
+    }
+
     setFieldError('pickup', '');
     setFieldError('destination', '');
     clearRouteAddressGuidance();
-    const url = googleMapsUrl();
+    const url = googleMapsUrl(pickup, destination);
     if (!url) return;
     // GC_R10J_FARE_DO_NOT_WRITE_RECENTS: 車資試算查看 Google 路線不寫入最近使用地址。
     saveDraft();
