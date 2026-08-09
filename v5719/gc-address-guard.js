@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  // GC_ADDRESS_GUARD_R10W
+  // GC_ADDRESS_GUARD_R10Y
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -10,7 +10,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10w-address-guard-20260810';
+  const VERSION = 'r10y-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -21,7 +21,6 @@
   const COUNTRY_RE = /^(?:台灣|臺灣|Taiwan|TWN)$/i;
   const DISTRICT_RE = /^[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/;
   const ROAD_RE = /(?:路|街|道|大道|巷|弄)/;
-  const ARCGIS_HOST_RE = /(?:^|\.)geocode(?:-api)?\.arcgis\.com$/i;
 
   const compact = value => String(value ?? '')
     .replace(/臺/g, '台')
@@ -31,6 +30,14 @@
     .trim();
 
   const noSpace = value => compact(value).replace(/[，,、\s]+/g, '');
+
+  // R10X: ArcGIS can prefix a Taiwan postal code before an otherwise valid address,
+  // e.g. "413 台中市 霧峰區, 六股路138號". Strip it only when a recognized
+  // Taiwan county/city follows, so real house numbers such as "43 自由路二段" stay intact.
+  const TAIWAN_ADMIN_PREFIX_RE = new RegExp(`^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\\s*[,，、]?\\s*(?=(?:${COUNTIES.join('|')}))`);
+  function stripLeadingTaiwanPostalPrefix(value) {
+    return compact(value).replace(TAIWAN_ADMIN_PREFIX_RE, '');
+  }
 
   function samePart(a, b) {
     const x = noSpace(a);
@@ -79,7 +86,7 @@
   }
 
   function parseCommaLabel(value) {
-    const raw = compact(value);
+    const raw = stripLeadingTaiwanPostalPrefix(value);
     if (!raw) return null;
     const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
     if (tokens.length < 2) return null;
@@ -194,8 +201,26 @@
   }
 
   function canonicalTaiwanAddress(value, attrs = {}) {
-    const raw = compact(value);
+    const raw = stripLeadingTaiwanPostalPrefix(value);
     if (!raw) return '';
+
+    // Fast path for provider labels already starting with county/city, with or without spaces:
+    // "台中市 霧峰區, 六股路138號" / "台中市霧峰區,六股路138號".
+    // This also keeps postal-prefix cleanup deterministic before the more permissive parser.
+    const leadingCounty = COUNTIES.find(county => noSpace(raw).startsWith(noSpace(county))) || '';
+    if (leadingCounty) {
+      const countyIndex = compact(raw).indexOf(leadingCounty);
+      const rest = compact(raw).slice(countyIndex + leadingCounty.length).trim();
+      const adminMatch = rest.match(/^([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))\s*[,，、]?\s*(.+)$/);
+      if (adminMatch) {
+        const district = compact(adminMatch[1]);
+        const detail = normalizeStreetToken(adminMatch[2]);
+        if (detail) {
+          const direct = noSpace(`${leadingCounty}${district}${detail}`);
+          if (!isStructurallyCorruptAddress(direct)) return direct;
+        }
+      }
+    }
 
     const structured = structuredParts(attrs, raw);
     let { county, district, detail } = structured;
@@ -221,83 +246,27 @@
     return isStructurallyCorruptAddress(result) ? '' : result;
   }
 
-  function normalizeSuggestPayload(data) {
-    if (!data || !Array.isArray(data.suggestions)) return data;
-    data.suggestions = data.suggestions.map(item => {
-      if (!item || typeof item !== 'object' || !item.text) return item;
-      const safe = canonicalTaiwanAddress(item.text);
-      return safe ? { ...item, text: safe } : item;
-    });
-    return data;
+  // GC_MASTER_STABLE_2026_08R10Y_MAGICKEY_INTEGRITY
+  // IMPORTANT: ArcGIS /suggest returns text + magicKey as a linked pair. Never rewrite
+  // suggestion.text at the fetch boundary. The UI may display a cleaned copy, but
+  // findAddressCandidates must receive the untouched provider text with its magicKey.
+  // Candidate payloads are also kept raw; canonical Taiwan formatting happens only
+  // after the app has received the candidate and structured address attributes.
+
+  function unmistakableProviderArtifact(value) {
+    const raw = compact(value);
+    if (!raw) return false;
+    if (TAIWAN_ADMIN_PREFIX_RE.test(raw)) return true;
+    if (isStructurallyCorruptAddress(raw)) return true;
+    const hasCounty = Boolean(countyFrom(raw));
+    return hasCounty && /[,，、]/.test(raw);
   }
 
-  function normalizeCandidatePayload(data) {
-    if (!data || !Array.isArray(data.candidates)) return data;
-    data.candidates = data.candidates.map(candidate => {
-      if (!candidate || typeof candidate !== 'object') return candidate;
-      const attrs = candidate.attributes && typeof candidate.attributes === 'object' ? { ...candidate.attributes } : {};
-      const raw = attrs.Match_addr || candidate.address || attrs.LongLabel || attrs.ShortLabel || '';
-      const safe = canonicalTaiwanAddress(raw, attrs);
-      if (!safe) return candidate;
-      attrs.Match_addr = safe;
-      attrs.LongLabel = safe;
-      // ShortLabel is allowed to stay short for UI, but keeping it safe avoids a fallback leak.
-      attrs.ShortLabel = safe;
-      return { ...candidate, address: safe, attributes: attrs };
-    });
-    return data;
-  }
-
-  function enhanceArcgisRequest(input, init) {
-    try {
-      const rawUrl = typeof input === 'string' ? input : input?.url;
-      if (!rawUrl) return { input, init, kind: '' };
-      const url = new URL(rawUrl, location.href);
-      if (!ARCGIS_HOST_RE.test(url.hostname)) return { input, init, kind: '' };
-      const path = url.pathname.toLowerCase();
-      let kind = '';
-      if (path.endsWith('/suggest')) kind = 'suggest';
-      else if (path.endsWith('/findaddresscandidates')) kind = 'candidate';
-      else return { input, init, kind: '' };
-
-      if (kind === 'candidate') {
-        const requested = new Set((url.searchParams.get('outFields') || '').split(',').map(v => v.trim()).filter(Boolean));
-        ['Addr_type','Match_addr','ShortLabel','LongLabel','MatchID','City','District','Region','Subregion','StName','AddNum','Address','PlaceName']
-          .forEach(field => requested.add(field));
-        url.searchParams.set('outFields', [...requested].join(','));
-      }
-
-      if (typeof input === 'string') return { input: url.toString(), init, kind };
-      // Request objects are uncommon in this app. Avoid reconstructing one unless needed.
-      return { input, init, kind };
-    } catch (_) {
-      return { input, init, kind: '' };
-    }
-  }
-
-  const nativeFetch = window.fetch?.bind(window);
-  if (nativeFetch) {
-    window.fetch = async function gcAddressGuardFetch(input, init) {
-      const enhanced = enhanceArcgisRequest(input, init);
-      const response = await nativeFetch(enhanced.input, enhanced.init);
-      if (!enhanced.kind || !response?.ok) return response;
-
-      try {
-        const data = await response.clone().json();
-        const transformed = enhanced.kind === 'suggest'
-          ? normalizeSuggestPayload(data)
-          : normalizeCandidatePayload(data);
-        const headers = new Headers(response.headers);
-        headers.set('content-type', 'application/json; charset=utf-8');
-        return new Response(JSON.stringify(transformed), {
-          status: response.status,
-          statusText: response.statusText,
-          headers
-        });
-      } catch (_) {
-        return response;
-      }
-    };
+  function sanitizeStoredValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (!unmistakableProviderArtifact(raw)) return raw;
+    return canonicalTaiwanAddress(raw) || '';
   }
 
   function purgeKnownCorruption() {
@@ -306,8 +275,8 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const clean = parsed.filter(item => !isStructurallyCorruptAddress(item));
-          if (clean.length !== parsed.length) localStorage.setItem('gc_recent_addresses_v1', JSON.stringify(clean));
+          const clean = parsed.map(sanitizeStoredValue).filter(Boolean);
+          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_recent_addresses_v1', JSON.stringify(clean));
         }
       }
     } catch (_) {}
@@ -317,8 +286,14 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const clean = parsed.filter(item => item && !isStructurallyCorruptAddress(item.pickup) && !isStructurallyCorruptAddress(item.destination));
-          if (clean.length !== parsed.length) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
+          const clean = parsed.map(item => {
+            if (!item || typeof item !== 'object') return null;
+            const pickup = sanitizeStoredValue(item.pickup);
+            const destination = sanitizeStoredValue(item.destination);
+            if (!pickup || !destination) return null;
+            return { ...item, pickup, destination };
+          }).filter(Boolean);
+          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
         }
       }
     } catch (_) {}
@@ -360,6 +335,7 @@
   // Exposed only for regression diagnostics. No customer data is stored or transmitted.
   window.GC_ADDRESS_GUARD = Object.freeze({
     version: VERSION,
+    stripLeadingTaiwanPostalPrefix,
     canonicalTaiwanAddress,
     isStructurallyCorruptAddress
   });
