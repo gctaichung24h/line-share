@@ -365,7 +365,7 @@
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '指定車型・5人以上・寵物';
+      summary.textContent = '指定車型・5人以上・寵物・行李';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {

@@ -4578,3 +4578,114 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .gc-call-needs-box .optional-content{animation:none!important}
 }
 
+
+/* GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
+   Keep dispatch-critical needs visible in the collapsed title (including luggage), and give the
+   expanded fare-rate information its own calm inner card instead of blending into the page surface.
+   Layout remains content-driven: no fixed heights, safe under narrow screens and text enlargement. */
+.gc-call-needs-box>summary{
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:8px!important;
+  padding:8px 10px!important;
+}
+.gc-call-needs-box>summary .gc-small-disclosure-trigger{
+  position:static!important;
+  top:auto!important;
+  right:auto!important;
+  transform:none!important;
+  justify-self:end!important;
+  align-self:center!important;
+  width:auto!important;
+  max-width:100%!important;
+  min-width:52px!important;
+  min-height:32px!important;
+  height:auto!important;
+  white-space:nowrap!important;
+}
+.gc-fare-rates[open]{
+  background:#f3f7f9!important;
+}
+.gc-fare-rates[open]>.gc-fare-rates-summary{
+  background:#fbfcfd!important;
+  border-bottom:1px solid #e1e9ee!important;
+}
+.gc-fare-rates-summary{
+  position:relative!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  column-gap:10px!important;
+  row-gap:2px!important;
+  padding-right:34px!important;
+}
+.gc-fare-rates-summary::after{
+  position:absolute!important;
+  right:12px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+}
+.gc-fare-rates-summary>span{
+  flex:0 0 auto!important;
+  white-space:nowrap!important;
+}
+.gc-fare-rates-summary>small{
+  min-width:96px!important;
+  flex:1 1 108px!important;
+  margin-left:auto!important;
+  text-align:right!important;
+}
+.gc-fare-rates[open]>.gc-fare-rates-content{
+  box-sizing:border-box!important;
+  margin:12px!important;
+  padding:13px 14px 14px!important;
+  border:1px solid #d6e2e9!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 4px 14px rgba(24,72,108,.035)!important;
+  overflow:hidden!important;
+}
+.gc-fare-rates[open] .gc-rate-section{
+  padding-top:0!important;
+}
+.gc-fare-rates[open] .gc-rate-section+.gc-rate-section{
+  margin-top:11px!important;
+  padding-top:13px!important;
+  border-top:1px solid #e5edf2!important;
+}
+.gc-fare-rates[open] .gc-rate-section-title{
+  margin-bottom:7px!important;
+}
+.gc-fare-rates[open] .gc-rate-long-benefit{
+  margin-top:12px!important;
+}
+@media(max-width:360px){
+  .gc-call-needs-box>summary{
+    column-gap:6px!important;
+    padding-left:9px!important;
+    padding-right:9px!important;
+  }
+  .gc-fare-rates[open]>.gc-fare-rates-content{
+    margin:9px!important;
+    padding:11px 11px 12px!important;
+    border-radius:13px!important;
+  }
+  .gc-fare-rates[open] .gc-rate-section+.gc-rate-section{
+    margin-top:9px!important;
+    padding-top:11px!important;
+  }
+}
+@media(max-width:330px){
+  .gc-call-needs-box>summary{
+    column-gap:5px!important;
+    padding-left:8px!important;
+    padding-right:8px!important;
+  }
+  .gc-fare-rates[open]>.gc-fare-rates-content{
+    margin:8px!important;
+    padding:10px!important;
+  }
+}
+
