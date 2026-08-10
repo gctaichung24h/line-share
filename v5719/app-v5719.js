@@ -1,9 +1,10 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9s';
+  const GC_BUILD_VERSION = 'master202608r10z9t';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
+  // GC_MASTER_STABLE_2026_08R10Z9T_Z9I_BASELINE_PREMIUM_FIXLIST
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -3235,7 +3236,6 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
-          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-arrow">⌄</span></b>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -3502,27 +3502,6 @@
     });
   }
 
-  function bindCompactDisclosureStates() {
-    document.querySelectorAll('details.gc-fare-rates, details.gc-fare-manual-details').forEach(details => {
-      const summary = details.querySelector(':scope > summary');
-      if (!summary) return;
-      let state = summary.querySelector('.gc-compact-disclosure-state');
-      if (!state) {
-        state = document.createElement('b');
-        state.className = 'gc-compact-disclosure-state';
-        state.setAttribute('aria-hidden', 'true');
-        state.innerHTML = '<span class="gc-disclosure-arrow">⌄</span>';
-        summary.appendChild(state);
-      }
-      const arrow = state.querySelector('.gc-disclosure-arrow');
-      if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
-      if (details.dataset.gcCompactStateBound !== '1') {
-        details.dataset.gcCompactStateBound = '1';
-        details.addEventListener('toggle', () => bindCompactDisclosureStates());
-      }
-    });
-  }
-
   function bindSmallDisclosureTriggers() {
     installManagedDisclosureBehavior();
     document.querySelectorAll('details.optional-box:not(.favorite-box)').forEach(details => {
@@ -3550,9 +3529,7 @@
         details.addEventListener('toggle', sync);
       }
     });
-    bindCompactDisclosureStates();
   }
-  window.GC_bindCompactDisclosureStates = bindCompactDisclosureStates;
   window.GC_bindSmallDisclosureTriggers = bindSmallDisclosureTriggers;
   window.GC_installManagedDisclosureBehavior = installManagedDisclosureBehavior;
 
