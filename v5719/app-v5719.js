@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9f';
+  const GC_BUILD_VERSION = 'master202608r10z9g';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
@@ -1153,6 +1153,23 @@
     return Boolean(core.county && core.district && core.road && core.house);
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z9G_FIXED_LANDMARK_FAST_PASS
+  // Only explicit, operationally unique aliases are allowed. Never treat generic words such as
+  // 「高鐵」「高鐵站」「機場」「清泉崗」alone as a verified pickup point.
+  const FIXED_DISPATCH_LANDMARKS = [
+    { id: 'thsr-taichung', label: '高鐵台中站', aliases: ['台中高鐵','臺中高鐵','台中高鐵站','臺中高鐵站','高鐵台中','高鐵臺中','高鐵台中站','高鐵臺中站'] },
+    { id: 'taichung-airport', label: '臺中國際機場', aliases: ['台中機場','臺中機場','台中國際機場','臺中國際機場','清泉崗機場','台中清泉崗機場','臺中清泉崗機場'] }
+  ];
+  const FIXED_DISPATCH_LANDMARK_KEYS = new Map(
+    FIXED_DISPATCH_LANDMARKS.flatMap(item => item.aliases.map(alias => [
+      normalizeAddress(alias).replace(/[\s　,，、。．.・·／/\-]/g, '').toLowerCase(), item
+    ]))
+  );
+  function fixedDispatchLandmark(value) {
+    const key = normalizeAddress(value).replace(/[\s　,，、。．.・·／/\-]/g, '').toLowerCase();
+    return key ? (FIXED_DISPATCH_LANDMARK_KEYS.get(key) || null) : null;
+  }
+
   function isBroadRoadOnlyAddress(value) {
     const detail = addressDetailOnly(value);
     if (!detail) return true;
@@ -1174,6 +1191,7 @@
 
   function isLocallyDispatchReady(value) {
     const normalized = smartNormalizeTaiwanAddress(value);
+    if (fixedDispatchLandmark(normalized)) return true;
     if (!normalized || isBroadRoadOnlyAddress(normalized) || isGenericAreaText(normalized)) return false;
     // Local syntax may self-validate only when it is objectively precise. POIs/shops/stations are
     // validated by ArcGIS or by an explicit suggestion selection, not by a broad text-shape guess.
@@ -1516,6 +1534,14 @@
 
     if (isAddressVerified(input)) return true;
 
+    const fixedLandmark = fixedDispatchLandmark(normalized);
+    if (fixedLandmark) {
+      markAddressVerified(input, `fixed-landmark:${fixedLandmark.id}`, fixedLandmark.label);
+      hideAddressSuggestions(id);
+      clearFieldValidation(id);
+      return true;
+    }
+
     // GC_MASTER_STABLE_2026_08R10Z1_MANUAL_COMPLETE_FIRST
     // A complete Taiwan ground address is accepted LOCALLY before any network call.
     // Contract: county/city + district/township + road/street/avenue + door number.
@@ -1665,6 +1691,16 @@
         input.classList.remove('gc-address-needs-choice');
         const query = normalizeAddress(input.value);
         if (query.length < 2 || query === LOCATION_MARKER) {
+          hideAddressSuggestions(id);
+          return;
+        }
+
+        // R10Z9G: exact Taichung HSR / Taichung Airport aliases are already dispatch-unique.
+        // Verify immediately and skip ArcGIS entirely so daily orders are never blocked by network/POI availability.
+        const fixedLandmark = fixedDispatchLandmark(query);
+        if (fixedLandmark) {
+          markAddressVerified(input, `fixed-landmark:${fixedLandmark.id}`, fixedLandmark.label);
+          clearFieldValidation(id);
           hideAddressSuggestions(id);
           return;
         }
