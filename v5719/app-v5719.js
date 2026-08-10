@@ -1,9 +1,10 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9i';
+  const GC_BUILD_VERSION = 'master202608r10z9j';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
+  // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -3221,7 +3222,6 @@
     const rules = fareRules(cfg);
     const allDay = cfg['費率_全天同價文案'] || '24H同一費率｜無夜間加成';
     const allDayParts = allDay.split('｜').map(item => item.trim()).filter(Boolean);
-    const allDayShort = allDayParts[0] || '24H同一費率';
     const longText = `長途超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里另有直收優惠價`;
     const baseRows = [
       ['起跳', `$${formatFareRuleValue(rules.start)}`],
@@ -3235,7 +3235,6 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
-          <small>${escapeHtml(allDayShort)}｜最低 $${escapeHtml(formatFareRuleValue(rules.minimum))}</small>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
