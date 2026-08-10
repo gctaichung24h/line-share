@@ -456,7 +456,7 @@ window.GC_FORM_CONFIG = {
                    "缺少傳送權限提醒":  "此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。",
                    "訊息欄位符號":  "•",
                    "最近地址標題":  "最近地址",
-                   "最近地址按鈕":  "最近",
+                   "最近地址按鈕":  "最近地址",
                    "最近地址刪除":  "刪除",
                    "最近地址清除全部":  "清除全部",
                    "最近地址清除確認":  "確定要清除全部最近地址嗎？",
@@ -480,8 +480,8 @@ window.GC_FORM_CONFIG = {
                    "常用行程儲存成功":  "常用行程已儲存。",
                    "常用行程重複":  "此行程已儲存於常用行程。",
                    "常用行程清除確認":  "確定要清除全部常用行程嗎？",
-                   "定位按鈕":  "📍 使用目前位置",
-                   "定位重新取得":  "📍 重新取得位置",
+                   "定位按鈕":  "📍 目前位置",
+                   "定位重新取得":  "📍 目前位置",
                    "定位取得中":  "正在取得定位…",
                    "定位權限提醒":  "請允許手機存取目前位置。",
                    "定位成功":  "定位已取得，請確認上車地址。",
@@ -672,7 +672,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9q';
+  const GC_BUILD_VERSION = 'master202608r10z9s';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -938,7 +938,7 @@ window.GC_FORM_CONFIG = {
         <div class="gc-address-suggest hidden" id="${id}Suggest" role="listbox" aria-label="地址建議"></div>
         ${allowLocation ? `
           <div class="location-action hidden" id="locationAction">
-            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 使用目前位置')}</button>
+            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 目前位置')}</button>
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
@@ -952,7 +952,7 @@ window.GC_FORM_CONFIG = {
         <div class="recent-address-control hidden" data-target="${id}">
           <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
-            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近')}</span>
+            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
@@ -2836,7 +2836,7 @@ window.GC_FORM_CONFIG = {
     const button = document.getElementById('locationBtn');
     if (button) {
       button.disabled = false;
-      button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+      button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
     }
   }
 
@@ -3068,7 +3068,7 @@ window.GC_FORM_CONFIG = {
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
-        button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
+        button.textContent = COMMON['定位重新取得'] || '📍 目前位置';
 
         if (!canSendMap) {
           attachedLocation.settingInput = true;
@@ -3155,7 +3155,7 @@ window.GC_FORM_CONFIG = {
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
-        button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+        button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
       }
     });
     updateLocationVisibility();
@@ -3907,7 +3907,7 @@ window.GC_FORM_CONFIG = {
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
-          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>
+          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-arrow">⌄</span></b>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -4183,12 +4183,10 @@ window.GC_FORM_CONFIG = {
         state = document.createElement('b');
         state.className = 'gc-compact-disclosure-state';
         state.setAttribute('aria-hidden', 'true');
-        state.innerHTML = '<span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span>';
+        state.innerHTML = '<span class="gc-disclosure-arrow">⌄</span>';
         summary.appendChild(state);
       }
-      const label = state.querySelector('.gc-disclosure-label');
       const arrow = state.querySelector('.gc-disclosure-arrow');
-      if (label) label.textContent = details.open ? '收合' : '展開';
       if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
       if (details.dataset.gcCompactStateBound !== '1') {
         details.dataset.gcCompactStateBound = '1';
@@ -5666,7 +5664,7 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong></span><b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] || '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-arrow">⌄</span></b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -5677,7 +5675,7 @@ window.GC_FORM_CONFIG = {
       const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
       const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
       const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
-      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p>`;
+      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
       extra.innerHTML = '';

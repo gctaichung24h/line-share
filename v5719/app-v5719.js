@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9q';
+  const GC_BUILD_VERSION = 'master202608r10z9s';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -266,7 +266,7 @@
         <div class="gc-address-suggest hidden" id="${id}Suggest" role="listbox" aria-label="地址建議"></div>
         ${allowLocation ? `
           <div class="location-action hidden" id="locationAction">
-            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 使用目前位置')}</button>
+            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 目前位置')}</button>
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
@@ -280,7 +280,7 @@
         <div class="recent-address-control hidden" data-target="${id}">
           <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
-            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近')}</span>
+            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
@@ -2164,7 +2164,7 @@
     const button = document.getElementById('locationBtn');
     if (button) {
       button.disabled = false;
-      button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+      button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
     }
   }
 
@@ -2396,7 +2396,7 @@
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
-        button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
+        button.textContent = COMMON['定位重新取得'] || '📍 目前位置';
 
         if (!canSendMap) {
           attachedLocation.settingInput = true;
@@ -2483,7 +2483,7 @@
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
-        button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+        button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
       }
     });
     updateLocationVisibility();
@@ -3235,7 +3235,7 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
-          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>
+          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-arrow">⌄</span></b>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -3511,12 +3511,10 @@
         state = document.createElement('b');
         state.className = 'gc-compact-disclosure-state';
         state.setAttribute('aria-hidden', 'true');
-        state.innerHTML = '<span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span>';
+        state.innerHTML = '<span class="gc-disclosure-arrow">⌄</span>';
         summary.appendChild(state);
       }
-      const label = state.querySelector('.gc-disclosure-label');
       const arrow = state.querySelector('.gc-disclosure-arrow');
-      if (label) label.textContent = details.open ? '收合' : '展開';
       if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
       if (details.dataset.gcCompactStateBound !== '1') {
         details.dataset.gcCompactStateBound = '1';
