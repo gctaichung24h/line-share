@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9d';
+  const GC_BUILD_VERSION = 'master202608r10z9e';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
@@ -2535,6 +2535,7 @@
 
   let activeRecentTargetId = '';
   let activeRecentControl = null;
+  let activeRecentPanel = null;
   let recentManagementOpen = false;
 
   // GC_MASTER_STABLE_2026_08R10M_RECENT_QUICK_PICKER
@@ -2578,70 +2579,107 @@
   }
 
   // GC_MASTER_STABLE_2026_08R10Z9D_RECENT_VIEWPORT_SAFE_POPOVER
-  // The recent picker is positioned against the visual viewport and the whole address card,
-  // not against the small toggle button. This prevents left clipping on Display Zoom / Android
-  // font scaling and keeps long addresses inside the phone screen.
+  // GC_MASTER_STABLE_2026_08R10Z9E_RECENT_BODY_PORTAL_POPOVER
+  // The quick recent-address picker is temporarily portaled to <body> and positioned against
+  // the visual viewport. This avoids every form/card stacking context (including progressive
+  // reveal transforms) so later sections and the submit button can never paint over the list.
   function clearRecentQuickPanelInlinePosition(panel) {
     if (!panel) return;
-    ['position','left','right','top','bottom','width','max-width','max-height'].forEach(prop => panel.style.removeProperty(prop));
-    const control = panel.closest('.recent-address-control');
-    control?.style.removeProperty('position');
+    ['position','left','right','top','bottom','width','max-width','max-height','z-index'].forEach(prop => panel.style.removeProperty(prop));
+    panel.classList.remove('gc-recent-portal','is-upward');
+  }
+
+  function bindRecentPortalPanel(panel) {
+    if (!panel || panel.dataset.gcPortalBound === '1') return;
+    panel.dataset.gcPortalBound = '1';
+    panel.addEventListener('click', event => {
+      const useButton = event.target.closest('.recent-use');
+      if (useButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const address = loadRecentAddresses()[Number(useButton.dataset.index)];
+        if (address && activeRecentTargetId) fillRecentAddress(address, activeRecentTargetId);
+        closeRecentQuickPicker();
+        return;
+      }
+      if (event.target.closest('.recent-manage')) {
+        event.preventDefault();
+        event.stopPropagation();
+        const control = activeRecentControl;
+        const targetId = activeRecentTargetId;
+        closeRecentQuickPicker();
+        if (control && targetId) openRecentAddressManagement(control, targetId);
+      }
+    });
   }
 
   function positionRecentQuickPanel(control) {
-    const panel = control?.querySelector('.recent-panel');
-    if (!panel || panel.classList.contains('hidden')) return;
+    const panel = activeRecentPanel || control?.querySelector('.recent-panel');
+    if (!panel || panel.classList.contains('hidden') || !control) return;
     const host = control.closest('.address-field');
     if (!host) return;
     const viewport = window.visualViewport;
+    const viewportLeft = viewport?.offsetLeft || 0;
     const viewportTop = viewport?.offsetTop || 0;
-    const viewportHeight = viewport?.height || window.innerHeight;
-    const viewportBottom = viewportTop + viewportHeight;
     const viewportWidth = viewport?.width || window.innerWidth;
+    const viewportHeight = viewport?.height || window.innerHeight;
+    const viewportRight = viewportLeft + viewportWidth;
+    const viewportBottom = viewportTop + viewportHeight;
     const anchorRect = control.getBoundingClientRect();
     const hostRect = host.getBoundingClientRect();
     const safe = 8;
+    const gap = 8;
     const sideInset = Math.max(8, Math.min(12, hostRect.width * 0.035));
-    const desiredWidth = Math.min(360, Math.max(210, hostRect.width - sideInset * 2), Math.max(0, viewportWidth - safe * 2));
+    const width = Math.min(360, Math.max(210, hostRect.width - sideInset * 2), Math.max(0, viewportWidth - safe * 2));
+    const minLeft = viewportLeft + safe;
+    const maxLeft = Math.max(minLeft, viewportRight - safe - width);
+    const preferredLeft = hostRect.left + sideInset;
+    const left = Math.min(maxLeft, Math.max(minLeft, preferredLeft));
 
-    // The progressive reveal layer may keep a transformed ancestor. A fixed descendant would then
-    // be positioned relative to that ancestor instead of the visual viewport on iOS/WebKit. Anchor
-    // the popover absolutely to the whole address card instead; this is stable under zoom/animation.
-    control.style.setProperty('position', 'static', 'important');
-    panel.classList.remove('is-upward');
-    panel.style.setProperty('position', 'absolute', 'important');
-    panel.style.setProperty('left', `${Math.round(sideInset)}px`, 'important');
+    panel.classList.add('gc-recent-portal');
+    panel.style.setProperty('position', 'fixed', 'important');
+    panel.style.setProperty('left', `${Math.round(left)}px`, 'important');
     panel.style.setProperty('right', 'auto', 'important');
-    panel.style.setProperty('width', `${Math.round(desiredWidth)}px`, 'important');
-    panel.style.setProperty('max-width', `${Math.round(Math.max(0, hostRect.width - sideInset * 2))}px`, 'important');
-
-    // Measure after width is fixed so long addresses wrap before direction/max-height are chosen.
-    const naturalHeight = Math.min(Math.max(panel.scrollHeight || 0, 150), 360);
-    const below = Math.max(0, viewportBottom - anchorRect.bottom - safe);
-    const above = Math.max(0, anchorRect.top - viewportTop - safe);
-    const openUpward = below < Math.min(naturalHeight, 190) && above > below;
-    // Leave a small rendering cushion for borders/margins and fractional CSS pixels so the
-    // panel never touches or crosses the visual viewport edge on WebKit/Display Zoom.
-    const available = Math.max(116, (openUpward ? above : below) - 5);
-    const maxHeight = Math.min(355, available);
-    const anchorTopInHost = anchorRect.top - hostRect.top;
-    const anchorBottomInHost = anchorRect.bottom - hostRect.top;
-    let top = openUpward
-      ? anchorTopInHost - safe - Math.min(naturalHeight, maxHeight)
-      : anchorBottomInHost + safe;
-    if (openUpward) panel.classList.add('is-upward');
-    panel.style.setProperty('top', `${Math.round(top)}px`, 'important');
+    panel.style.setProperty('width', `${Math.round(width)}px`, 'important');
+    panel.style.setProperty('max-width', `${Math.round(Math.max(0, viewportWidth - safe * 2))}px`, 'important');
+    panel.style.setProperty('z-index', '2147483000', 'important');
+    panel.style.setProperty('top', `${Math.round(viewportTop + safe)}px`, 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
+    panel.style.setProperty('max-height', `${Math.round(Math.max(116, viewportHeight - safe * 2))}px`, 'important');
+
+    // Measure only after the final width is applied, so long addresses wrap before we choose
+    // direction. The visual viewport is authoritative when the iOS/Android keyboard changes size.
+    const naturalHeight = Math.min(Math.max(panel.scrollHeight || 0, 150), 380);
+    const below = Math.max(0, viewportBottom - anchorRect.bottom - gap - safe);
+    const above = Math.max(0, anchorRect.top - viewportTop - gap - safe);
+    const openUpward = below < Math.min(naturalHeight, 190) && above > below;
+    const available = Math.max(116, (openUpward ? above : below));
+    const maxHeight = Math.min(360, available);
+    panel.classList.toggle('is-upward', openUpward);
     panel.style.setProperty('max-height', `${Math.round(maxHeight)}px`, 'important');
+
+    // clientHeight reflects max-height clipping. Use it rather than scrollHeight when opening upward.
+    const renderedHeight = Math.min(panel.scrollHeight || naturalHeight, maxHeight);
+    let top = openUpward
+      ? anchorRect.top - gap - renderedHeight
+      : anchorRect.bottom + gap;
+    const minTop = viewportTop + safe;
+    const maxTop = Math.max(minTop, viewportBottom - safe - Math.min(renderedHeight, maxHeight));
+    top = Math.min(maxTop, Math.max(minTop, top));
+    panel.style.setProperty('top', `${Math.round(top)}px`, 'important');
   }
 
   function closeRecentQuickPicker() {
     if (!activeRecentControl || recentManagementOpen) return;
-    activeRecentControl.classList.remove('is-open');
-    activeRecentControl.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
-    const recentPanel = activeRecentControl.querySelector('.recent-panel');
-    recentPanel?.classList.add('hidden');
-    clearRecentQuickPanelInlinePosition(recentPanel);
+    const control = activeRecentControl;
+    const panel = activeRecentPanel || control.querySelector('.recent-panel');
+    control.classList.remove('is-open');
+    control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
+    panel?.classList.add('hidden');
+    clearRecentQuickPanelInlinePosition(panel);
+    // Restore the original DOM shape after closing so legacy refresh/management code remains intact.
+    if (panel && panel.parentElement !== control) control.appendChild(panel);
+    activeRecentPanel = null;
     activeRecentControl = null;
     activeRecentTargetId = '';
   }
@@ -2661,7 +2699,11 @@
     control.classList.add('is-open');
     control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'true');
     const panel = control.querySelector('.recent-panel');
-    panel?.classList.remove('hidden');
+    if (!panel) return;
+    bindRecentPortalPanel(panel);
+    activeRecentPanel = panel;
+    document.body.appendChild(panel);
+    panel.classList.remove('hidden');
     requestAnimationFrame(() => positionRecentQuickPanel(control));
   }
 
@@ -2849,7 +2891,8 @@
       });
       document.addEventListener('click', event => {
         if (recentManagementOpen || !activeRecentControl) return;
-        if (!activeRecentControl.contains(event.target)) closeRecentQuickPicker();
+        if (activeRecentControl.contains(event.target) || activeRecentPanel?.contains(event.target)) return;
+        closeRecentQuickPicker();
       });
       // R10Q: scrolling/dragging inside the recent list is a browse gesture, not a close gesture.
       // The anchored panel naturally moves with its control during page scroll, so keep it open.

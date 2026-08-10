@@ -1694,3 +1694,28 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
   }
 }
 
+
+
+/* GC_MASTER_STABLE_2026_08R10Z9E_RECENT_BODY_PORTAL_LAYER
+   Quick recent-address selection is a real viewport popover: body-level, opaque, and above all
+   form stacking contexts. This specifically prevents vehicle/info/submit sections from painting
+   through the destination recent-address list on iOS/Android WebViews. */
+.recent-panel.gc-recent-portal{
+  display:block!important;
+  position:fixed!important;
+  margin:0!important;
+  z-index:2147483000!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  box-sizing:border-box!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  background:#fbfdff!important;
+  opacity:1!important;
+  isolation:isolate!important;
+  contain:paint!important;
+  pointer-events:auto!important;
+}
+.recent-panel.gc-recent-portal.hidden{display:none!important}
+.recent-panel.gc-recent-portal .recent-use,
+.recent-panel.gc-recent-portal .recent-manage{position:relative!important;z-index:1!important}
