@@ -3235,7 +3235,7 @@ window.GC_FORM_CONFIG = {
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `(${addresses.length})`;
+      if (count) count.textContent = `${addresses.length}`;
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
