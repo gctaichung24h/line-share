@@ -5036,32 +5036,45 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 }
 
 /* GC_MASTER_STABLE_2026_08R10Z9N_SCHEDULE_GEOMETRY_LOCK
-   iOS date/time inputs have different intrinsic min-content widths. Force both grid tracks and
-   native controls to the same box model so the pair remains centered, equal and non-overflowing. */
+   GC_MASTER_STABLE_2026_08R10Z9P_SCHEDULE_CENTER_AND_TIME_PICKER_ANCHOR
+   iOS date/time controls have different intrinsic widths. Flex-basis:0 plus width:0 on both
+   fields prevents the right time control from pushing past the card edge. The visible time box
+   is ordinary read-only text; the native time input is an invisible picker anchor aligned by JS
+   to the date input rectangle, so both native pickers open from the same geometry. */
 .gc-enterprise-flow .gc-flow-schedule{
+  position:relative!important;
+  display:flex!important;
   width:100%!important;
   max-width:100%!important;
-  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
   gap:10px!important;
-  align-items:start!important;
-  justify-items:stretch!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
 }
 .gc-enterprise-flow .gc-flow-schedule>.field{
-  width:100%!important;
+  flex:1 1 0!important;
+  width:0!important;
   min-width:0!important;
-  max-width:100%!important;
+  max-width:none!important;
   margin:0!important;
+  box-sizing:border-box!important;
 }
+.gc-enterprise-flow .gc-flow-schedule>.gc-schedule-time-field{position:static!important}
 .gc-enterprise-flow .gc-flow-schedule>.field>label{
   display:block!important;
   width:100%!important;
   min-width:0!important;
   margin:0 0 7px!important;
+  box-sizing:border-box!important;
 }
-.gc-enterprise-flow .gc-flow-schedule input[type="date"],
-.gc-enterprise-flow .gc-flow-schedule input[type="time"]{
+.gc-enterprise-flow .gc-flow-schedule #date,
+.gc-enterprise-flow .gc-flow-schedule #timeDisplay{
   display:block!important;
   width:100%!important;
+  inline-size:100%!important;
   min-width:0!important;
   max-width:100%!important;
   height:54px!important;
@@ -5071,19 +5084,112 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   box-sizing:border-box!important;
   text-align:center!important;
 }
-.gc-enterprise-flow .gc-flow-schedule input[type="date"]::-webkit-date-and-time-value,
-.gc-enterprise-flow .gc-flow-schedule input[type="time"]::-webkit-date-and-time-value{
+.gc-enterprise-flow .gc-flow-schedule #timeDisplay{
+  cursor:pointer!important;
+  caret-color:transparent!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+}
+.gc-enterprise-flow .gc-flow-schedule #date::-webkit-date-and-time-value{
   width:100%!important;
   min-width:0!important;
   text-align:center!important;
 }
-.gc-enterprise-flow .gc-flow-schedule input[type="date"]::-webkit-datetime-edit,
-.gc-enterprise-flow .gc-flow-schedule input[type="time"]::-webkit-datetime-edit{
+.gc-enterprise-flow .gc-flow-schedule #date::-webkit-datetime-edit{
   min-width:0!important;
   padding:0!important;
 }
+.gc-enterprise-flow .gc-flow-schedule .gc-time-native-proxy{
+  position:absolute!important;
+  left:0;
+  top:0;
+  width:calc((100% - 10px)/2);
+  height:54px;
+  min-width:0!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  opacity:.001!important;
+  pointer-events:none!important;
+  appearance:auto!important;
+  -webkit-appearance:auto!important;
+  box-sizing:border-box!important;
+  z-index:0!important;
+}
+.gc-enterprise-flow .gc-flow-schedule>.field>*:not(.gc-time-native-proxy){position:relative;z-index:1}
+.gc-enterprise-flow .gc-schedule-time-field.gc-validation-error #timeDisplay,
+.gc-enterprise-flow .gc-schedule-time-field #timeDisplay.invalid{
+  border-color:var(--danger)!important;
+  background:#fffafa!important;
+}
 @media(max-width:300px){
-  .gc-enterprise-flow .gc-flow-schedule{grid-template-columns:1fr!important;gap:9px!important}
+  .gc-enterprise-flow .gc-flow-schedule{display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
+  .gc-enterprise-flow .gc-flow-schedule>.field{width:100%!important}
+}
+
+/* GC_MASTER_STABLE_2026_08R10Z9P_FARE_ROUTE_R10Z9K_GEOMETRY_RESTORE
+   Restore only the first "查 Google 路線" block to the R10Z9K geometry. Rates/manual disclosure
+   grouping and all fare/address logic remain untouched. */
+.gc-enterprise-fare .gc-fare-route-step{
+  margin:0 0 13px!important;
+  padding:8px 0 2px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.gc-enterprise-fare .gc-fare-step-kicker{
+  margin:0 0 11px!important;
+  padding:0!important;
+  align-items:baseline!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields{
+  display:block!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  row-gap:0!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address{
+  display:block!important;
+  margin:0 0 15px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address+.gc-primary-address{margin-top:0!important}
+.gc-enterprise-fare .gc-fare-route-fields .gc-primary-address .field-label-row{
+  min-height:0!important;
+  margin:0 0 7px!important;
+  padding:0!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields .gc-primary-address>.input{
+  display:block!important;
+  width:100%!important;
+  min-height:54px!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields .gc-address-suggest.hidden,
+.gc-enterprise-fare .gc-fare-route-fields .error-text:not(.show){display:none!important}
+.gc-enterprise-fare .gc-fare-route-inline{
+  margin:3px 0 10px!important;
+  padding:0!important;
+  line-height:1.45!important;
+  transform:none!important;
+}
+.gc-enterprise-fare .gc-fare-map-btn{
+  min-height:50px!important;
+  margin:0!important;
+  transform:none;
 }
 
 
