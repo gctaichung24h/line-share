@@ -197,3 +197,156 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 @media(min-width:413px){
   .location-confirm-btn{white-space:nowrap!important}
 }
+
+
+/* GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
+   Optional dispatch needs: preserve all fields, but separate them into calm visual groups.
+   No fixed content height; narrow screens and text enlargement reflow instead of clipping. */
+.gc-call-needs-box>summary{
+  min-height:44px!important;
+  padding:8px 72px 8px 12px!important;
+  display:flex!important;
+  align-items:center!important;
+  line-height:1.38!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+.gc-call-needs-box>summary .gc-small-disclosure-trigger{
+  min-height:32px!important;
+  height:32px!important;
+}
+.gc-call-needs-box[open]>summary{
+  background:#fbfcfd!important;
+  border-bottom:1px solid #e2eaef!important;
+}
+.gc-call-needs-box[open] .optional-content.gc-needs-content{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:12px!important;
+  padding:12px!important;
+  border-top:0!important;
+  background:#f2f6f8!important;
+}
+.gc-call-needs-box[open] .gc-needs-group{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:12px!important;
+  min-width:0!important;
+  padding:13px!important;
+  border:1px solid #dbe5eb!important;
+  border-radius:14px!important;
+  background:#fcfdfe!important;
+  box-shadow:0 1px 2px rgba(22,55,80,.025)!important;
+}
+.gc-call-needs-box[open] .gc-needs-group>.field{
+  min-width:0!important;
+  margin:0!important;
+}
+.gc-call-needs-box[open] .gc-needs-group>.field+ .field{
+  padding-top:12px!important;
+  border-top:1px solid #e9eff3!important;
+}
+.gc-call-needs-box[open] .gc-needs-group>.field>label,
+.gc-call-needs-box[open] .gc-needs-group>.field>.field-label{
+  display:block!important;
+  margin:0 0 7px!important;
+  color:#173f5d!important;
+  font-size:clamp(14.6px,4vw,15.3px)!important;
+  line-height:1.4!important;
+  font-weight:700!important;
+  overflow-wrap:anywhere!important;
+}
+.gc-call-needs-box[open] .gc-needs-group .input,
+.gc-call-needs-box[open] .gc-needs-group .gc-select,
+.gc-call-needs-box[open] .gc-needs-group textarea{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-info-disclosure{
+  margin-top:9px!important;
+  padding-top:8px!important;
+  border-top:1px solid #e9eff3!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-info-disclosure>summary{
+  min-height:34px!important;
+  padding:4px 2px!important;
+  color:#60798a!important;
+  font-size:12.8px!important;
+  line-height:1.35!important;
+  font-weight:650!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-info-disclosure-body{
+  margin-top:7px!important;
+  padding:10px!important;
+  border:1px solid #d6e2e9!important;
+  border-radius:13px!important;
+  background:#edf3f7!important;
+  box-shadow:none!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead{
+  grid-template-columns:minmax(0,112px) minmax(0,1fr)!important;
+  gap:10px!important;
+  min-height:0!important;
+  margin:0 0 9px!important;
+  padding:11px 12px!important;
+  border:1px solid #e7d49d!important;
+  border-radius:11px!important;
+  background:#fff9e9!important;
+  box-shadow:none!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list{
+  margin:0!important;
+  padding:2px 10px!important;
+  border:1px solid #d6e1e8!important;
+  border-radius:11px!important;
+  background:#fff!important;
+  overflow:hidden!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list>div{
+  min-height:39px!important;
+  padding:7px 3px!important;
+  gap:10px!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list span,
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list b{
+  overflow-wrap:anywhere!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row .choice,
+.gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row .choice span{
+  min-width:0!important;
+  width:100%!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row .choice span{
+  white-space:normal!important;
+  text-align:center!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--extra textarea{
+  min-height:78px!important;
+  resize:vertical!important;
+}
+@media(max-width:380px){
+  .gc-call-needs-box>summary{padding-left:11px!important;padding-right:66px!important;font-size:14.2px!important}
+  .gc-call-needs-box[open] .optional-content.gc-needs-content{gap:10px!important;padding:10px!important}
+  .gc-call-needs-box[open] .gc-needs-group{gap:10px!important;padding:11px!important;border-radius:13px!important}
+  .gc-call-needs-box[open] .gc-needs-group>.field+ .field{padding-top:10px!important}
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead{grid-template-columns:minmax(0,100px) minmax(0,1fr)!important;padding:10px!important;gap:8px!important}
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list{padding-inline:8px!important}
+}
+@media(max-width:340px){
+  .gc-call-needs-box>summary{padding-right:62px!important;font-size:13.8px!important}
+  .gc-call-needs-box[open] .optional-content.gc-needs-content{padding:8px!important}
+  .gc-call-needs-box[open] .gc-needs-group{padding:10px!important}
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead{grid-template-columns:minmax(0,1fr)!important}
+  .gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .gc-call-needs-box[open] .gc-needs-group--people .gc-pet-row .choice:last-child{grid-column:1/-1!important}
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-price-list>div{flex-wrap:wrap!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .gc-call-needs-box .optional-content{animation:none!important}
+}

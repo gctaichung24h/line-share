@@ -321,16 +321,32 @@
     field.querySelectorAll('input').forEach(input => input.addEventListener('change', updateNotices));
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
+  // Client-side layout only: group optional dispatch needs visually without changing field IDs, values,
+  // confirmation logic, or LINE dispatch message order.
+  function ensureNeedsGroup(content, className, ariaLabel) {
+    if (!content) return null;
+    let group = content.querySelector(`.${className}`);
+    if (!group) {
+      group = document.createElement('div');
+      group.className = `gc-needs-group ${className}`;
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', ariaLabel);
+      content.appendChild(group);
+    }
+    return group;
+  }
+
   function forcePassengerPublicPosition() {
     if (!isCall) return;
     const passenger = fieldById('passengers');
-    const vehicle = document.getElementById('gcVehicle')?.closest('.field');
     const details = [...document.querySelectorAll('details.optional-box')].find(d => d.id !== 'favoriteTripsBox');
     const content = details?.querySelector('.optional-content');
     if (!passenger || !content) return;
     passenger.classList.add('gc-passenger-public');
-    if (passenger.parentElement !== content) content.appendChild(passenger);
-    if (vehicle && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
+    const peopleGroup = content.querySelector('.gc-needs-group--people');
+    const target = peopleGroup || content;
+    if (passenger.parentElement !== target) target.prepend(passenger);
   }
 
   function restructureCallDetails() {
@@ -349,7 +365,7 @@
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '車型・5人以上・行李・寵物';
+      summary.textContent = '指定車型・5人以上・寵物';
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
@@ -362,8 +378,14 @@
     }
     addPetField(baggage || notes);
     const pet = document.getElementById('gcPetField');
-    [vehicle, passenger, pet, baggage, notes].forEach(field => { if (field && content) content.appendChild(field); });
-    if (vehicle && passenger && vehicle.parentElement === content && vehicle.nextElementSibling !== passenger) vehicle.after(passenger);
+    if (!content) return;
+    content.classList.add('gc-needs-content');
+    const vehicleGroup = ensureNeedsGroup(content, 'gc-needs-group--vehicle', '指定車型');
+    const peopleGroup = ensureNeedsGroup(content, 'gc-needs-group--people', '5人以上與寵物同行');
+    const extraGroup = ensureNeedsGroup(content, 'gc-needs-group--extra', '行李與備註');
+    if (vehicle && vehicleGroup) vehicleGroup.appendChild(vehicle);
+    [passenger, pet].forEach(field => { if (field && peopleGroup) peopleGroup.appendChild(field); });
+    [baggage, notes].forEach(field => { if (field && extraGroup) extraGroup.appendChild(field); });
   }
 
   function restructureDriver() {

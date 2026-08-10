@@ -1,6 +1,7 @@
 ﻿(() => {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10_5PLUS_PASSENGER_UX
+  // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW_COMPAT
   const params = new URLSearchParams(location.search);
   if (params.get('mode') !== 'call') return;
   let tries = 0;
@@ -19,8 +20,10 @@
     passengerField.classList.add('gc-passenger-public');
     passengerField.style.display = 'block';
     passengerField.style.visibility = 'visible';
-    if (passengerField.parentElement !== content) content.appendChild(passengerField);
-    if (vehicleField && vehicleField.parentElement === content && vehicleField.nextElementSibling !== passengerField) vehicleField.after(passengerField);
+    const peopleGroup = content.querySelector('.gc-needs-group--people');
+    const target = peopleGroup || content;
+    if (passengerField.parentElement !== target) target.prepend(passengerField);
+    if (!peopleGroup && vehicleField && vehicleField.parentElement === content && vehicleField.nextElementSibling !== passengerField) vehicleField.after(passengerField);
     const label = passengerField.querySelector(':scope > label');
     if (label) label.textContent = '5人以上請選人數';
   };
