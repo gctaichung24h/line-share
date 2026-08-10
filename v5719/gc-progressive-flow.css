@@ -1,0 +1,124 @@
+/* GC_MASTER_STABLE_2026_08R10Z7_PROGRESSIVE_COMPLETION_UX
+   Keep every existing function and information block. This layer only adds a compact sense of
+   progress, a clear current task, and positive completion feedback for call / driver forms. */
+.gc-progressive-flow .gc-flow-rail{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:7px!important;
+  margin:0 0 13px!important;
+  padding:0 1px!important;
+}
+.gc-progressive-flow .gc-flow-step{
+  position:relative!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  min-width:0!important;
+  min-height:27px!important;
+  color:#8a9aa6!important;
+  font-size:12.5px!important;
+  line-height:1.2!important;
+  font-weight:600!important;
+  letter-spacing:.005em!important;
+  transition:color .16s ease,opacity .16s ease!important;
+}
+.gc-progressive-flow .gc-flow-step::after{
+  content:''!important;
+  position:absolute!important;
+  top:50%!important;
+  left:calc(50% + 27px)!important;
+  right:calc(-50% + 27px)!important;
+  height:1px!important;
+  background:#dfe7ed!important;
+  transform:translateY(-50%)!important;
+}
+.gc-progressive-flow .gc-flow-step:last-child::after{display:none!important}
+.gc-progressive-flow .gc-flow-step i{
+  position:relative!important;
+  z-index:1!important;
+  width:7px!important;
+  height:7px!important;
+  flex:0 0 7px!important;
+  border-radius:50%!important;
+  background:#c8d4dd!important;
+  box-shadow:0 0 0 3px #fff!important;
+}
+.gc-progressive-flow .gc-flow-step b{font:inherit!important;white-space:nowrap!important}
+.gc-progressive-flow .gc-flow-step.is-active{color:#214e6d!important;font-weight:700!important}
+.gc-progressive-flow .gc-flow-step.is-active i{background:#2d77a7!important}
+.gc-progressive-flow .gc-flow-step.is-done{color:#607b8d!important}
+.gc-progressive-flow .gc-flow-step.is-done i{background:#6e9cb8!important}
+.gc-progressive-flow .gc-flow-step.is-done::after{background:#b9cedb!important}
+
+.gc-progressive-flow .gc-flow-cue-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:100%!important;
+}
+.gc-progressive-flow .gc-flow-cue{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:22px!important;
+  margin-left:auto!important;
+  padding:3px 8px!important;
+  border:1px solid #d8e5ed!important;
+  border-radius:999px!important;
+  background:#f5f9fc!important;
+  color:#5f7f93!important;
+  font-size:11.5px!important;
+  line-height:1.2!important;
+  font-weight:650!important;
+  letter-spacing:0!important;
+  white-space:nowrap!important;
+  transition:opacity .15s ease,background-color .15s ease,border-color .15s ease,color .15s ease!important;
+}
+.gc-progressive-flow .gc-flow-cue.hidden{display:none!important}
+.gc-progressive-flow .gc-flow-cue.is-current{
+  border-color:#c6dce9!important;
+  background:#edf6fb!important;
+  color:#2b6387!important;
+}
+.gc-progressive-flow .gc-flow-cue.is-complete{
+  border-color:#d8e4ea!important;
+  background:#f7fafc!important;
+  color:#668092!important;
+}
+
+.gc-progressive-flow .gc-primary-address.gc-flow-current:not(.gc-validation-error){
+  border-color:#9fc1d6!important;
+  background:#f8fbfd!important;
+  box-shadow:0 0 0 3px rgba(45,113,153,.07)!important;
+}
+.gc-progressive-flow .gc-primary-address.gc-flow-current:not(.gc-validation-error) .input:not(:focus){
+  border-color:#a9c6d8!important;
+}
+.gc-progressive-flow .gc-primary-address.gc-flow-complete:not(.gc-validation-error){
+  border-color:#d4e1e8!important;
+  background:#fbfcfd!important;
+}
+.gc-progressive-flow #scheduleFields.gc-flow-current{
+  margin-bottom:14px!important;
+  padding:10px!important;
+  border:1px solid #c8dce8!important;
+  border-radius:14px!important;
+  background:#f8fbfd!important;
+  box-shadow:0 0 0 3px rgba(45,113,153,.055)!important;
+}
+.gc-progressive-flow #scheduleFields:not(.hidden){animation:gcR10Z7Reveal .18s ease-out both}
+.gc-progressive-flow .submit-btn.gc-flow-ready{
+  box-shadow:0 12px 27px rgba(15,59,99,.22)!important;
+}
+@keyframes gcR10Z7Reveal{from{opacity:.78;transform:translateY(-2px)}to{opacity:1;transform:none}}
+@media(max-width:360px){
+  .gc-progressive-flow .gc-flow-rail{gap:4px!important;margin-bottom:11px!important}
+  .gc-progressive-flow .gc-flow-step{font-size:11.8px!important;gap:5px!important}
+  .gc-progressive-flow .gc-flow-step::after{left:calc(50% + 23px)!important;right:calc(-50% + 23px)!important}
+  .gc-progressive-flow .gc-flow-cue{font-size:11px!important;padding-left:7px!important;padding-right:7px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .gc-progressive-flow .gc-flow-step,.gc-progressive-flow .gc-flow-cue{transition:none!important}
+  .gc-progressive-flow #scheduleFields:not(.hidden){animation:none!important}
+}
