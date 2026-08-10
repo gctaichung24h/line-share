@@ -5,6 +5,7 @@
   // GC_ADDRESS_GUARD_R10Z1
   // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
   // GC_ADDRESS_GUARD_R10Z6_ROMANIZED_ROAD_PROVIDER_BLOCK
+  // GC_ADDRESS_GUARD_R10Z9_IMPLAUSIBLE_PROVIDER_HOUSE_BLOCK
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -13,7 +14,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10z6-address-guard-20260810';
+  const VERSION = 'r10z9-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -209,6 +210,9 @@
     const streetName = compact(attrs.StName);
     let addNum = compact(attrs.AddNum).replace(/號$/, '');
     if (postal && noSpace(addNum) === postal) addNum = '';
+    // Provider data occasionally leaks postal/feature identifiers into AddNum. Taiwan door numbers
+    // should never become 5+ digit pseudo-house numbers such as 400003258號.
+    if (/^[0-9０-９]{5,}$/.test(noSpace(addNum))) addNum = '';
 
     const parsedFallback = fallback ? parseCommaLabel(fallback) : null;
     if (!county && parsedFallback?.county) county = parsedFallback.county;
@@ -254,6 +258,8 @@
     const text = noSpace(value);
     if (!text) return false;
     if (isRomanizedRoadProviderLabel(text)) return true;
+    if (/[0-9０-９]{5,}號/.test(text)) return true;
+    if (/(?:大道|路|街|道|巷|弄)[㐀-鿿A-Za-z]{1,24}[0-9０-９]{5,}號/.test(text)) return true;
 
     // Same county repeated is never a valid dispatch address.
     for (const county of COUNTIES) {
@@ -268,7 +274,8 @@
     if (roadIndex >= 0) {
       const afterRoad = text.slice(roadIndex + 1);
       if (COUNTIES.some(county => afterRoad.includes(county))) return true;
-      if (/[0-9０-９]號?.{0,12}[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/.test(text)) return true;
+      const trailingAdminLeak = text.match(/[0-9０-９]號?.{0,12}([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))$/);
+      if (trailingAdminLeak && !/(?:門市|超市|夜市)$/.test(trailingAdminLeak[1])) return true;
     }
 
     return false;

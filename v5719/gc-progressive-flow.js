@@ -1,173 +1,123 @@
 (() => {
   'use strict';
-  // GC_MASTER_STABLE_2026_08R10Z7_PROGRESSIVE_COMPLETION_UX
-  // Conversion-first progressive guidance for call/driver only.
-  // Contract: no existing field, function, copy block, shortcut or confirmation data is removed.
-  // Fare already has its own explicit route -> numbers -> result progression and is intentionally untouched.
+  // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
+  // First-screen clean, no service preselection. Existing fields/functions stay in the DOM and are
+  // revealed in context. No auto-scroll, auto-focus or forced viewport movement is introduced.
 
   const mode = new URLSearchParams(location.search).get('mode');
-  if (mode !== 'call' && mode !== 'driver') return;
-
-  let installedForm = null;
-  let observer = null;
+  if (!['call','driver','fare'].includes(mode)) return;
 
   const trim = value => String(value ?? '').trim();
-  const inputValue = id => trim(document.getElementById(id)?.value);
   const serviceValue = () => document.querySelector('input[name="serviceType"]:checked')?.value || '';
+  const value = id => trim(document.getElementById(id)?.value);
+  let observer = null;
 
-  function addressLabel(field, id) {
-    return field?.querySelector(`label[for="${id}"]`) || field?.querySelector(':scope > label') || null;
-  }
-
-  function ensureCue(field, id) {
-    const label = addressLabel(field, id);
-    if (!label) return null;
-    label.classList.add('gc-flow-cue-label');
-    let cue = label.querySelector(':scope > .gc-flow-cue');
-    if (!cue) {
-      cue = document.createElement('span');
-      cue.className = 'gc-flow-cue';
-      cue.setAttribute('aria-hidden', 'true');
-      label.appendChild(cue);
+  function setCollapsed(node, collapsed) {
+    if (!node) return;
+    node.classList.toggle('gc-flow-collapsed', collapsed);
+    if (collapsed) {
+      node.setAttribute('aria-hidden', 'true');
+      try { node.inert = true; } catch (_) {}
+    } else {
+      node.removeAttribute('aria-hidden');
+      try { node.inert = false; } catch (_) {}
     }
-    return cue;
   }
 
-  function setCue(field, id, text, state = '') {
-    const cue = ensureCue(field, id);
-    if (!cue) return;
-    cue.textContent = text;
-    cue.className = `gc-flow-cue${state ? ` is-${state}` : ''}`;
-    cue.classList.toggle('hidden', !text);
-  }
+  function setupRide(form) {
+    if (!form) return false;
+    if (form.dataset.gcEnterpriseProgressive === '1') return true;
+    form.dataset.gcEnterpriseProgressive = '1';
+    form.classList.add('gc-enterprise-flow');
 
-  function ensureRail(form) {
-    let rail = form.querySelector(':scope > .gc-flow-rail');
-    if (rail) return rail;
-    rail = document.createElement('div');
-    rail.className = 'gc-flow-rail';
-    rail.setAttribute('role', 'progressbar');
-    rail.setAttribute('aria-label', mode === 'driver' ? '代駕填寫進度' : '叫車填寫進度');
-    rail.setAttribute('aria-valuemin', '1');
-    rail.setAttribute('aria-valuemax', '3');
-    rail.innerHTML = `
-      <span class="gc-flow-step" data-step="1"><i></i><b>服務</b></span>
-      <span class="gc-flow-step" data-step="2"><i></i><b>地點</b></span>
-      <span class="gc-flow-step" data-step="3"><i></i><b>確認</b></span>`;
-    const globalError = form.querySelector(':scope > #globalError');
-    if (globalError) globalError.after(rail);
-    else form.prepend(rail);
-    return rail;
-  }
-
-  function setRail(rail, serviceReady, pickupReady) {
-    if (!rail) return;
-    const stage = !serviceReady ? 1 : !pickupReady ? 2 : 3;
-    rail.setAttribute('aria-valuenow', String(stage));
-    rail.querySelectorAll('.gc-flow-step').forEach(step => {
-      const n = Number(step.dataset.step || 0);
-      step.classList.toggle('is-done', n < stage);
-      step.classList.toggle('is-active', n === stage);
-    });
-  }
-
-  function installDefaultInstant(form) {
-    if (form.dataset.gcDefaultInstantApplied === '1') return;
-    form.dataset.gcDefaultInstantApplied = '1';
-    if (serviceValue()) return;
-    const instant = form.querySelector('input[name="serviceType"][value="instant"]');
-    if (!instant) return;
-    instant.checked = true;
-    // Reuse the existing production handler so schedule/location behavior remains one source of truth.
-    instant.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function update(form) {
-    if (!form?.isConnected) return;
-    const service = serviceValue();
-    const reserve = service === 'reserve';
-    const dateReady = !reserve || Boolean(inputValue('date'));
-    const timeReady = !reserve || Boolean(inputValue('time'));
-    const serviceReady = Boolean(service) && dateReady && timeReady;
-    const pickupReady = Boolean(inputValue('pickup'));
-    const destinationReady = Boolean(inputValue('destination'));
-    const pickupField = document.getElementById('pickup')?.closest('.field');
-    const destinationField = document.getElementById('destination')?.closest('.field');
+    const radios = [...form.querySelectorAll('input[name="serviceType"]')];
+    const serviceField = radios[0]?.closest('.field');
     const schedule = document.getElementById('scheduleFields');
+    const pickup = document.getElementById('pickup');
+    const destination = document.getElementById('destination');
+    const pickupField = pickup?.closest('.field');
+    const destinationField = destination?.closest('.field');
+    const favorite = document.getElementById('favoriteTripsBox');
+    const passenger = document.getElementById('passengers')?.closest('.field');
+    const optional = [...form.querySelectorAll(':scope > details.optional-box')].filter(el => el !== favorite);
+    const notices = [...form.querySelectorAll(':scope > .notice:not(.preview-notice)')];
     const submit = document.getElementById('submitBtn');
-    const rail = ensureRail(form);
 
-    form.classList.add('gc-progressive-flow');
-    setRail(rail, serviceReady, pickupReady);
+    serviceField?.classList.add('gc-flow-service');
+    schedule?.classList.add('gc-flow-schedule');
+    pickupField?.classList.add('gc-flow-pickup');
+    destinationField?.classList.add('gc-flow-destination');
+    [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => node.classList.add('gc-flow-advanced'));
 
-    if (schedule) {
-      const scheduleNeedsAttention = reserve && (!dateReady || !timeReady);
-      schedule.classList.toggle('gc-flow-current', scheduleNeedsAttention);
-      schedule.classList.toggle('gc-flow-complete', reserve && dateReady && timeReady);
+    function update() {
+      const service = serviceValue();
+      const chosen = Boolean(service);
+      const reserve = service === 'reserve';
+      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
+      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || value('pickup').length >= 2);
+
+      form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
+      form.dataset.gcFlowServiceReady = serviceReady ? '1' : '0';
+      form.dataset.gcFlowPickupReady = pickupReady ? '1' : '0';
+      serviceField?.classList.toggle('gc-flow-complete', chosen);
+      serviceField?.classList.toggle('gc-flow-current', !chosen);
+      schedule?.classList.toggle('gc-flow-current', reserve && !serviceReady);
+      pickupField?.classList.toggle('gc-flow-current', serviceReady && !pickupReady);
+      pickupField?.classList.toggle('gc-flow-complete', pickupReady);
+      destinationField?.classList.toggle('gc-flow-current', serviceReady && pickupReady && !value('destination'));
+
+      // Initial screen: only service decision. Reserve then asks date/time. Once that is ready,
+      // pickup becomes the task. Destination + complete feature set appears after pickup has begun.
+      if (pickupField) setCollapsed(pickupField, !serviceReady);
+      if (destinationField) setCollapsed(destinationField, !(serviceReady && pickupReady));
+      [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
     }
 
-    if (pickupField) {
-      pickupField.classList.toggle('gc-flow-current', serviceReady && !pickupReady);
-      pickupField.classList.toggle('gc-flow-complete', pickupReady);
-      if (pickupReady) setCue(pickupField, 'pickup', '✓ 已填', 'complete');
-      else if (serviceReady) setCue(pickupField, 'pickup', '先填這裡', 'current');
-      else setCue(pickupField, 'pickup', '');
-    }
-
-    if (destinationField) {
-      destinationField.classList.toggle('gc-flow-current', serviceReady && pickupReady && !destinationReady);
-      destinationField.classList.toggle('gc-flow-complete', destinationReady);
-      if (destinationReady) setCue(destinationField, 'destination', '✓ 已填', 'complete');
-      else if (serviceReady && pickupReady) setCue(destinationField, 'destination', '接著填', 'current');
-      else setCue(destinationField, 'destination', '');
-    }
-
-    if (submit) submit.classList.toggle('gc-flow-ready', serviceReady && pickupReady);
+    [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
+      control.addEventListener('input', update, { passive: true });
+      control.addEventListener('change', update, { passive: true });
+      control.addEventListener('focus', update, { passive: true });
+      control.addEventListener('blur', update, { passive: true });
+    });
+    form.addEventListener('gc:address-verified', update);
+    update();
+    requestAnimationFrame(update);
+    setTimeout(update, 180);
+    return true;
   }
 
-  function install(form) {
-    if (!form || form === installedForm || form.dataset.gcProgressiveCompletion === '1') return false;
-    installedForm = form;
-    form.dataset.gcProgressiveCompletion = '1';
-    installDefaultInstant(form);
-    ensureRail(form);
-
-    const watched = [
-      ...form.querySelectorAll('input[name="serviceType"]'),
-      document.getElementById('date'),
-      document.getElementById('time'),
-      document.getElementById('pickup'),
-      document.getElementById('destination')
-    ].filter(Boolean);
-    watched.forEach(control => {
-      control.addEventListener('input', () => update(form), { passive: true });
-      control.addEventListener('change', () => update(form), { passive: true });
-      control.addEventListener('focus', () => update(form), { passive: true });
-      control.addEventListener('blur', () => update(form), { passive: true });
+  function setupFare() {
+    const card = document.querySelector('.gc-fare-card');
+    if (!card || card.dataset.gcEnterpriseProgressive === '1') return Boolean(card);
+    card.dataset.gcEnterpriseProgressive = '1';
+    card.classList.add('gc-enterprise-fare');
+    const form = document.getElementById('serviceForm');
+    const pickup = document.getElementById('pickup');
+    const destination = document.getElementById('destination');
+    const minutes = document.getElementById('fareMinutes');
+    const km = document.getElementById('fareKm');
+    const update = () => {
+      const routeReady = Boolean(value('pickup') && value('destination'));
+      const numbersReady = Boolean(value('fareMinutes') && value('fareKm'));
+      card.dataset.gcFareRouteReady = routeReady ? '1' : '0';
+      card.dataset.gcFareNumbersReady = numbersReady ? '1' : '0';
+    };
+    [pickup,destination,minutes,km].filter(Boolean).forEach(control => {
+      control.addEventListener('input', update, { passive:true });
+      control.addEventListener('change', update, { passive:true });
     });
-
-    // Existing suggestion / GPS / recent / favorite flows dispatch input/change. Two frames also
-    // cover late DOM restructuring without changing their data or behavior.
-    update(form);
-    requestAnimationFrame(() => update(form));
-    setTimeout(() => update(form), 180);
+    update();
     return true;
   }
 
   function tryInstall() {
-    const form = document.getElementById('serviceForm');
-    if (form) return install(form);
-    return false;
+    if (mode === 'fare') return setupFare();
+    return setupRide(document.getElementById('serviceForm'));
   }
 
   if (!tryInstall()) {
-    observer = new MutationObserver(() => {
-      if (tryInstall()) {
-        observer?.disconnect();
-        observer = null;
-      }
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer = new MutationObserver(() => { if (tryInstall()) { observer?.disconnect(); observer = null; } });
+    observer.observe(document.documentElement, { childList:true, subtree:true });
     setTimeout(() => { observer?.disconnect(); observer = null; }, 12000);
   }
 })();

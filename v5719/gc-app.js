@@ -5,6 +5,7 @@
   // GC_ADDRESS_GUARD_R10Z1
   // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
   // GC_ADDRESS_GUARD_R10Z6_ROMANIZED_ROAD_PROVIDER_BLOCK
+  // GC_ADDRESS_GUARD_R10Z9_IMPLAUSIBLE_PROVIDER_HOUSE_BLOCK
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -13,7 +14,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10z6-address-guard-20260810';
+  const VERSION = 'r10z9-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -209,6 +210,9 @@
     const streetName = compact(attrs.StName);
     let addNum = compact(attrs.AddNum).replace(/號$/, '');
     if (postal && noSpace(addNum) === postal) addNum = '';
+    // Provider data occasionally leaks postal/feature identifiers into AddNum. Taiwan door numbers
+    // should never become 5+ digit pseudo-house numbers such as 400003258號.
+    if (/^[0-9０-９]{5,}$/.test(noSpace(addNum))) addNum = '';
 
     const parsedFallback = fallback ? parseCommaLabel(fallback) : null;
     if (!county && parsedFallback?.county) county = parsedFallback.county;
@@ -254,6 +258,8 @@
     const text = noSpace(value);
     if (!text) return false;
     if (isRomanizedRoadProviderLabel(text)) return true;
+    if (/[0-9０-９]{5,}號/.test(text)) return true;
+    if (/(?:大道|路|街|道|巷|弄)[㐀-鿿A-Za-z]{1,24}[0-9０-９]{5,}號/.test(text)) return true;
 
     // Same county repeated is never a valid dispatch address.
     for (const county of COUNTIES) {
@@ -268,7 +274,8 @@
     if (roadIndex >= 0) {
       const afterRoad = text.slice(roadIndex + 1);
       if (COUNTIES.some(county => afterRoad.includes(county))) return true;
-      if (/[0-9０-９]號?.{0,12}[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/.test(text)) return true;
+      const trailingAdminLeak = text.match(/[0-9０-９]號?.{0,12}([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))$/);
+      if (trailingAdminLeak && !/(?:門市|超市|夜市)$/.test(trailingAdminLeak[1])) return true;
     }
 
     return false;
@@ -665,7 +672,9 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z8';
+  const GC_BUILD_VERSION = 'master202608r10z9';
+  // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
+  // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
   // Never paint a stale form and then replace it. First-paint waits behind the existing loading card
@@ -698,7 +707,7 @@ window.GC_FORM_CONFIG = {
   let gcLastVersionCheck = 0;
   let gcVersionRedirecting = false;
   const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
-  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1600;
+  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1500;
   async function ensureLatestBuild(force = false, options = {}) {
     const now = Date.now();
     if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return 'recent';
@@ -783,6 +792,27 @@ window.GC_FORM_CONFIG = {
     { name: '南投縣', location: '120.6850,23.9157', score: 310 }
   ];
   const ADDRESS_TAIWAN_COUNTIES = ['台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市','新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣','台東縣','澎湖縣','金門縣','連江縣'];
+  // R10Z9: Taichung district context + common-chain aliases are used only to improve POI discovery/ranking.
+  // They never rewrite passenger typing. Explicit candidate selection remains the only UI replacement path.
+  const ADDRESS_TAICHUNG_DISTRICTS = ['中區','東區','南區','西區','北區','西屯區','南屯區','北屯區','豐原區','東勢區','大甲區','清水區','沙鹿區','梧棲區','后里區','神岡區','潭子區','大雅區','新社區','石岡區','外埔區','大安區','烏日區','大肚區','龍井區','霧峰區','太平區','大里區','和平區'];
+  const ADDRESS_TAICHUNG_EXTENT = '120.42,23.90,121.62,24.50';
+  const POI_BRAND_ALIASES = [
+    { re: /(?:7\s*[-－]?\s*11|711|7\s*[-－]?\s*ELEVEN|統一超商)/i, canonical: '7-ELEVEN', label: '7-ELEVEN' },
+    { re: /(?:全家便利商店|全家|Family\s*Mart)/i, canonical: '全家便利商店', label: '全家' },
+    { re: /(?:萊爾富|Hi\s*[-－]?\s*Life)/i, canonical: '萊爾富', label: '萊爾富' },
+    { re: /(?:OK\s*(?:超商|便利商店|Mart)?)/i, canonical: 'OK超商', label: 'OK超商' },
+    { re: /(?:麥當勞|McDonald'?s?)/i, canonical: "麥當勞", label: '麥當勞' },
+    { re: /(?:寶雅|POYA)/i, canonical: '寶雅', label: '寶雅' },
+    { re: /(?:屈臣氏|Watsons?)/i, canonical: '屈臣氏', label: '屈臣氏' },
+    { re: /(?:振宇五金)/i, canonical: '振宇五金', label: '振宇五金' },
+    { re: /(?:星巴克|Starbucks)/i, canonical: '星巴克', label: '星巴克' },
+    { re: /(?:全聯福利中心|全聯|PX\s*Mart)/i, canonical: '全聯福利中心', label: '全聯' },
+    { re: /(?:家樂福|Carrefour)/i, canonical: '家樂福', label: '家樂福' },
+    { re: /(?:康是美|COSMED)/i, canonical: '康是美', label: '康是美' },
+    { re: /(?:小北百貨)/i, canonical: '小北百貨', label: '小北百貨' },
+    { re: /(?:肯德基|KFC)/i, canonical: '肯德基', label: '肯德基' },
+    { re: /(?:摩斯漢堡|MOS\s*Burger)/i, canonical: '摩斯漢堡', label: '摩斯漢堡' }
+  ];
   const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
   const addressSuggestionCache = new Map();
   let pendingConfirmAction = null;
@@ -1236,18 +1266,30 @@ window.GC_FORM_CONFIG = {
   }
 
   // GC_R10Z4_SUGGESTION_ADMIN_AND_POSTAL_CLEAN
-  // Candidate UI always keeps county + district visible; detail is provider-postal-cleaned.
+  // GC_MASTER_STABLE_2026_08R10Z9_POI_SUGGESTION_CARD
+  // Candidate UI always keeps county + district visible. POIs additionally show the business/landmark
+  // name as a first-class label so riders can distinguish branches without asking staff for a street number.
   function renderAddressSuggestion(item, index) {
     const parts = splitTaiwanSuggestionAddress(item.text);
     const adminParts = [parts.county, parts.district].filter((part, idx, list) => part && !list.slice(0, idx).some(prev => sameAddressPart(prev, part)));
     const admin = adminParts.join('｜');
-    const detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
-    if (!admin) {
-      return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option"><span class="gc-address-suggest-detail">${escapeHtml(detail)}</span></button>`;
+    let detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
+    const placeName = normalizeAddress(item?.placeName || '');
+    if (placeName && detail) {
+      const placeKey = addressConfidenceKey(placeName);
+      const detailKey = addressConfidenceKey(detail);
+      if (placeKey && detailKey.endsWith(placeKey)) {
+        const placeCompact = normalizeAddress(placeName).replace(/\s+/g, '');
+        const detailCompact = normalizeAddress(detail).replace(/\s+/g, '');
+        if (placeCompact && detailCompact.endsWith(placeCompact)) detail = detailCompact.slice(0, -placeCompact.length).trim();
+      }
     }
-    return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option">
-      <span class="gc-address-suggest-admin">${escapeHtml(admin)}</span>
-      <span class="gc-address-suggest-detail">${escapeHtml(detail)}</span>
+    const place = placeName ? `<strong class="gc-address-suggest-name">${escapeHtml(placeName)}</strong>` : '';
+    const adminHtml = admin ? `<span class="gc-address-suggest-admin">${escapeHtml(admin)}</span>` : '';
+    const detailHtml = detail ? `<span class="gc-address-suggest-detail">${escapeHtml(detail)}</span>` : '';
+    return `<button type="button" class="gc-address-suggest-item${placeName ? ' is-poi' : ''}" data-index="${index}" role="option">
+      <span class="gc-address-suggest-top">${place}${adminHtml}</span>
+      ${detailHtml}
     </button>`;
   }
 
@@ -1270,6 +1312,114 @@ window.GC_FORM_CONFIG = {
     const data = await response.json();
     if (!data || data.error || !Array.isArray(data.suggestions)) return [];
     return data.suggestions;
+  }
+
+  // GC_MASTER_STABLE_2026_08R10Z9_POI_DISCOVERY
+  function poiContextFromQuery(value) {
+    const raw = normalizeAddress(value).replace(/臺/g, '台');
+    const compact = raw.replace(/[\s,，、。．·・_()（）]/g, '');
+    const district = [...ADDRESS_TAICHUNG_DISTRICTS].sort((a,b) => b.length - a.length).find(name => {
+      const short = name.replace(/區$/, '');
+      return compact.includes(name) || (short.length >= 2 && compact.includes(short));
+    }) || '';
+    const county = explicitTaiwanCountyFromQuery(raw) || (district ? '台中市' : '');
+    const brand = POI_BRAND_ALIASES.find(item => item.re.test(raw)) || null;
+    let remainder = raw;
+    if (county) remainder = remainder.replace(county, ' ');
+    if (district) remainder = remainder.replace(district, ' ').replace(district.replace(/區$/, ''), ' ');
+    if (brand) remainder = remainder.replace(brand.re, ' ');
+    remainder = normalizeAddress(remainder).replace(/^(?:店|分店|門市)+|(?:店|分店|門市)+$/g, '').trim();
+    const placeWords = /(?:站|車站|高鐵|捷運|機場|醫院|診所|飯店|酒店|旅館|百貨|商場|夜市|學校|大學|高中|國中|國小|公園|市場|餐廳|咖啡|銀行|郵局|門市|分店|商圈|公司|工廠|中心|超商|便利商店|五金|藥局|藥妝|賣場|影城|球場|館)/;
+    const roadLike = /(?:大道|路|街|道|巷|弄).{0,30}[0-9０-９]*|[0-9０-９]+(?:[-之][0-9０-９]+)?號/;
+    const isLikelyPoi = Boolean(brand) || (!roadLike.test(raw) && (placeWords.test(raw) || raw.replace(/\s/g,'').length >= 3));
+    const branchSpecific = Boolean(district || remainder || /(?:店|分店|門市)/.test(raw));
+    return { raw, compact, county, district, brand, remainder, isLikelyPoi, isBroadChain: Boolean(brand && !branchSpecific) };
+  }
+
+  function buildPoiQueryVariants(value) {
+    const ctx = poiContextFromQuery(value);
+    if (!ctx.isLikelyPoi) return [];
+    const zone = [ctx.district, ctx.county || (!attachedLocation ? '台中市' : '')].filter(Boolean).join(' ');
+    const name = ctx.brand?.canonical || ctx.raw;
+    const extra = ctx.remainder;
+    const variants = [];
+    const push = text => { text = normalizeAddress(text); if (text && !variants.some(v => addressConfidenceKey(v) === addressConfidenceKey(text))) variants.push(text); };
+    push(ctx.raw);
+    if (ctx.brand) {
+      push(`${name} ${extra} ${zone}`);
+      push(`${zone} ${name} ${extra}`);
+      if (ctx.district) {
+        push(`${name} ${ctx.district}`);
+        push(`${ctx.district} ${name}`);
+      }
+    } else if (zone) {
+      push(`${ctx.raw} ${zone}`);
+      push(`${zone} ${ctx.raw}`);
+    }
+    return variants.slice(0, 4);
+  }
+
+  function hasImplausibleProviderHouse(value) {
+    return /[0-9０-９]{5,}號/.test(String(value || ''));
+  }
+
+  function safePoiDisplayAddress(resolved) {
+    if (!resolved?.address || hasImplausibleProviderHouse(resolved.address) || isRomanizedProviderRoad(resolved.address)) return '';
+    let base = smartNormalizeTaiwanAddress(resolved.address);
+    if (!base || isClearlyOutsideTaiwanSuggestion(base)) return '';
+    const place = normalizeAddress(resolved.placeName || '');
+    if (place && !addressConfidenceKey(base).includes(addressConfidenceKey(place))) base = `${base}${place}`;
+    return smartNormalizeTaiwanAddress(base);
+  }
+
+  function poiCandidateScore(resolved, query, sourceRegion = '') {
+    if (!resolved) return -99999;
+    const ctx = poiContextFromQuery(query);
+    const text = safePoiDisplayAddress(resolved);
+    const parts = splitTaiwanSuggestionAddress(text || resolved.address);
+    const placeKey = addressConfidenceKey(resolved.placeName || '');
+    const qKey = addressConfidenceKey(ctx.brand?.canonical || ctx.raw);
+    const remainderKey = addressConfidenceKey(ctx.remainder || '');
+    const candidateKey = addressConfidenceKey(`${resolved.placeName || ''}${text || resolved.address || ''}`);
+    let score = Number(resolved.score || 0) * 4;
+    if (resolved.type === 'POI' || resolved.type === 'POIExt' || resolved.type === 'BuildingName') score += 320;
+    if (placeKey && qKey && (placeKey.includes(qKey) || qKey.includes(placeKey))) score += 260;
+    if (ctx.brand && POI_BRAND_ALIASES.some(item => item.re.test(resolved.placeName || ''))) score += 120;
+    // Branch/landmark words (e.g. 一中、林森、霧峰店) must influence ranking, not just the brand name.
+    if (remainderKey) {
+      if (candidateKey.includes(remainderKey)) score += 620;
+      else score -= 120;
+    }
+    if (ctx.district) {
+      if (parts.district === ctx.district) score += 1000;
+      else if (parts.district) score -= 900;
+    }
+    if (ctx.county) {
+      if (parts.county === ctx.county) score += 500;
+      else if (parts.county) score -= 700;
+    } else if (parts.county === '台中市') score += 260;
+    if (sourceRegion && parts.county === sourceRegion) score += 120;
+    return score;
+  }
+
+  async function fetchArcgisPoiCandidates(query, locationBias, controller, searchExtent = '') {
+    const params = new URLSearchParams({
+      f: 'json',
+      SingleLine: query,
+      countryCode: 'TWN',
+      langCode: 'zh-TW',
+      preferredLabelValues: 'localCity',
+      outFields: ARCGIS_RESOLVE_OUT_FIELDS,
+      maxLocations: '8',
+      location: locationBias || ADDRESS_BIAS_LOCATION
+    });
+    if (searchExtent) params.set('searchExtent', searchExtent);
+    const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.candidates) ? data.candidates : [];
   }
 
   function cacheAddressSuggestions(key, suggestions) {
@@ -1314,9 +1464,10 @@ window.GC_FORM_CONFIG = {
     if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
 
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 700);
     try {
       const explicitCounty = explicitTaiwanCountyFromQuery(query);
+      const poiCtx = poiContextFromQuery(query);
       const geocoderQuery = geocoderQueryForAddress(query) || query;
       const currentLocationBias = attachedLocation &&
         Number.isFinite(attachedLocation.longitude) &&
@@ -1327,11 +1478,11 @@ window.GC_FORM_CONFIG = {
 
       const seen = new Set();
       const merged = [];
-      const addResults = (items, sourceRegion = '', lookupLocation = '') => {
+      const addSuggestionResults = (items, sourceRegion = '', lookupLocation = '') => {
         items.forEach((raw, order) => {
           if (!raw?.text || isClearlyOutsideTaiwanSuggestion(raw.text)) return;
           const cleaned = canonicalizeSuggestedAddress(raw.text);
-          if (!cleaned || !isTaiwanSuggestion(cleaned)) return;
+          if (!cleaned || !isTaiwanSuggestion(cleaned) || hasImplausibleProviderHouse(cleaned)) return;
 
           const county = canonicalTaiwanCounty(cleaned);
           if (explicitCounty && county !== explicitCounty) return;
@@ -1344,40 +1495,74 @@ window.GC_FORM_CONFIG = {
           const dedupeKey = cleaned.replace(/\s+/g, '').toLocaleLowerCase();
           if (seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
-
           merged.push({
             text: cleaned,
             lookupText: raw.text,
             magicKey: raw.magicKey || '',
             lookupLocation,
             sourceRegion,
+            isCollection: raw.isCollection === true,
             _order: order,
             _score: taiwanSuggestionScore(cleaned, query, sourceRegion)
           });
         });
       };
 
-      // Fast path: one Taiwan-only request with a Taichung/current-location bias.
-      // Most normal road/landmark searches finish here, keeping typing responsive.
+      const addPoiCandidates = (candidates, sourceRegion = '', lookupLocation = '') => {
+        candidates.forEach((candidate, order) => {
+          const resolved = resolvedCandidateFromArcgis(candidate, query);
+          if (!resolved) return;
+          const precise = new Set(['POI','POIExt','BuildingName','PointAddress','PointAddressInt','StreetAddress','Subaddress']);
+          if (!precise.has(resolved.type)) return;
+          const display = safePoiDisplayAddress(resolved);
+          if (!display || hasImplausibleProviderHouse(display)) return;
+          const parts = splitTaiwanSuggestionAddress(display);
+          if (!parts.county || !parts.district) return;
+          if (poiCtx.county && parts.county !== poiCtx.county) return;
+          if (poiCtx.district && parts.district !== poiCtx.district) return;
+          const dedupeKey = display.replace(/\s+/g, '').toLocaleLowerCase();
+          if (seen.has(dedupeKey)) return;
+          seen.add(dedupeKey);
+          merged.push({
+            text: display,
+            lookupText: '',
+            magicKey: '',
+            lookupLocation,
+            sourceRegion,
+            resolved,
+            placeName: normalizeAddress(resolved.placeName || ''),
+            kind: 'poi',
+            _order: order,
+            _score: poiCandidateScore(resolved, query, sourceRegion)
+          });
+        });
+      };
+
       const primaryLocation = explicitCounty
         ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
         : currentLocationBias;
-      // GC_R10Z5_DEFAULT_TAICHUNG_PRIMARY_RANK
-      // With no explicit county and no user GPS bias, the fleet's default Taichung request should
-      // remain ahead of enrichment results from Changhua/Nantou. This changes ranking only, not scope.
       const primarySourceRegion = explicitCounty || (currentLocationBias === ADDRESS_BIAS_LOCATION ? '台中市' : '');
-      addResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
+      addSuggestionResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
 
-      // Only enrich when the first response did not already give enough safe,
-      // district-labelled Central Taiwan choices. This keeps 中彰投 prominent
-      // without making every keystroke fire four network requests.
       const centralDistrictCount = merged.filter(item => {
         const parts = splitTaiwanSuggestionAddress(item.text);
         return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
       }).length;
-
       const addressLikeQuery = /[路街道巷弄]|[0-9０-９]/.test(String(query || ''));
-      if (!explicitCounty && (centralDistrictCount < 4 || addressLikeQuery)) {
+
+      // POI / chain-store fallback: use concrete findAddressCandidates results, not only autocomplete text.
+      // Esri documents both "name + zone" and "zone + name" POI forms; query variants make order insensitive.
+      if (poiCtx.isLikelyPoi && (centralDistrictCount < 6 || poiCtx.brand)) {
+        const variants = buildPoiQueryVariants(query);
+        const poiExtent = poiCtx.county && poiCtx.county !== '台中市' ? ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT : ADDRESS_TAICHUNG_EXTENT;
+        const sets = await Promise.all(variants.slice(0, 3).map(async variant => {
+          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent); }
+          catch (_) { return []; }
+        }));
+        sets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+      }
+
+      if (!explicitCounty && !poiCtx.district && (centralDistrictCount < 4 || addressLikeQuery) && !poiCtx.brand) {
         const enrichmentRegions = centralDistrictCount < 4
           ? ADDRESS_PRIMARY_REGIONS
           : ADDRESS_PRIMARY_REGIONS.filter(region => region.name === '台中市');
@@ -1389,13 +1574,14 @@ window.GC_FORM_CONFIG = {
             return { items: [], region: region.name, location: region.location };
           }
         }));
-        enrichedSets.forEach(result => addResults(result.items, result.region, result.location));
+        enrichedSets.forEach(result => addSuggestionResults(result.items, result.region, result.location));
       }
 
       const suggestions = merged
+        .filter(item => !hasImplausibleProviderHouse(item.text))
         .sort((a, b) => (b._score - a._score) || (a._order - b._order))
-        .slice(0, 6)
-        .map(({ text, lookupText, magicKey, lookupLocation }) => ({ text, lookupText, magicKey, lookupLocation }));
+        .slice(0, 7)
+        .map(({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }) => ({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }));
 
       return cacheAddressSuggestions(cacheKey, suggestions);
     } catch (_) {
@@ -1556,6 +1742,7 @@ window.GC_FORM_CONFIG = {
 
   async function resolveAddressSuggestion(item) {
     if (!item?.text) return null;
+    if (item.resolved && item.resolved.address) return item.resolved;
     const cacheKey = item.magicKey || `text:${addressConfidenceKey(item.lookupText || item.text)}`;
     if (cacheKey && addressResolveCache.has(cacheKey)) return addressResolveCache.get(cacheKey);
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -1602,27 +1789,38 @@ window.GC_FORM_CONFIG = {
     if (!normalized) return [];
     if (typedAddressResolveCache.has(cacheKey)) return typedAddressResolveCache.get(cacheKey);
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 700);
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 900);
     try {
-      const params = new URLSearchParams({
-        f: 'json',
-        SingleLine: geocoderQueryForAddress(normalized) || normalized,
-        countryCode: 'TWN',
-        langCode: 'zh-TW',
-        preferredLabelValues: 'localCity',
-        outFields: ARCGIS_RESOLVE_OUT_FIELDS,
-        maxLocations: '3',
-        location: currentAddressLocationBias(normalized)
-      });
-      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
-      });
-      if (!response.ok) return [];
-      const data = await response.json();
-      const resolved = (Array.isArray(data?.candidates) ? data.candidates : [])
+      const ctx = poiContextFromQuery(normalized);
+      const queries = ctx.isLikelyPoi ? buildPoiQueryVariants(normalized).slice(0, 3) : [geocoderQueryForAddress(normalized) || normalized];
+      const location = currentAddressLocationBias(normalized);
+      const extent = ctx.isLikelyPoi && (!ctx.county || ctx.county === '台中市') ? ADDRESS_TAICHUNG_EXTENT : ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT;
+      const responses = await Promise.all(queries.map(async q => {
+        const params = new URLSearchParams({
+          f: 'json', SingleLine: q, countryCode: 'TWN', langCode: 'zh-TW', preferredLabelValues: 'localCity',
+          outFields: ARCGIS_RESOLVE_OUT_FIELDS, maxLocations: ctx.isLikelyPoi ? '6' : '3', location
+        });
+        if (extent) params.set('searchExtent', extent);
+        try {
+          const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+            method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+          });
+          if (!response.ok) return [];
+          const data = await response.json();
+          return Array.isArray(data?.candidates) ? data.candidates : [];
+        } catch (_) { return []; }
+      }));
+      const seen = new Set();
+      const resolved = responses.flat()
         .map(candidate => resolvedCandidateFromArcgis(candidate, normalized))
         .filter(Boolean)
-        .sort((a, b) => b.score - a.score);
+        .filter(item => {
+          if (hasImplausibleProviderHouse(item.address)) return false;
+          const key = `${addressConfidenceKey(item.address)}|${addressConfidenceKey(item.placeName || '')}`;
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        })
+        .sort((a, b) => poiCandidateScore(b, normalized) - poiCandidateScore(a, normalized));
       if (typedAddressResolveCache.size >= ADDRESS_RESOLVE_CACHE_LIMIT) {
         const firstKey = typedAddressResolveCache.keys().next().value;
         if (firstKey) typedAddressResolveCache.delete(firstKey);
@@ -1740,6 +1938,9 @@ window.GC_FORM_CONFIG = {
 
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
+    const poiCtx = poiContextFromQuery(normalized);
+    if (poiCtx.isBroadChain) return suggestions.length ? '請從智慧建議選擇正確分店。' : '請加上區域或分店名稱，再選擇正確分店。';
+    if (poiCtx.isLikelyPoi && suggestions.length) return '請從智慧建議選擇正確店家／地標。';
     if (isDoorAddressMissingAdmin(normalized)) {
       return '此門牌在不同區域可能重複，請補上縣市／區域或從建議中選擇正確地點。';
     }
@@ -1806,6 +2007,22 @@ window.GC_FORM_CONFIG = {
       input.classList.add('gc-address-needs-choice');
       if (options.showError !== false) {
         showFieldError(id, suggestions.length ? '此門牌在不同區域可能重複，請從建議地址選擇正確縣市／區域。' : '請補上縣市與區域，或從建議地址選擇正確地點。');
+        if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
+        else hideAddressSuggestions(id);
+      }
+      return false;
+    }
+
+    // GC_MASTER_STABLE_2026_08R10Z9_CHAIN_BRANCH_SELECTION_GATE
+    // A brand-only chain query (7-11 / 全家 / 萊爾富 / OK / etc.) represents many real places.
+    // Never auto-pick one branch. Offer concrete district-labelled candidates and require one tap.
+    const poiCtx = poiContextFromQuery(normalized);
+    if (!isRelaxedRideDestination(id) && poiCtx.isBroadChain) {
+      const suggestions = await fetchAddressSuggestions(normalized);
+      clearAddressVerified(input);
+      input.classList.add('gc-address-needs-choice');
+      if (options.showError !== false) {
+        showFieldError(id, suggestions.length ? '請從智慧建議選擇正確分店。' : '請加上區域或分店名稱，例如「霧峰 7-11」，再選擇正確分店。');
         if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
         else hideAddressSuggestions(id);
       }
@@ -4099,41 +4316,36 @@ window.GC_FORM_CONFIG = {
   }
 
   async function initialize() {
-    // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
-    // Keep the existing branded loading card until this exact bundle is confirmed. If the
-    // version endpoint is temporarily unreachable, fail open after a short timeout rather than
-    // trapping the passenger on a loader. Address / fare / form behavior is untouched.
+    // GC_MASTER_STABLE_2026_08R10Z9_PARALLEL_SAFE_BOOT
+    // Version proof and LIFF SDK initialization run in parallel behind the single loading surface.
+    // A stale form is still never painted; sendFormMessages continues to await the same LIFF promise.
+    const initialParams = new URLSearchParams(location.search);
+    const initialMode = initialParams.get('mode');
+    const mightBeLiff = !preview && (initialParams.has('liff.state') || Boolean(initialMode));
+    const liffBoot = mightBeLiff ? ensureLiffReady().then(sdk => ({ sdk, error: null })).catch(error => ({ sdk: null, error })) : null;
+
     const firstBuildStatus = await ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS });
     if (firstBuildStatus === 'stale' || gcVersionRedirecting) return;
     releaseVersionHold(firstBuildStatus);
 
-    // GC_MASTER_STABLE_2026_08R10P_PROGRESSIVE_LIFF_BOOT
-    // After version coherence is proven, paint the requested mode and initialize LIFF in parallel;
-    // sendFormMessages still awaits ensureLiffReady(), so delivery safety is unchanged.
-    const initialParams = new URLSearchParams(location.search);
-    const initialMode = initialParams.get('mode');
     const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));
-
     if (preview) {
       if (!initialModeRendered) renderQr();
       return;
     }
 
-    const mightBeLiff = initialParams.has('liff.state') || Boolean(initialMode);
     if (mightBeLiff) {
-      try {
-        const sdk = await ensureLiffReady();
-        if (!sdk || !sdk.isInClient()) {
-          renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
-          return;
-        }
-      } catch (error) {
-        renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
+      const result = await liffBoot;
+      if (result?.error) {
+        renderFatal('表格無法開啟', result.error?.message || 'LIFF 初始化失敗。');
+        return;
+      }
+      if (!result?.sdk || !result.sdk.isInClient()) {
+        renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
         return;
       }
     }
 
-    // A first LIFF redirect may expose the final mode only after sdk.init().
     const finalMode = new URLSearchParams(location.search).get('mode');
     if (!finalMode) {
       if (!initialModeRendered) renderQr();
@@ -5200,174 +5412,124 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  // GC_MASTER_STABLE_2026_08R10Z7_PROGRESSIVE_COMPLETION_UX
-  // Conversion-first progressive guidance for call/driver only.
-  // Contract: no existing field, function, copy block, shortcut or confirmation data is removed.
-  // Fare already has its own explicit route -> numbers -> result progression and is intentionally untouched.
+  // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
+  // First-screen clean, no service preselection. Existing fields/functions stay in the DOM and are
+  // revealed in context. No auto-scroll, auto-focus or forced viewport movement is introduced.
 
   const mode = new URLSearchParams(location.search).get('mode');
-  if (mode !== 'call' && mode !== 'driver') return;
-
-  let installedForm = null;
-  let observer = null;
+  if (!['call','driver','fare'].includes(mode)) return;
 
   const trim = value => String(value ?? '').trim();
-  const inputValue = id => trim(document.getElementById(id)?.value);
   const serviceValue = () => document.querySelector('input[name="serviceType"]:checked')?.value || '';
+  const value = id => trim(document.getElementById(id)?.value);
+  let observer = null;
 
-  function addressLabel(field, id) {
-    return field?.querySelector(`label[for="${id}"]`) || field?.querySelector(':scope > label') || null;
-  }
-
-  function ensureCue(field, id) {
-    const label = addressLabel(field, id);
-    if (!label) return null;
-    label.classList.add('gc-flow-cue-label');
-    let cue = label.querySelector(':scope > .gc-flow-cue');
-    if (!cue) {
-      cue = document.createElement('span');
-      cue.className = 'gc-flow-cue';
-      cue.setAttribute('aria-hidden', 'true');
-      label.appendChild(cue);
+  function setCollapsed(node, collapsed) {
+    if (!node) return;
+    node.classList.toggle('gc-flow-collapsed', collapsed);
+    if (collapsed) {
+      node.setAttribute('aria-hidden', 'true');
+      try { node.inert = true; } catch (_) {}
+    } else {
+      node.removeAttribute('aria-hidden');
+      try { node.inert = false; } catch (_) {}
     }
-    return cue;
   }
 
-  function setCue(field, id, text, state = '') {
-    const cue = ensureCue(field, id);
-    if (!cue) return;
-    cue.textContent = text;
-    cue.className = `gc-flow-cue${state ? ` is-${state}` : ''}`;
-    cue.classList.toggle('hidden', !text);
-  }
+  function setupRide(form) {
+    if (!form) return false;
+    if (form.dataset.gcEnterpriseProgressive === '1') return true;
+    form.dataset.gcEnterpriseProgressive = '1';
+    form.classList.add('gc-enterprise-flow');
 
-  function ensureRail(form) {
-    let rail = form.querySelector(':scope > .gc-flow-rail');
-    if (rail) return rail;
-    rail = document.createElement('div');
-    rail.className = 'gc-flow-rail';
-    rail.setAttribute('role', 'progressbar');
-    rail.setAttribute('aria-label', mode === 'driver' ? '代駕填寫進度' : '叫車填寫進度');
-    rail.setAttribute('aria-valuemin', '1');
-    rail.setAttribute('aria-valuemax', '3');
-    rail.innerHTML = `
-      <span class="gc-flow-step" data-step="1"><i></i><b>服務</b></span>
-      <span class="gc-flow-step" data-step="2"><i></i><b>地點</b></span>
-      <span class="gc-flow-step" data-step="3"><i></i><b>確認</b></span>`;
-    const globalError = form.querySelector(':scope > #globalError');
-    if (globalError) globalError.after(rail);
-    else form.prepend(rail);
-    return rail;
-  }
-
-  function setRail(rail, serviceReady, pickupReady) {
-    if (!rail) return;
-    const stage = !serviceReady ? 1 : !pickupReady ? 2 : 3;
-    rail.setAttribute('aria-valuenow', String(stage));
-    rail.querySelectorAll('.gc-flow-step').forEach(step => {
-      const n = Number(step.dataset.step || 0);
-      step.classList.toggle('is-done', n < stage);
-      step.classList.toggle('is-active', n === stage);
-    });
-  }
-
-  function installDefaultInstant(form) {
-    if (form.dataset.gcDefaultInstantApplied === '1') return;
-    form.dataset.gcDefaultInstantApplied = '1';
-    if (serviceValue()) return;
-    const instant = form.querySelector('input[name="serviceType"][value="instant"]');
-    if (!instant) return;
-    instant.checked = true;
-    // Reuse the existing production handler so schedule/location behavior remains one source of truth.
-    instant.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function update(form) {
-    if (!form?.isConnected) return;
-    const service = serviceValue();
-    const reserve = service === 'reserve';
-    const dateReady = !reserve || Boolean(inputValue('date'));
-    const timeReady = !reserve || Boolean(inputValue('time'));
-    const serviceReady = Boolean(service) && dateReady && timeReady;
-    const pickupReady = Boolean(inputValue('pickup'));
-    const destinationReady = Boolean(inputValue('destination'));
-    const pickupField = document.getElementById('pickup')?.closest('.field');
-    const destinationField = document.getElementById('destination')?.closest('.field');
+    const radios = [...form.querySelectorAll('input[name="serviceType"]')];
+    const serviceField = radios[0]?.closest('.field');
     const schedule = document.getElementById('scheduleFields');
+    const pickup = document.getElementById('pickup');
+    const destination = document.getElementById('destination');
+    const pickupField = pickup?.closest('.field');
+    const destinationField = destination?.closest('.field');
+    const favorite = document.getElementById('favoriteTripsBox');
+    const passenger = document.getElementById('passengers')?.closest('.field');
+    const optional = [...form.querySelectorAll(':scope > details.optional-box')].filter(el => el !== favorite);
+    const notices = [...form.querySelectorAll(':scope > .notice:not(.preview-notice)')];
     const submit = document.getElementById('submitBtn');
-    const rail = ensureRail(form);
 
-    form.classList.add('gc-progressive-flow');
-    setRail(rail, serviceReady, pickupReady);
+    serviceField?.classList.add('gc-flow-service');
+    schedule?.classList.add('gc-flow-schedule');
+    pickupField?.classList.add('gc-flow-pickup');
+    destinationField?.classList.add('gc-flow-destination');
+    [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => node.classList.add('gc-flow-advanced'));
 
-    if (schedule) {
-      const scheduleNeedsAttention = reserve && (!dateReady || !timeReady);
-      schedule.classList.toggle('gc-flow-current', scheduleNeedsAttention);
-      schedule.classList.toggle('gc-flow-complete', reserve && dateReady && timeReady);
+    function update() {
+      const service = serviceValue();
+      const chosen = Boolean(service);
+      const reserve = service === 'reserve';
+      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
+      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || value('pickup').length >= 2);
+
+      form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
+      form.dataset.gcFlowServiceReady = serviceReady ? '1' : '0';
+      form.dataset.gcFlowPickupReady = pickupReady ? '1' : '0';
+      serviceField?.classList.toggle('gc-flow-complete', chosen);
+      serviceField?.classList.toggle('gc-flow-current', !chosen);
+      schedule?.classList.toggle('gc-flow-current', reserve && !serviceReady);
+      pickupField?.classList.toggle('gc-flow-current', serviceReady && !pickupReady);
+      pickupField?.classList.toggle('gc-flow-complete', pickupReady);
+      destinationField?.classList.toggle('gc-flow-current', serviceReady && pickupReady && !value('destination'));
+
+      // Initial screen: only service decision. Reserve then asks date/time. Once that is ready,
+      // pickup becomes the task. Destination + complete feature set appears after pickup has begun.
+      if (pickupField) setCollapsed(pickupField, !serviceReady);
+      if (destinationField) setCollapsed(destinationField, !(serviceReady && pickupReady));
+      [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
     }
 
-    if (pickupField) {
-      pickupField.classList.toggle('gc-flow-current', serviceReady && !pickupReady);
-      pickupField.classList.toggle('gc-flow-complete', pickupReady);
-      if (pickupReady) setCue(pickupField, 'pickup', '✓ 已填', 'complete');
-      else if (serviceReady) setCue(pickupField, 'pickup', '先填這裡', 'current');
-      else setCue(pickupField, 'pickup', '');
-    }
-
-    if (destinationField) {
-      destinationField.classList.toggle('gc-flow-current', serviceReady && pickupReady && !destinationReady);
-      destinationField.classList.toggle('gc-flow-complete', destinationReady);
-      if (destinationReady) setCue(destinationField, 'destination', '✓ 已填', 'complete');
-      else if (serviceReady && pickupReady) setCue(destinationField, 'destination', '接著填', 'current');
-      else setCue(destinationField, 'destination', '');
-    }
-
-    if (submit) submit.classList.toggle('gc-flow-ready', serviceReady && pickupReady);
+    [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
+      control.addEventListener('input', update, { passive: true });
+      control.addEventListener('change', update, { passive: true });
+      control.addEventListener('focus', update, { passive: true });
+      control.addEventListener('blur', update, { passive: true });
+    });
+    form.addEventListener('gc:address-verified', update);
+    update();
+    requestAnimationFrame(update);
+    setTimeout(update, 180);
+    return true;
   }
 
-  function install(form) {
-    if (!form || form === installedForm || form.dataset.gcProgressiveCompletion === '1') return false;
-    installedForm = form;
-    form.dataset.gcProgressiveCompletion = '1';
-    installDefaultInstant(form);
-    ensureRail(form);
-
-    const watched = [
-      ...form.querySelectorAll('input[name="serviceType"]'),
-      document.getElementById('date'),
-      document.getElementById('time'),
-      document.getElementById('pickup'),
-      document.getElementById('destination')
-    ].filter(Boolean);
-    watched.forEach(control => {
-      control.addEventListener('input', () => update(form), { passive: true });
-      control.addEventListener('change', () => update(form), { passive: true });
-      control.addEventListener('focus', () => update(form), { passive: true });
-      control.addEventListener('blur', () => update(form), { passive: true });
+  function setupFare() {
+    const card = document.querySelector('.gc-fare-card');
+    if (!card || card.dataset.gcEnterpriseProgressive === '1') return Boolean(card);
+    card.dataset.gcEnterpriseProgressive = '1';
+    card.classList.add('gc-enterprise-fare');
+    const form = document.getElementById('serviceForm');
+    const pickup = document.getElementById('pickup');
+    const destination = document.getElementById('destination');
+    const minutes = document.getElementById('fareMinutes');
+    const km = document.getElementById('fareKm');
+    const update = () => {
+      const routeReady = Boolean(value('pickup') && value('destination'));
+      const numbersReady = Boolean(value('fareMinutes') && value('fareKm'));
+      card.dataset.gcFareRouteReady = routeReady ? '1' : '0';
+      card.dataset.gcFareNumbersReady = numbersReady ? '1' : '0';
+    };
+    [pickup,destination,minutes,km].filter(Boolean).forEach(control => {
+      control.addEventListener('input', update, { passive:true });
+      control.addEventListener('change', update, { passive:true });
     });
-
-    // Existing suggestion / GPS / recent / favorite flows dispatch input/change. Two frames also
-    // cover late DOM restructuring without changing their data or behavior.
-    update(form);
-    requestAnimationFrame(() => update(form));
-    setTimeout(() => update(form), 180);
+    update();
     return true;
   }
 
   function tryInstall() {
-    const form = document.getElementById('serviceForm');
-    if (form) return install(form);
-    return false;
+    if (mode === 'fare') return setupFare();
+    return setupRide(document.getElementById('serviceForm'));
   }
 
   if (!tryInstall()) {
-    observer = new MutationObserver(() => {
-      if (tryInstall()) {
-        observer?.disconnect();
-        observer = null;
-      }
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer = new MutationObserver(() => { if (tryInstall()) { observer?.disconnect(); observer = null; } });
+    observer.observe(document.documentElement, { childList:true, subtree:true });
     setTimeout(() => { observer?.disconnect(); observer = null; }, 12000);
   }
 })();

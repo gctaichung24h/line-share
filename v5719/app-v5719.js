@@ -1,6 +1,8 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z8';
+  const GC_BUILD_VERSION = 'master202608r10z9';
+  // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
+  // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
   // Never paint a stale form and then replace it. First-paint waits behind the existing loading card
@@ -33,7 +35,7 @@
   let gcLastVersionCheck = 0;
   let gcVersionRedirecting = false;
   const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
-  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1600;
+  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1500;
   async function ensureLatestBuild(force = false, options = {}) {
     const now = Date.now();
     if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return 'recent';
@@ -118,6 +120,27 @@
     { name: '南投縣', location: '120.6850,23.9157', score: 310 }
   ];
   const ADDRESS_TAIWAN_COUNTIES = ['台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市','新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣','台東縣','澎湖縣','金門縣','連江縣'];
+  // R10Z9: Taichung district context + common-chain aliases are used only to improve POI discovery/ranking.
+  // They never rewrite passenger typing. Explicit candidate selection remains the only UI replacement path.
+  const ADDRESS_TAICHUNG_DISTRICTS = ['中區','東區','南區','西區','北區','西屯區','南屯區','北屯區','豐原區','東勢區','大甲區','清水區','沙鹿區','梧棲區','后里區','神岡區','潭子區','大雅區','新社區','石岡區','外埔區','大安區','烏日區','大肚區','龍井區','霧峰區','太平區','大里區','和平區'];
+  const ADDRESS_TAICHUNG_EXTENT = '120.42,23.90,121.62,24.50';
+  const POI_BRAND_ALIASES = [
+    { re: /(?:7\s*[-－]?\s*11|711|7\s*[-－]?\s*ELEVEN|統一超商)/i, canonical: '7-ELEVEN', label: '7-ELEVEN' },
+    { re: /(?:全家便利商店|全家|Family\s*Mart)/i, canonical: '全家便利商店', label: '全家' },
+    { re: /(?:萊爾富|Hi\s*[-－]?\s*Life)/i, canonical: '萊爾富', label: '萊爾富' },
+    { re: /(?:OK\s*(?:超商|便利商店|Mart)?)/i, canonical: 'OK超商', label: 'OK超商' },
+    { re: /(?:麥當勞|McDonald'?s?)/i, canonical: "麥當勞", label: '麥當勞' },
+    { re: /(?:寶雅|POYA)/i, canonical: '寶雅', label: '寶雅' },
+    { re: /(?:屈臣氏|Watsons?)/i, canonical: '屈臣氏', label: '屈臣氏' },
+    { re: /(?:振宇五金)/i, canonical: '振宇五金', label: '振宇五金' },
+    { re: /(?:星巴克|Starbucks)/i, canonical: '星巴克', label: '星巴克' },
+    { re: /(?:全聯福利中心|全聯|PX\s*Mart)/i, canonical: '全聯福利中心', label: '全聯' },
+    { re: /(?:家樂福|Carrefour)/i, canonical: '家樂福', label: '家樂福' },
+    { re: /(?:康是美|COSMED)/i, canonical: '康是美', label: '康是美' },
+    { re: /(?:小北百貨)/i, canonical: '小北百貨', label: '小北百貨' },
+    { re: /(?:肯德基|KFC)/i, canonical: '肯德基', label: '肯德基' },
+    { re: /(?:摩斯漢堡|MOS\s*Burger)/i, canonical: '摩斯漢堡', label: '摩斯漢堡' }
+  ];
   const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
   const addressSuggestionCache = new Map();
   let pendingConfirmAction = null;
@@ -571,18 +594,30 @@
   }
 
   // GC_R10Z4_SUGGESTION_ADMIN_AND_POSTAL_CLEAN
-  // Candidate UI always keeps county + district visible; detail is provider-postal-cleaned.
+  // GC_MASTER_STABLE_2026_08R10Z9_POI_SUGGESTION_CARD
+  // Candidate UI always keeps county + district visible. POIs additionally show the business/landmark
+  // name as a first-class label so riders can distinguish branches without asking staff for a street number.
   function renderAddressSuggestion(item, index) {
     const parts = splitTaiwanSuggestionAddress(item.text);
     const adminParts = [parts.county, parts.district].filter((part, idx, list) => part && !list.slice(0, idx).some(prev => sameAddressPart(prev, part)));
     const admin = adminParts.join('｜');
-    const detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
-    if (!admin) {
-      return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option"><span class="gc-address-suggest-detail">${escapeHtml(detail)}</span></button>`;
+    let detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
+    const placeName = normalizeAddress(item?.placeName || '');
+    if (placeName && detail) {
+      const placeKey = addressConfidenceKey(placeName);
+      const detailKey = addressConfidenceKey(detail);
+      if (placeKey && detailKey.endsWith(placeKey)) {
+        const placeCompact = normalizeAddress(placeName).replace(/\s+/g, '');
+        const detailCompact = normalizeAddress(detail).replace(/\s+/g, '');
+        if (placeCompact && detailCompact.endsWith(placeCompact)) detail = detailCompact.slice(0, -placeCompact.length).trim();
+      }
     }
-    return `<button type="button" class="gc-address-suggest-item" data-index="${index}" role="option">
-      <span class="gc-address-suggest-admin">${escapeHtml(admin)}</span>
-      <span class="gc-address-suggest-detail">${escapeHtml(detail)}</span>
+    const place = placeName ? `<strong class="gc-address-suggest-name">${escapeHtml(placeName)}</strong>` : '';
+    const adminHtml = admin ? `<span class="gc-address-suggest-admin">${escapeHtml(admin)}</span>` : '';
+    const detailHtml = detail ? `<span class="gc-address-suggest-detail">${escapeHtml(detail)}</span>` : '';
+    return `<button type="button" class="gc-address-suggest-item${placeName ? ' is-poi' : ''}" data-index="${index}" role="option">
+      <span class="gc-address-suggest-top">${place}${adminHtml}</span>
+      ${detailHtml}
     </button>`;
   }
 
@@ -605,6 +640,114 @@
     const data = await response.json();
     if (!data || data.error || !Array.isArray(data.suggestions)) return [];
     return data.suggestions;
+  }
+
+  // GC_MASTER_STABLE_2026_08R10Z9_POI_DISCOVERY
+  function poiContextFromQuery(value) {
+    const raw = normalizeAddress(value).replace(/臺/g, '台');
+    const compact = raw.replace(/[\s,，、。．·・_()（）]/g, '');
+    const district = [...ADDRESS_TAICHUNG_DISTRICTS].sort((a,b) => b.length - a.length).find(name => {
+      const short = name.replace(/區$/, '');
+      return compact.includes(name) || (short.length >= 2 && compact.includes(short));
+    }) || '';
+    const county = explicitTaiwanCountyFromQuery(raw) || (district ? '台中市' : '');
+    const brand = POI_BRAND_ALIASES.find(item => item.re.test(raw)) || null;
+    let remainder = raw;
+    if (county) remainder = remainder.replace(county, ' ');
+    if (district) remainder = remainder.replace(district, ' ').replace(district.replace(/區$/, ''), ' ');
+    if (brand) remainder = remainder.replace(brand.re, ' ');
+    remainder = normalizeAddress(remainder).replace(/^(?:店|分店|門市)+|(?:店|分店|門市)+$/g, '').trim();
+    const placeWords = /(?:站|車站|高鐵|捷運|機場|醫院|診所|飯店|酒店|旅館|百貨|商場|夜市|學校|大學|高中|國中|國小|公園|市場|餐廳|咖啡|銀行|郵局|門市|分店|商圈|公司|工廠|中心|超商|便利商店|五金|藥局|藥妝|賣場|影城|球場|館)/;
+    const roadLike = /(?:大道|路|街|道|巷|弄).{0,30}[0-9０-９]*|[0-9０-９]+(?:[-之][0-9０-９]+)?號/;
+    const isLikelyPoi = Boolean(brand) || (!roadLike.test(raw) && (placeWords.test(raw) || raw.replace(/\s/g,'').length >= 3));
+    const branchSpecific = Boolean(district || remainder || /(?:店|分店|門市)/.test(raw));
+    return { raw, compact, county, district, brand, remainder, isLikelyPoi, isBroadChain: Boolean(brand && !branchSpecific) };
+  }
+
+  function buildPoiQueryVariants(value) {
+    const ctx = poiContextFromQuery(value);
+    if (!ctx.isLikelyPoi) return [];
+    const zone = [ctx.district, ctx.county || (!attachedLocation ? '台中市' : '')].filter(Boolean).join(' ');
+    const name = ctx.brand?.canonical || ctx.raw;
+    const extra = ctx.remainder;
+    const variants = [];
+    const push = text => { text = normalizeAddress(text); if (text && !variants.some(v => addressConfidenceKey(v) === addressConfidenceKey(text))) variants.push(text); };
+    push(ctx.raw);
+    if (ctx.brand) {
+      push(`${name} ${extra} ${zone}`);
+      push(`${zone} ${name} ${extra}`);
+      if (ctx.district) {
+        push(`${name} ${ctx.district}`);
+        push(`${ctx.district} ${name}`);
+      }
+    } else if (zone) {
+      push(`${ctx.raw} ${zone}`);
+      push(`${zone} ${ctx.raw}`);
+    }
+    return variants.slice(0, 4);
+  }
+
+  function hasImplausibleProviderHouse(value) {
+    return /[0-9０-９]{5,}號/.test(String(value || ''));
+  }
+
+  function safePoiDisplayAddress(resolved) {
+    if (!resolved?.address || hasImplausibleProviderHouse(resolved.address) || isRomanizedProviderRoad(resolved.address)) return '';
+    let base = smartNormalizeTaiwanAddress(resolved.address);
+    if (!base || isClearlyOutsideTaiwanSuggestion(base)) return '';
+    const place = normalizeAddress(resolved.placeName || '');
+    if (place && !addressConfidenceKey(base).includes(addressConfidenceKey(place))) base = `${base}${place}`;
+    return smartNormalizeTaiwanAddress(base);
+  }
+
+  function poiCandidateScore(resolved, query, sourceRegion = '') {
+    if (!resolved) return -99999;
+    const ctx = poiContextFromQuery(query);
+    const text = safePoiDisplayAddress(resolved);
+    const parts = splitTaiwanSuggestionAddress(text || resolved.address);
+    const placeKey = addressConfidenceKey(resolved.placeName || '');
+    const qKey = addressConfidenceKey(ctx.brand?.canonical || ctx.raw);
+    const remainderKey = addressConfidenceKey(ctx.remainder || '');
+    const candidateKey = addressConfidenceKey(`${resolved.placeName || ''}${text || resolved.address || ''}`);
+    let score = Number(resolved.score || 0) * 4;
+    if (resolved.type === 'POI' || resolved.type === 'POIExt' || resolved.type === 'BuildingName') score += 320;
+    if (placeKey && qKey && (placeKey.includes(qKey) || qKey.includes(placeKey))) score += 260;
+    if (ctx.brand && POI_BRAND_ALIASES.some(item => item.re.test(resolved.placeName || ''))) score += 120;
+    // Branch/landmark words (e.g. 一中、林森、霧峰店) must influence ranking, not just the brand name.
+    if (remainderKey) {
+      if (candidateKey.includes(remainderKey)) score += 620;
+      else score -= 120;
+    }
+    if (ctx.district) {
+      if (parts.district === ctx.district) score += 1000;
+      else if (parts.district) score -= 900;
+    }
+    if (ctx.county) {
+      if (parts.county === ctx.county) score += 500;
+      else if (parts.county) score -= 700;
+    } else if (parts.county === '台中市') score += 260;
+    if (sourceRegion && parts.county === sourceRegion) score += 120;
+    return score;
+  }
+
+  async function fetchArcgisPoiCandidates(query, locationBias, controller, searchExtent = '') {
+    const params = new URLSearchParams({
+      f: 'json',
+      SingleLine: query,
+      countryCode: 'TWN',
+      langCode: 'zh-TW',
+      preferredLabelValues: 'localCity',
+      outFields: ARCGIS_RESOLVE_OUT_FIELDS,
+      maxLocations: '8',
+      location: locationBias || ADDRESS_BIAS_LOCATION
+    });
+    if (searchExtent) params.set('searchExtent', searchExtent);
+    const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.candidates) ? data.candidates : [];
   }
 
   function cacheAddressSuggestions(key, suggestions) {
@@ -649,9 +792,10 @@
     if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
 
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 700);
     try {
       const explicitCounty = explicitTaiwanCountyFromQuery(query);
+      const poiCtx = poiContextFromQuery(query);
       const geocoderQuery = geocoderQueryForAddress(query) || query;
       const currentLocationBias = attachedLocation &&
         Number.isFinite(attachedLocation.longitude) &&
@@ -662,11 +806,11 @@
 
       const seen = new Set();
       const merged = [];
-      const addResults = (items, sourceRegion = '', lookupLocation = '') => {
+      const addSuggestionResults = (items, sourceRegion = '', lookupLocation = '') => {
         items.forEach((raw, order) => {
           if (!raw?.text || isClearlyOutsideTaiwanSuggestion(raw.text)) return;
           const cleaned = canonicalizeSuggestedAddress(raw.text);
-          if (!cleaned || !isTaiwanSuggestion(cleaned)) return;
+          if (!cleaned || !isTaiwanSuggestion(cleaned) || hasImplausibleProviderHouse(cleaned)) return;
 
           const county = canonicalTaiwanCounty(cleaned);
           if (explicitCounty && county !== explicitCounty) return;
@@ -679,40 +823,74 @@
           const dedupeKey = cleaned.replace(/\s+/g, '').toLocaleLowerCase();
           if (seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
-
           merged.push({
             text: cleaned,
             lookupText: raw.text,
             magicKey: raw.magicKey || '',
             lookupLocation,
             sourceRegion,
+            isCollection: raw.isCollection === true,
             _order: order,
             _score: taiwanSuggestionScore(cleaned, query, sourceRegion)
           });
         });
       };
 
-      // Fast path: one Taiwan-only request with a Taichung/current-location bias.
-      // Most normal road/landmark searches finish here, keeping typing responsive.
+      const addPoiCandidates = (candidates, sourceRegion = '', lookupLocation = '') => {
+        candidates.forEach((candidate, order) => {
+          const resolved = resolvedCandidateFromArcgis(candidate, query);
+          if (!resolved) return;
+          const precise = new Set(['POI','POIExt','BuildingName','PointAddress','PointAddressInt','StreetAddress','Subaddress']);
+          if (!precise.has(resolved.type)) return;
+          const display = safePoiDisplayAddress(resolved);
+          if (!display || hasImplausibleProviderHouse(display)) return;
+          const parts = splitTaiwanSuggestionAddress(display);
+          if (!parts.county || !parts.district) return;
+          if (poiCtx.county && parts.county !== poiCtx.county) return;
+          if (poiCtx.district && parts.district !== poiCtx.district) return;
+          const dedupeKey = display.replace(/\s+/g, '').toLocaleLowerCase();
+          if (seen.has(dedupeKey)) return;
+          seen.add(dedupeKey);
+          merged.push({
+            text: display,
+            lookupText: '',
+            magicKey: '',
+            lookupLocation,
+            sourceRegion,
+            resolved,
+            placeName: normalizeAddress(resolved.placeName || ''),
+            kind: 'poi',
+            _order: order,
+            _score: poiCandidateScore(resolved, query, sourceRegion)
+          });
+        });
+      };
+
       const primaryLocation = explicitCounty
         ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
         : currentLocationBias;
-      // GC_R10Z5_DEFAULT_TAICHUNG_PRIMARY_RANK
-      // With no explicit county and no user GPS bias, the fleet's default Taichung request should
-      // remain ahead of enrichment results from Changhua/Nantou. This changes ranking only, not scope.
       const primarySourceRegion = explicitCounty || (currentLocationBias === ADDRESS_BIAS_LOCATION ? '台中市' : '');
-      addResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
+      addSuggestionResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
 
-      // Only enrich when the first response did not already give enough safe,
-      // district-labelled Central Taiwan choices. This keeps 中彰投 prominent
-      // without making every keystroke fire four network requests.
       const centralDistrictCount = merged.filter(item => {
         const parts = splitTaiwanSuggestionAddress(item.text);
         return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
       }).length;
-
       const addressLikeQuery = /[路街道巷弄]|[0-9０-９]/.test(String(query || ''));
-      if (!explicitCounty && (centralDistrictCount < 4 || addressLikeQuery)) {
+
+      // POI / chain-store fallback: use concrete findAddressCandidates results, not only autocomplete text.
+      // Esri documents both "name + zone" and "zone + name" POI forms; query variants make order insensitive.
+      if (poiCtx.isLikelyPoi && (centralDistrictCount < 6 || poiCtx.brand)) {
+        const variants = buildPoiQueryVariants(query);
+        const poiExtent = poiCtx.county && poiCtx.county !== '台中市' ? ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT : ADDRESS_TAICHUNG_EXTENT;
+        const sets = await Promise.all(variants.slice(0, 3).map(async variant => {
+          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent); }
+          catch (_) { return []; }
+        }));
+        sets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+      }
+
+      if (!explicitCounty && !poiCtx.district && (centralDistrictCount < 4 || addressLikeQuery) && !poiCtx.brand) {
         const enrichmentRegions = centralDistrictCount < 4
           ? ADDRESS_PRIMARY_REGIONS
           : ADDRESS_PRIMARY_REGIONS.filter(region => region.name === '台中市');
@@ -724,13 +902,14 @@
             return { items: [], region: region.name, location: region.location };
           }
         }));
-        enrichedSets.forEach(result => addResults(result.items, result.region, result.location));
+        enrichedSets.forEach(result => addSuggestionResults(result.items, result.region, result.location));
       }
 
       const suggestions = merged
+        .filter(item => !hasImplausibleProviderHouse(item.text))
         .sort((a, b) => (b._score - a._score) || (a._order - b._order))
-        .slice(0, 6)
-        .map(({ text, lookupText, magicKey, lookupLocation }) => ({ text, lookupText, magicKey, lookupLocation }));
+        .slice(0, 7)
+        .map(({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }) => ({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }));
 
       return cacheAddressSuggestions(cacheKey, suggestions);
     } catch (_) {
@@ -891,6 +1070,7 @@
 
   async function resolveAddressSuggestion(item) {
     if (!item?.text) return null;
+    if (item.resolved && item.resolved.address) return item.resolved;
     const cacheKey = item.magicKey || `text:${addressConfidenceKey(item.lookupText || item.text)}`;
     if (cacheKey && addressResolveCache.has(cacheKey)) return addressResolveCache.get(cacheKey);
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -937,27 +1117,38 @@
     if (!normalized) return [];
     if (typedAddressResolveCache.has(cacheKey)) return typedAddressResolveCache.get(cacheKey);
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 700);
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 900);
     try {
-      const params = new URLSearchParams({
-        f: 'json',
-        SingleLine: geocoderQueryForAddress(normalized) || normalized,
-        countryCode: 'TWN',
-        langCode: 'zh-TW',
-        preferredLabelValues: 'localCity',
-        outFields: ARCGIS_RESOLVE_OUT_FIELDS,
-        maxLocations: '3',
-        location: currentAddressLocationBias(normalized)
-      });
-      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
-      });
-      if (!response.ok) return [];
-      const data = await response.json();
-      const resolved = (Array.isArray(data?.candidates) ? data.candidates : [])
+      const ctx = poiContextFromQuery(normalized);
+      const queries = ctx.isLikelyPoi ? buildPoiQueryVariants(normalized).slice(0, 3) : [geocoderQueryForAddress(normalized) || normalized];
+      const location = currentAddressLocationBias(normalized);
+      const extent = ctx.isLikelyPoi && (!ctx.county || ctx.county === '台中市') ? ADDRESS_TAICHUNG_EXTENT : ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT;
+      const responses = await Promise.all(queries.map(async q => {
+        const params = new URLSearchParams({
+          f: 'json', SingleLine: q, countryCode: 'TWN', langCode: 'zh-TW', preferredLabelValues: 'localCity',
+          outFields: ARCGIS_RESOLVE_OUT_FIELDS, maxLocations: ctx.isLikelyPoi ? '6' : '3', location
+        });
+        if (extent) params.set('searchExtent', extent);
+        try {
+          const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+            method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+          });
+          if (!response.ok) return [];
+          const data = await response.json();
+          return Array.isArray(data?.candidates) ? data.candidates : [];
+        } catch (_) { return []; }
+      }));
+      const seen = new Set();
+      const resolved = responses.flat()
         .map(candidate => resolvedCandidateFromArcgis(candidate, normalized))
         .filter(Boolean)
-        .sort((a, b) => b.score - a.score);
+        .filter(item => {
+          if (hasImplausibleProviderHouse(item.address)) return false;
+          const key = `${addressConfidenceKey(item.address)}|${addressConfidenceKey(item.placeName || '')}`;
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        })
+        .sort((a, b) => poiCandidateScore(b, normalized) - poiCandidateScore(a, normalized));
       if (typedAddressResolveCache.size >= ADDRESS_RESOLVE_CACHE_LIMIT) {
         const firstKey = typedAddressResolveCache.keys().next().value;
         if (firstKey) typedAddressResolveCache.delete(firstKey);
@@ -1075,6 +1266,9 @@
 
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
+    const poiCtx = poiContextFromQuery(normalized);
+    if (poiCtx.isBroadChain) return suggestions.length ? '請從智慧建議選擇正確分店。' : '請加上區域或分店名稱，再選擇正確分店。';
+    if (poiCtx.isLikelyPoi && suggestions.length) return '請從智慧建議選擇正確店家／地標。';
     if (isDoorAddressMissingAdmin(normalized)) {
       return '此門牌在不同區域可能重複，請補上縣市／區域或從建議中選擇正確地點。';
     }
@@ -1141,6 +1335,22 @@
       input.classList.add('gc-address-needs-choice');
       if (options.showError !== false) {
         showFieldError(id, suggestions.length ? '此門牌在不同區域可能重複，請從建議地址選擇正確縣市／區域。' : '請補上縣市與區域，或從建議地址選擇正確地點。');
+        if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
+        else hideAddressSuggestions(id);
+      }
+      return false;
+    }
+
+    // GC_MASTER_STABLE_2026_08R10Z9_CHAIN_BRANCH_SELECTION_GATE
+    // A brand-only chain query (7-11 / 全家 / 萊爾富 / OK / etc.) represents many real places.
+    // Never auto-pick one branch. Offer concrete district-labelled candidates and require one tap.
+    const poiCtx = poiContextFromQuery(normalized);
+    if (!isRelaxedRideDestination(id) && poiCtx.isBroadChain) {
+      const suggestions = await fetchAddressSuggestions(normalized);
+      clearAddressVerified(input);
+      input.classList.add('gc-address-needs-choice');
+      if (options.showError !== false) {
+        showFieldError(id, suggestions.length ? '請從智慧建議選擇正確分店。' : '請加上區域或分店名稱，例如「霧峰 7-11」，再選擇正確分店。');
         if (suggestions.length) showAddressChoiceSuggestions(id, suggestions);
         else hideAddressSuggestions(id);
       }
@@ -3434,41 +3644,36 @@
   }
 
   async function initialize() {
-    // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
-    // Keep the existing branded loading card until this exact bundle is confirmed. If the
-    // version endpoint is temporarily unreachable, fail open after a short timeout rather than
-    // trapping the passenger on a loader. Address / fare / form behavior is untouched.
+    // GC_MASTER_STABLE_2026_08R10Z9_PARALLEL_SAFE_BOOT
+    // Version proof and LIFF SDK initialization run in parallel behind the single loading surface.
+    // A stale form is still never painted; sendFormMessages continues to await the same LIFF promise.
+    const initialParams = new URLSearchParams(location.search);
+    const initialMode = initialParams.get('mode');
+    const mightBeLiff = !preview && (initialParams.has('liff.state') || Boolean(initialMode));
+    const liffBoot = mightBeLiff ? ensureLiffReady().then(sdk => ({ sdk, error: null })).catch(error => ({ sdk: null, error })) : null;
+
     const firstBuildStatus = await ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS });
     if (firstBuildStatus === 'stale' || gcVersionRedirecting) return;
     releaseVersionHold(firstBuildStatus);
 
-    // GC_MASTER_STABLE_2026_08R10P_PROGRESSIVE_LIFF_BOOT
-    // After version coherence is proven, paint the requested mode and initialize LIFF in parallel;
-    // sendFormMessages still awaits ensureLiffReady(), so delivery safety is unchanged.
-    const initialParams = new URLSearchParams(location.search);
-    const initialMode = initialParams.get('mode');
     const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));
-
     if (preview) {
       if (!initialModeRendered) renderQr();
       return;
     }
 
-    const mightBeLiff = initialParams.has('liff.state') || Boolean(initialMode);
     if (mightBeLiff) {
-      try {
-        const sdk = await ensureLiffReady();
-        if (!sdk || !sdk.isInClient()) {
-          renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
-          return;
-        }
-      } catch (error) {
-        renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
+      const result = await liffBoot;
+      if (result?.error) {
+        renderFatal('表格無法開啟', result.error?.message || 'LIFF 初始化失敗。');
+        return;
+      }
+      if (!result?.sdk || !result.sdk.isInClient()) {
+        renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
         return;
       }
     }
 
-    // A first LIFF redirect may expose the final mode only after sdk.init().
     const finalMode = new URLSearchParams(location.search).get('mode');
     if (!finalMode) {
       if (!initialModeRendered) renderQr();
