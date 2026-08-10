@@ -456,7 +456,7 @@ window.GC_FORM_CONFIG = {
                    "缺少傳送權限提醒":  "此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。",
                    "訊息欄位符號":  "•",
                    "最近地址標題":  "最近地址",
-                   "最近地址按鈕":  "最近地址",
+                   "最近地址按鈕":  "最近",
                    "最近地址刪除":  "刪除",
                    "最近地址清除全部":  "清除全部",
                    "最近地址清除確認":  "確定要清除全部最近地址嗎？",
@@ -510,7 +510,7 @@ window.GC_FORM_CONFIG = {
                  "需求提示":  "請選擇無、有籠或無籠",
                  "備註標題":  "備註資訊",
                  "備註提示":  "其他需要小編或司機留意的資訊",
-                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                 "表格提醒1":  "填寫越完整，媒合越快速。",
                  "表格提醒2":  "",
                  "送出按鈕":  "下一步：確認叫車資料",
                  "錯誤_用車方式":  "請選擇服務類型。",
@@ -555,7 +555,7 @@ window.GC_FORM_CONFIG = {
                    "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
                    "備註標題":  "備註資訊",
                    "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
-                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                   "表格提醒1":  "填寫越完整，媒合越快速。",
                    "表格提醒2":  "",
                    "送出按鈕":  "下一步：確認代駕資料",
                    "錯誤_用車方式":  "請選擇服務類型。",
@@ -672,7 +672,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9i';
+  const GC_BUILD_VERSION = 'master202608r10z9q';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -5666,7 +5666,7 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong></span><b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -5677,7 +5677,7 @@ window.GC_FORM_CONFIG = {
       const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
       const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
       const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
-      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
+      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
       extra.innerHTML = '';
@@ -5690,7 +5690,7 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
+      details.addEventListener('toggle', () => { window.GC_bindCompactDisclosureStates?.(); });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，

@@ -366,7 +366,7 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong></span><b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -377,7 +377,7 @@
       const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
       const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
       const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
-      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
+      warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
       extra.innerHTML = '';
@@ -390,7 +390,7 @@
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
+      details.addEventListener('toggle', () => { window.GC_bindCompactDisclosureStates?.(); });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
