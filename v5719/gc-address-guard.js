@@ -4,6 +4,7 @@
   // GC_ADDRESS_GUARD_ACTIVE
   // GC_ADDRESS_GUARD_R10Z1
   // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
+  // GC_ADDRESS_GUARD_R10Z6_ROMANIZED_ROAD_PROVIDER_BLOCK
   // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
   // Goals:
   // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
@@ -12,7 +13,7 @@
   // 3) reject obviously corrupted programmatic address values before they spread to LINE,
   //    recent addresses, favorites, or Google Maps.
 
-  const VERSION = 'r10z4-address-guard-20260810';
+  const VERSION = 'r10z6-address-guard-20260810';
   const COUNTIES = [
     '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
     '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
@@ -24,6 +25,15 @@
   const DISTRICT_RE = /^[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/;
   const ROAD_RE = /(?:大道|路|街|道|巷|弄)/;
   const CJK_ROAD_RE = /[\u3400-\u9fff].*(?:大道|路|街|道|巷|弄)/;
+  // Provider romanization such as TaiPingRd22-4 is metadata, never a passenger-facing Taiwan address.
+  const ROMANIZED_ROAD_AFTER_RE = /(?:^|[^A-Za-z])(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?(?:號)?/i;
+  const ROMANIZED_ROAD_BEFORE_RE = /(?:^|[^A-Za-z0-9０-９])[0-9０-９]+(?:[-之][0-9０-９]+)?\s*(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)(?:$|[^A-Za-z])/i;
+
+  function isRomanizedRoadProviderLabel(value) {
+    const text = compact(value);
+    if (!text || !countyFrom(text)) return false;
+    return ROMANIZED_ROAD_AFTER_RE.test(text) || ROMANIZED_ROAD_BEFORE_RE.test(text);
+  }
 
   const compact = value => String(value ?? '')
     .replace(/臺/g, '台')
@@ -223,7 +233,10 @@
     // as the house number and Postal as a separate field; never use Postal as AddNum.
     if (!detail && streetName) {
       const street = addNum ? `${streetName}${addNum}號` : streetName;
-      detail = normalizeStreetToken(street);
+      const normalizedStreet = normalizeStreetToken(street);
+      // A romanized street is useful as provider metadata but unsafe as passenger-visible text.
+      // Prefer a localized POI label when available; otherwise leave detail empty so caller can fall back safely.
+      if (!isRomanizedRoadProviderLabel(`${county || ''}${district || ''}${normalizedStreet}`)) detail = normalizedStreet;
     }
     if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
     if (!detail && parsedFallback?.detail) detail = parsedFallback.detail;
@@ -240,6 +253,7 @@
   function isStructurallyCorruptAddress(value) {
     const text = noSpace(value);
     if (!text) return false;
+    if (isRomanizedRoadProviderLabel(text)) return true;
 
     // Same county repeated is never a valid dispatch address.
     for (const county of COUNTIES) {
@@ -263,6 +277,18 @@
   function canonicalTaiwanAddress(value, attrs = {}) {
     const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
     if (!raw) return '';
+
+    // R10Z6: never pass provider romanized roads (TaiPingRd / GongYuanRd / etc.) through as UI text.
+    // If ArcGIS also supplied localized structured fields, rebuild from those; otherwise reject this display label.
+    if (isRomanizedRoadProviderLabel(raw)) {
+      const safe = structuredParts(attrs, raw);
+      let detail = normalizeStreetToken(safe.detail || '');
+      if (safe.district) detail = detail.replace(new RegExp(`^${safe.district}`), '').trim();
+      if (safe.county) detail = detail.replace(new RegExp(COUNTIES.join('|'), 'g'), '').trim();
+      const localized = safe.county && detail ? noSpace(stripIndoorProviderSuffix(`${safe.county}${safe.district || ''}${detail}`)) : '';
+      if (localized && !isRomanizedRoadProviderLabel(localized) && !isStructurallyCorruptAddress(localized)) return localized;
+      return '';
+    }
 
     // Fast path for provider labels already starting with county/city, with or without spaces:
     // "台中市 霧峰區, 六股路138號" / "台中市霧峰區,六股路138號".
@@ -317,6 +343,7 @@
     const raw = compact(value);
     if (!raw) return false;
     if (stripTrailingPostalHouseArtifact(raw) !== raw) return true;
+    if (isRomanizedRoadProviderLabel(raw)) return true;
     if (TAIWAN_ADMIN_PREFIX_RE.test(raw)) return true;
     if (isStructurallyCorruptAddress(raw)) return true;
     const hasCounty = Boolean(countyFrom(raw));
@@ -329,7 +356,7 @@
     if (!raw) return '';
     const dePostal = stripTrailingPostalHouseArtifact(raw);
     if (dePostal !== raw) return canonicalTaiwanAddress(dePostal) || dePostal;
-    if (/^(?:台北市|新北市|桃園市|台中市|台南市|高雄市).*(?:[A-Za-z]{2,}(?:Rd|Road|St|Street|Ave|Avenue|Blvd))\s*[0-9]/i.test(raw)) return '';
+    if (isRomanizedRoadProviderLabel(raw)) return '';
     if (!unmistakableProviderArtifact(raw)) return raw;
     return canonicalTaiwanAddress(raw) || '';
   }
@@ -404,6 +431,7 @@
     stripTrailingPostalHouseArtifact,
     stripIndoorProviderSuffix,
     canonicalTaiwanAddress,
+    isRomanizedRoadProviderLabel,
     isStructurallyCorruptAddress
   });
 })();

@@ -1,10 +1,11 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z5';
+  const GC_BUILD_VERSION = 'master202608r10z6';
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_BEHAVIOR_RESTORE
   // GC_MASTER_STABLE_2026_08R10Z4_ADDRESS_PROVIDER_LABEL_FIX
   // GC_MASTER_STABLE_2026_08R10Z5_EXPLICIT_SUGGESTION_VISIBLE_SOURCE_LOCK
+  // GC_MASTER_STABLE_2026_08R10Z6_ADDRESS_MATRIX_AND_ROMANIZED_PROVIDER_BLOCK
   // Explicit suggestion tap keeps the cleaned suggestion label as passenger-visible truth;
   // candidate resolution is validation/route metadata only and may never replace it with transliterated provider fields.
   // Address-only repair: restore R10Q-style autocomplete availability; keep format sanitation and mode-aware submit gates separate.
@@ -397,6 +398,19 @@
       .replace(/\s+\d{3}(?:\d{2,3})?$/, ''));
   }
 
+  // GC_R10Z6_ROMANIZED_PROVIDER_ROAD_BLOCK
+  // Reject only provider-style romanized street+door tokens; English business names remain allowed.
+  function isRomanizedProviderRoad(value) {
+    const text = String(value || '').replace(/臺/g, '台');
+    if (!canonicalTaiwanCounty(text)) return false;
+    try {
+      if (window.GC_ADDRESS_GUARD?.isRomanizedRoadProviderLabel?.(text)) return true;
+    } catch (_) {}
+    const after = /(?:^|[^A-Za-z])(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?(?:號)?/i;
+    const before = /(?:^|[^A-Za-z0-9０-９])[0-9０-９]+(?:[-之][0-9０-９]+)?\s*(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)(?:$|[^A-Za-z])/i;
+    return after.test(text) || before.test(text);
+  }
+
   function isClearlyOutsideTaiwanSuggestion(value) {
     const text = String(value || '');
     return /(中國|中国|中華人民共和國|中华人民共和国|福建省|廣東省|广东省|浙江省|江蘇省|江苏省|江西省|安徽省|山東省|山东省|河南省|河北省|湖北省|湖南省|四川省|貴州省|贵州省|雲南省|云南省|海南省|遼寧省|辽宁省|吉林省|黑龍江省|黑龙江省|陝西省|陕西省|山西省|甘肅省|甘肃省|青海省|北京市|上海市|天津市|重慶市|重庆市|香港|澳門|澳门|Xiamen|Fujian|Guangdong|Zhejiang|Jiangsu|Shanghai|Beijing|China)/i.test(text);
@@ -481,13 +495,18 @@
     // original /suggest text is never mutated because ArcGIS magicKey is tied to that text.
     try {
       const guarded = window.GC_ADDRESS_GUARD?.canonicalTaiwanAddress?.(value, attrs);
-      if (guarded) return smartNormalizeTaiwanAddress(guarded);
+      if (guarded && !isRomanizedProviderRoad(guarded)) return smartNormalizeTaiwanAddress(guarded);
     } catch (_) {}
-    const parts = splitTaiwanSuggestionAddress(value);
-    if (!parts.county) return smartNormalizeTaiwanAddress(cleanSuggestedAddress(value));
+    const cleaned = cleanSuggestedAddress(value);
+    const parts = splitTaiwanSuggestionAddress(cleaned);
+    if (!parts.county) {
+      const plain = smartNormalizeTaiwanAddress(cleaned);
+      return isRomanizedProviderRoad(plain) ? '' : plain;
+    }
     const admin = `${parts.county}${parts.district || ''}`;
     const detail = normalizeAddress(parts.detail || '');
-    return smartNormalizeTaiwanAddress(`${admin}${detail}`);
+    const result = smartNormalizeTaiwanAddress(`${admin}${detail}`);
+    return isRomanizedProviderRoad(result) ? '' : result;
   }
 
   function taiwanSuggestionScore(value, query, sourceRegion = '') {
@@ -802,7 +821,9 @@
     // When this candidate came from an explicit suggestion tap, the cleaned suggestion text is
     // the stable localized label the passenger actually chose. Do not let a later ArcGIS candidate
     // response replace it with transliterated fields such as TaiPingRd22-4.
-    const address = options.preferFallback === true && fallbackAddress && canonicalTaiwanCounty(fallbackAddress)
+    const preferLocalizedFallback = fallbackAddress && canonicalTaiwanCounty(fallbackAddress) && !isRomanizedProviderRoad(fallbackAddress)
+      && (!candidateAddress || isRomanizedProviderRoad(candidateAddress));
+    const address = (options.preferFallback === true && fallbackAddress && canonicalTaiwanCounty(fallbackAddress)) || preferLocalizedFallback
       ? fallbackAddress
       : (candidateAddress || fallbackAddress);
     if (!address || isClearlyOutsideTaiwanSuggestion(address)) return null;
