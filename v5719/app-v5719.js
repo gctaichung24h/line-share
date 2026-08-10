@@ -3235,10 +3235,6 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
-          <small class="gc-fare-rates-meta">
-            <span class="gc-fare-rates-meta-line">${escapeHtml(allDayShort)}</span>
-            <span class="gc-fare-rates-meta-line">最低 $${escapeHtml(formatFareRuleValue(rules.minimum))}</span>
-          </small>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
