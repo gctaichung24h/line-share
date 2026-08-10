@@ -672,7 +672,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9p';
+  const GC_BUILD_VERSION = 'master202608r10z9q';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -680,7 +680,7 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
   // GC_MASTER_STABLE_2026_08R10Z9M_REQUESTED_UI_FINISH
   // GC_MASTER_STABLE_2026_08R10Z9N_CALL_PICKUP_FREE_TEXT_AND_IOS_SCHEDULE_CONFIRM
-  // GC_MASTER_STABLE_2026_08R10Z9P_SCHEDULE_CENTER_AND_TIME_PICKER_ANCHOR
+  // GC_MASTER_STABLE_2026_08R10Z9Q_CENTERED_CUSTOM_TIME_PICKER
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -998,13 +998,12 @@ window.GC_FORM_CONFIG = {
       <div id="scheduleFields" class="schedule-grid hidden">
         <div class="field gc-schedule-date-field" style="margin-bottom:0">
           <label for="date">${requiredLabel(cfg['日期標題'])}</label>
-          <input class="input" id="date" name="date" type="date">
+          <input class="input gc-schedule-control" id="date" name="date" type="date">
           <div class="error-text" id="dateError"></div>
         </div>
         <div class="field gc-schedule-time-field" style="margin-bottom:0">
-          <label for="timeDisplay">${requiredLabel(cfg['時間標題'])}</label>
-          <input class="input gc-time-display" id="timeDisplay" type="text" inputmode="none" readonly aria-haspopup="dialog" aria-controls="time" autocomplete="off">
-          <input class="gc-time-native-proxy" id="time" name="time" type="time" tabindex="-1" aria-label="${escapeHtml(cfg['時間標題'] || '用車時間')}">
+          <label for="time">${requiredLabel(cfg['時間標題'])}</label>
+          <input class="input gc-schedule-control gc-time-trigger" id="time" name="time" type="text" inputmode="none" readonly autocomplete="off" aria-haspopup="dialog" aria-controls="gcTimePickerOverlay">
           <div class="error-text" id="timeError"></div>
         </div>
       </div>`;
@@ -4238,76 +4237,137 @@ window.GC_FORM_CONFIG = {
     }, { passive: false, capture: true });
   }
 
-  // GC_MASTER_STABLE_2026_08R10Z9P_SCHEDULE_CENTER_AND_TIME_PICKER_ANCHOR
-  // Keep the visible date/time pair symmetric while anchoring the native iOS time picker to
-  // the exact date-input rectangle. The passenger still gets the native iOS wheel; only the
-  // time input used to open it is transparent and shares the date control's geometry.
-  function bindSchedulePickerBridge() {
-    const schedule = document.getElementById('scheduleFields');
-    const dateInput = document.getElementById('date');
-    const timeInput = document.getElementById('time');
-    const timeDisplay = document.getElementById('timeDisplay');
-    if (!schedule || !dateInput || !timeInput || !timeDisplay || timeInput.dataset.gcPickerBridge === '1') return;
-    timeInput.dataset.gcPickerBridge = '1';
+  // GC_MASTER_STABLE_2026_08R10Z9Q_CENTERED_CUSTOM_TIME_PICKER
+  // Native iOS time popovers are positioned by WKWebView and cannot be reliably aligned.
+  // Use one deterministic, centered, touch-scroll wheel. The actual field value is committed
+  // only when 「完成」 is pressed, so progressive fields never appear mid-selection.
+  function bindCenteredTimePicker() {
+    const input = document.getElementById('time');
+    if (!input || input.dataset.gcCenteredPickerBound === '1') return;
+    input.dataset.gcCenteredPickerBound = '1';
 
-    const dispatchPickerState = () => {
-      try { timeInput.dispatchEvent(new CustomEvent('gc:schedule-picker-state', { bubbles: true })); } catch (_) {}
+    const ITEM_HEIGHT = 50;
+    let overlay = document.getElementById('gcTimePickerOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'gcTimePickerOverlay';
+      overlay.className = 'gc-time-picker-overlay hidden';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', '選擇用車時間');
+      const hourItems = Array.from({length:24}, (_,i) => `<button type="button" class="gc-time-wheel-item" data-value="${String(i).padStart(2,'0')}" role="option">${String(i).padStart(2,'0')}</button>`).join('');
+      const minuteItems = Array.from({length:60}, (_,i) => `<button type="button" class="gc-time-wheel-item" data-value="${String(i).padStart(2,'0')}" role="option">${String(i).padStart(2,'0')}</button>`).join('');
+      overlay.innerHTML = `
+        <div class="gc-time-picker-card">
+          <div class="gc-time-picker-wheels" aria-label="小時與分鐘">
+            <div class="gc-time-selection-bar" aria-hidden="true"></div>
+            <div class="gc-time-wheel-wrap"><div class="gc-time-wheel" id="gcTimeHourWheel" role="listbox" aria-label="小時">${hourItems}</div></div>
+            <div class="gc-time-wheel-separator" aria-hidden="true">:</div>
+            <div class="gc-time-wheel-wrap"><div class="gc-time-wheel" id="gcTimeMinuteWheel" role="listbox" aria-label="分鐘">${minuteItems}</div></div>
+          </div>
+          <div class="gc-time-picker-actions">
+            <button type="button" class="gc-time-picker-reset" id="gcTimePickerReset">重置</button>
+            <button type="button" class="gc-time-picker-done" id="gcTimePickerDone">完成</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+
+    const hourWheel = overlay.querySelector('#gcTimeHourWheel');
+    const minuteWheel = overlay.querySelector('#gcTimeMinuteWheel');
+    const resetBtn = overlay.querySelector('#gcTimePickerReset');
+    const doneBtn = overlay.querySelector('#gcTimePickerDone');
+    let previousBodyOverflow = '';
+
+    const pickerState = open => {
+      if (open) input.dataset.gcPickerOpen = '1'; else delete input.dataset.gcPickerOpen;
+      try { input.dispatchEvent(new CustomEvent('gc:schedule-picker-state', { bubbles:true })); } catch (_) {}
     };
-    const syncDisplay = () => {
-      timeDisplay.value = String(timeInput.value || '');
-      timeDisplay.classList.toggle('invalid', timeInput.classList.contains('invalid'));
-    };
-    const alignTimePickerAnchor = () => {
-      const scheduleRect = schedule.getBoundingClientRect();
-      const dateRect = dateInput.getBoundingClientRect();
-      if (!scheduleRect.width || !dateRect.width) return;
-      timeInput.style.left = `${Math.round((dateRect.left - scheduleRect.left) * 100) / 100}px`;
-      timeInput.style.top = `${Math.round((dateRect.top - scheduleRect.top) * 100) / 100}px`;
-      timeInput.style.width = `${Math.round(dateRect.width * 100) / 100}px`;
-      timeInput.style.height = `${Math.round(dateRect.height * 100) / 100}px`;
-    };
-    const markOpen = () => {
-      timeInput.dataset.gcPickerOpen = '1';
-      dispatchPickerState();
-    };
-    const markClosedIfInactive = () => {
-      requestAnimationFrame(() => {
-        if (document.activeElement === timeInput) return;
-        delete timeInput.dataset.gcPickerOpen;
-        dispatchPickerState();
+    const nearestIndex = (wheel, max) => Math.max(0, Math.min(max, Math.round((wheel?.scrollTop || 0) / ITEM_HEIGHT)));
+    const syncSelected = wheel => {
+      if (!wheel) return;
+      const idx = nearestIndex(wheel, wheel.children.length - 1);
+      Array.from(wheel.children).forEach((node, i) => {
+        const selected = i === idx;
+        node.classList.toggle('is-selected', selected);
+        node.setAttribute('aria-selected', selected ? 'true' : 'false');
       });
     };
-    const openTimePicker = event => {
-      event?.preventDefault?.();
-      alignTimePickerAnchor();
-      markOpen();
-      try { timeInput.focus({ preventScroll: true }); } catch (_) { try { timeInput.focus(); } catch (_) {} }
-      try {
-        if (typeof timeInput.showPicker === 'function') timeInput.showPicker();
-        else timeInput.click();
-      } catch (_) {
-        try { timeInput.click(); } catch (_) {}
+    const setWheel = (wheel, index) => {
+      if (!wheel) return;
+      wheel.scrollTop = Math.max(0, index) * ITEM_HEIGHT;
+      syncSelected(wheel);
+    };
+    const parsedTime = () => {
+      const m = String(input.value || '').match(/^(\d{1,2}):(\d{2})$/);
+      if (m) return [Math.min(23, Number(m[1])), Math.min(59, Number(m[2]))];
+      const now = new Date();
+      return [now.getHours(), now.getMinutes()];
+    };
+    const close = ({ commit = false, clear = false } = {}) => {
+      if (commit) {
+        const hh = String(nearestIndex(hourWheel, 23)).padStart(2, '0');
+        const mm = String(nearestIndex(minuteWheel, 59)).padStart(2, '0');
+        input.value = `${hh}:${mm}`;
+        input.dispatchEvent(new Event('input', { bubbles:true }));
+        input.dispatchEvent(new Event('change', { bubbles:true }));
+      } else if (clear) {
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles:true }));
+        input.dispatchEvent(new Event('change', { bubbles:true }));
       }
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('gc-time-picker-open');
+      document.body.style.overflow = previousBodyOverflow;
+      pickerState(false);
+      try { input.blur(); } catch (_) {}
+    };
+    const open = event => {
+      event?.preventDefault?.();
+      const [hh, mm] = parsedTime();
+      previousBodyOverflow = document.body.style.overflow;
+      document.body.classList.add('gc-time-picker-open');
+      document.body.style.overflow = 'hidden';
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-hidden', 'false');
+      pickerState(true);
+      requestAnimationFrame(() => {
+        setWheel(hourWheel, hh);
+        setWheel(minuteWheel, mm);
+        try { doneBtn.focus({preventScroll:true}); } catch (_) {}
+      });
     };
 
-    timeDisplay.addEventListener('click', openTimePicker);
-    timeDisplay.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') openTimePicker(event);
+    [hourWheel, minuteWheel].forEach(wheel => {
+      if (!wheel) return;
+      let raf = 0;
+      wheel.addEventListener('scroll', () => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => syncSelected(wheel));
+      }, { passive:true });
+      wheel.addEventListener('click', event => {
+        const item = event.target.closest('.gc-time-wheel-item');
+        if (!item) return;
+        const index = Array.prototype.indexOf.call(wheel.children, item);
+        wheel.scrollTo({ top:index * ITEM_HEIGHT, behavior:'smooth' });
+      });
     });
-    timeInput.addEventListener('focus', markOpen, { passive: true });
-    timeInput.addEventListener('input', syncDisplay, { passive: true });
-    timeInput.addEventListener('change', () => { syncDisplay(); markClosedIfInactive(); }, { passive: true });
-    timeInput.addEventListener('blur', markClosedIfInactive, { passive: true });
-    window.addEventListener('resize', alignTimePickerAnchor, { passive: true });
-    window.addEventListener('orientationchange', () => requestAnimationFrame(alignTimePickerAnchor), { passive: true });
-    window.GC_syncSchedulePicker = () => { syncDisplay(); alignTimePickerAnchor(); };
-    syncDisplay();
-    requestAnimationFrame(alignTimePickerAnchor);
+    input.addEventListener('click', open);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') open(event);
+    });
+    doneBtn?.addEventListener('click', () => close({commit:true}));
+    resetBtn?.addEventListener('click', () => close({clear:true}));
+    overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !overlay.classList.contains('hidden')) close();
+    });
   }
 
   function bindRideLike(mode, cfg) {
     setDateMinimum();
-    bindSchedulePickerBridge();
+    bindCenteredTimePicker();
     bindRecentAddressControls();
     bindSmallDisclosureTriggers();
     installVerticalOnlyTouchGuard();
@@ -4326,7 +4386,8 @@ window.GC_FORM_CONFIG = {
         if (!reserve) {
           document.getElementById('date').value = '';
           document.getElementById('time').value = '';
-          window.GC_syncSchedulePicker?.();
+          document.getElementById('gcTimePickerOverlay')?.classList.add('hidden');
+          delete document.getElementById('time').dataset.gcPickerOpen;
           clearFieldValidation('date');
           clearFieldValidation('time');
         }
@@ -5881,7 +5942,7 @@ window.GC_FORM_CONFIG = {
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
   // GC_MASTER_STABLE_2026_08R10Z9N_IOS_SCHEDULE_CONFIRM_GATE
-  // GC_MASTER_STABLE_2026_08R10Z9P_TIME_PICKER_ANCHOR_CONFIRM_GATE
+  // GC_MASTER_STABLE_2026_08R10Z9Q_EXPLICIT_PICKER_COMMIT_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -5964,12 +6025,7 @@ window.GC_FORM_CONFIG = {
       // iOS/WKWebView mutates date/time values while the native wheel is still open.
       // Treat the schedule as confirmed only after both values exist AND neither picker input is focused.
       // The blur handler below re-checks on the next animation frame, matching the native 「完成」 close.
-      const scheduleEditing = reserve && (
-        document.activeElement === dateInput ||
-        document.activeElement === timeInput ||
-        dateInput?.dataset.gcPickerOpen === '1' ||
-        timeInput?.dataset.gcPickerOpen === '1'
-      );
+      const scheduleEditing = reserve && (document.activeElement === dateInput || dateInput?.dataset.gcPickerOpen === '1' || timeInput?.dataset.gcPickerOpen === '1');
       const scheduleConfirmed = !reserve || (Boolean(value('date')) && Boolean(value('time')) && !scheduleEditing);
       const serviceReady = chosen && scheduleConfirmed;
       const pickupHasText = value('pickup').length >= 2;
@@ -6000,9 +6056,7 @@ window.GC_FORM_CONFIG = {
       control.addEventListener('focus', update, { passive: true });
       control.addEventListener('blur', () => requestAnimationFrame(update), { passive: true });
     });
-    [dateInput, timeInput].filter(Boolean).forEach(control => {
-      control.addEventListener('gc:schedule-picker-state', update, { passive: true });
-    });
+    [dateInput, timeInput].filter(Boolean).forEach(control => control.addEventListener('gc:schedule-picker-state', update, { passive:true }));
     if (dateInput) {
       const markDateOpen = () => { dateInput.dataset.gcPickerOpen = '1'; update(); };
       const markDateClosed = () => requestAnimationFrame(() => {
@@ -6010,10 +6064,10 @@ window.GC_FORM_CONFIG = {
         delete dateInput.dataset.gcPickerOpen;
         update();
       });
-      dateInput.addEventListener('pointerdown', markDateOpen, { passive: true });
-      dateInput.addEventListener('focus', markDateOpen, { passive: true });
-      dateInput.addEventListener('change', markDateClosed, { passive: true });
-      dateInput.addEventListener('blur', markDateClosed, { passive: true });
+      dateInput.addEventListener('pointerdown', markDateOpen, { passive:true });
+      dateInput.addEventListener('focus', markDateOpen, { passive:true });
+      dateInput.addEventListener('blur', markDateClosed, { passive:true });
+      dateInput.addEventListener('change', () => setTimeout(markDateClosed, 0), { passive:true });
     }
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     update();

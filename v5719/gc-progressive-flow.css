@@ -808,160 +808,280 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .gc-call-needs-box>summary .gc-small-disclosure-trigger>span:last-child{transition:none!important}
 }
 
-/* GC_MASTER_STABLE_2026_08R10Z9N_SCHEDULE_GEOMETRY_LOCK
-   GC_MASTER_STABLE_2026_08R10Z9P_SCHEDULE_CENTER_AND_TIME_PICKER_ANCHOR
-   iOS date/time controls have different intrinsic widths. Flex-basis:0 plus width:0 on both
-   fields prevents the right time control from pushing past the card edge. The visible time box
-   is ordinary read-only text; the native time input is an invisible picker anchor aligned by JS
-   to the date input rectangle, so both native pickers open from the same geometry. */
+/* GC_MASTER_STABLE_2026_08R10Z9Q_DETERMINISTIC_SCHEDULE_AND_FARE_GEOMETRY
+   Final geometry lock: no native time popover positioning tricks, no intrinsic-width drift,
+   and no accidental fare-address vertical expansion. */
 .gc-enterprise-flow .gc-flow-schedule{
-  position:relative!important;
-  display:flex!important;
+  display:grid!important;
   width:100%!important;
   max-width:100%!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  align-items:start!important;
+  justify-items:stretch!important;
   margin-left:auto!important;
   margin-right:auto!important;
-  gap:10px!important;
-  align-items:flex-start!important;
-  justify-content:center!important;
-  overflow:visible!important;
-  box-sizing:border-box!important;
 }
 .gc-enterprise-flow .gc-flow-schedule>.field{
-  flex:1 1 0!important;
-  width:0!important;
+  width:100%!important;
   min-width:0!important;
   max-width:none!important;
   margin:0!important;
-  box-sizing:border-box!important;
+  padding:0!important;
 }
-.gc-enterprise-flow .gc-flow-schedule>.gc-schedule-time-field{position:static!important}
 .gc-enterprise-flow .gc-flow-schedule>.field>label{
   display:block!important;
   width:100%!important;
   min-width:0!important;
   margin:0 0 7px!important;
-  box-sizing:border-box!important;
+  padding:0!important;
 }
-.gc-enterprise-flow .gc-flow-schedule #date,
-.gc-enterprise-flow .gc-flow-schedule #timeDisplay{
+.gc-enterprise-flow .gc-flow-schedule .gc-schedule-control{
   display:block!important;
   width:100%!important;
-  inline-size:100%!important;
   min-width:0!important;
-  max-width:100%!important;
+  max-width:none!important;
   height:54px!important;
   min-height:54px!important;
+  max-height:54px!important;
   margin:0!important;
   padding:0 10px!important;
   box-sizing:border-box!important;
+  border-radius:14px!important;
   text-align:center!important;
+  font-variant-numeric:tabular-nums!important;
 }
-.gc-enterprise-flow .gc-flow-schedule #timeDisplay{
-  cursor:pointer!important;
-  caret-color:transparent!important;
-  -webkit-user-select:none!important;
-  user-select:none!important;
+.gc-enterprise-flow .gc-flow-schedule input[type="date"]{
+  -webkit-appearance:none!important;
+  appearance:none!important;
 }
-.gc-enterprise-flow .gc-flow-schedule #date::-webkit-date-and-time-value{
+.gc-enterprise-flow .gc-flow-schedule input[type="date"]::-webkit-date-and-time-value{
   width:100%!important;
   min-width:0!important;
   text-align:center!important;
 }
-.gc-enterprise-flow .gc-flow-schedule #date::-webkit-datetime-edit{
+.gc-enterprise-flow .gc-flow-schedule input[type="date"]::-webkit-datetime-edit{
+  width:100%!important;
   min-width:0!important;
   padding:0!important;
+  text-align:center!important;
 }
-.gc-enterprise-flow .gc-flow-schedule .gc-time-native-proxy{
-  position:absolute!important;
-  left:0;
-  top:0;
-  width:calc((100% - 10px)/2);
-  height:54px;
-  min-width:0!important;
-  max-width:none!important;
-  margin:0!important;
-  padding:0!important;
-  border:0!important;
-  opacity:.001!important;
-  pointer-events:none!important;
-  appearance:auto!important;
-  -webkit-appearance:auto!important;
-  box-sizing:border-box!important;
-  z-index:0!important;
+.gc-enterprise-flow .gc-flow-schedule .gc-time-trigger{
+  cursor:pointer!important;
+  -webkit-user-select:none!important;
+  user-select:none!important;
+  caret-color:transparent!important;
 }
-.gc-enterprise-flow .gc-flow-schedule>.field>*:not(.gc-time-native-proxy){position:relative;z-index:1}
-.gc-enterprise-flow .gc-schedule-time-field.gc-validation-error #timeDisplay,
-.gc-enterprise-flow .gc-schedule-time-field #timeDisplay.invalid{
-  border-color:var(--danger)!important;
+.gc-enterprise-flow .gc-schedule-time-field.gc-validation-error .gc-time-trigger{
+  border-color:#d45a52!important;
   background:#fffafa!important;
 }
 @media(max-width:300px){
-  .gc-enterprise-flow .gc-flow-schedule{display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
-  .gc-enterprise-flow .gc-flow-schedule>.field{width:100%!important}
+  .gc-enterprise-flow .gc-flow-schedule{grid-template-columns:1fr!important;gap:9px!important}
 }
 
-/* GC_MASTER_STABLE_2026_08R10Z9P_FARE_ROUTE_R10Z9K_GEOMETRY_RESTORE
-   Restore only the first "查 Google 路線" block to the R10Z9K geometry. Rates/manual disclosure
-   grouping and all fare/address logic remain untouched. */
-.gc-enterprise-fare .gc-fare-route-step{
-  margin:0 0 13px!important;
-  padding:8px 0 2px!important;
-  border:0!important;
-  border-radius:0!important;
-  background:transparent!important;
-  box-shadow:none!important;
-  transform:none!important;
+/* Centered custom time wheel: fixed to viewport center on every iPhone / LINE WKWebView size. */
+.gc-time-picker-overlay{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483000!important;
+  display:grid!important;
+  place-items:center!important;
+  padding:calc(16px + env(safe-area-inset-top)) 24px calc(16px + env(safe-area-inset-bottom))!important;
+  background:rgba(240,245,248,.10)!important;
+  -webkit-backdrop-filter:blur(1.5px)!important;
+  backdrop-filter:blur(1.5px)!important;
+  overscroll-behavior:contain!important;
 }
-.gc-enterprise-fare .gc-fare-step-kicker{
-  margin:0 0 11px!important;
-  padding:0!important;
-  align-items:baseline!important;
+.gc-time-picker-overlay.hidden{display:none!important}
+.gc-time-picker-card{
+  width:min(560px,calc(100vw - 48px))!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  border:1px solid rgba(218,226,233,.96)!important;
+  border-radius:18px!important;
+  background:rgba(250,251,252,.985)!important;
+  box-shadow:0 24px 58px rgba(25,49,68,.22),0 2px 8px rgba(25,49,68,.08)!important;
 }
-.gc-enterprise-fare .gc-fare-route-fields{
-  display:block!important;
+.gc-time-picker-wheels{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr)!important;
+  align-items:center!important;
+  height:250px!important;
+  padding:0 18px!important;
+  overflow:hidden!important;
+}
+.gc-time-selection-bar{
+  position:absolute!important;
+  left:14px!important;
+  right:14px!important;
+  top:50%!important;
+  height:50px!important;
+  transform:translateY(-50%)!important;
+  border-radius:11px!important;
+  background:rgba(225,228,232,.72)!important;
+  pointer-events:none!important;
+}
+.gc-time-wheel-wrap{position:relative!important;z-index:1!important;min-width:0!important;height:250px!important;overflow:hidden!important}
+.gc-time-wheel{
+  height:250px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:100px 0!important;
+  box-sizing:border-box!important;
+  scroll-snap-type:y mandatory!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:none!important;
+}
+.gc-time-wheel::-webkit-scrollbar{display:none!important}
+.gc-time-wheel-item{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:50px!important;
+  min-height:50px!important;
   margin:0!important;
   padding:0!important;
   border:0!important;
+  background:transparent!important;
+  color:#8a8f94!important;
+  font:500 27px/1 -apple-system,BlinkMacSystemFont,"SF Pro Display","PingFang TC",sans-serif!important;
+  font-variant-numeric:tabular-nums!important;
+  scroll-snap-align:center!important;
+  cursor:pointer!important;
+}
+.gc-time-wheel-item.is-selected{color:#111!important;font-weight:500!important}
+.gc-time-wheel-separator{
+  position:relative!important;
+  z-index:2!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:24px!important;
+  height:50px!important;
+  color:#111!important;
+  font:500 27px/1 -apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif!important;
+  pointer-events:none!important;
+}
+.gc-time-picker-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  min-height:58px!important;
+  padding:0 14px!important;
+  border-top:1px solid #d8dde2!important;
+  background:rgba(250,251,252,.99)!important;
+}
+.gc-time-picker-actions button{
+  min-width:72px!important;
+  min-height:44px!important;
+  padding:0 8px!important;
+  border:0!important;
+  background:transparent!important;
+  color:#087ff5!important;
+  font-size:17px!important;
+  line-height:1!important;
+  font-weight:600!important;
+  cursor:pointer!important;
+}
+.gc-time-picker-done{text-align:right!important}
+.gc-time-picker-reset{text-align:left!important}
+@media(max-width:340px){
+  .gc-time-picker-overlay{padding-left:16px!important;padding-right:16px!important}
+  .gc-time-picker-card{width:calc(100vw - 32px)!important}
+  .gc-time-picker-wheels{padding-left:12px!important;padding-right:12px!important}
+}
+@media(prefers-reduced-motion:reduce){.gc-time-wheel{scroll-behavior:auto!important}}
+
+/* Fare route block: deterministic compact rhythm. This is isolated to fare mode only.
+   IMPORTANT: target both the enhanced gc-primary-address state and the initial field.address-field
+   state, so first paint and real-device timing cannot re-introduce generic .field spacing. */
+.gc-enterprise-fare .gc-fare-route-step{
+  display:block!important;
+  margin:0 0 13px!important;
+  padding:8px 0 0!important;
+  min-height:0!important;
+  height:auto!important;
+  border:0!important;
   border-radius:0!important;
   background:transparent!important;
   box-shadow:none!important;
-  row-gap:0!important;
 }
-.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address{
+.gc-enterprise-fare .gc-fare-step-kicker{margin:0 0 11px!important}
+.gc-enterprise-fare .gc-fare-route-fields{
   display:block!important;
-  margin:0 0 15px!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  min-height:0!important;
+  height:auto!important;
+  border:0!important;
+  background:transparent!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field{
+  display:block!important;
+  position:relative!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:0!important;
+  height:auto!important;
+  margin:0 0 14px!important;
   padding:0!important;
   border:0!important;
   border-radius:0!important;
   background:transparent!important;
   box-shadow:none!important;
-  transform:none!important;
+  box-sizing:border-box!important;
 }
-.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address+.gc-primary-address{margin-top:0!important}
-.gc-enterprise-fare .gc-fare-route-fields .gc-primary-address .field-label-row{
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address:last-child,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field:last-child{margin-bottom:11px!important}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address::before,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field::before{display:none!important}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address .field-label-row,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field .field-label-row{
+  display:flex!important;
   min-height:0!important;
+  height:auto!important;
   margin:0 0 7px!important;
   padding:0!important;
 }
-.gc-enterprise-fare .gc-fare-route-fields .gc-primary-address>.input{
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address>label,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field>label{
+  display:block!important;
+  min-height:0!important;
+  height:auto!important;
+  margin:0 0 7px!important;
+  padding:0!important;
+}
+.gc-enterprise-fare .gc-fare-route-fields>.gc-primary-address>.input,
+.gc-enterprise-fare .gc-fare-route-fields>.field.address-field>.input{
   display:block!important;
   width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:54px!important;
   min-height:54px!important;
+  max-height:54px!important;
   margin:0!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
   box-sizing:border-box!important;
 }
 .gc-enterprise-fare .gc-fare-route-fields .gc-address-suggest.hidden,
-.gc-enterprise-fare .gc-fare-route-fields .error-text:not(.show){display:none!important}
+.gc-enterprise-fare .gc-fare-route-fields .recent-address-control.hidden,
+.gc-enterprise-fare .gc-fare-route-fields .location-action.hidden,
+.gc-enterprise-fare .gc-fare-route-fields .location-review.hidden,
+.gc-enterprise-fare .gc-fare-route-fields .error-text:not(.show),
+.gc-enterprise-fare .gc-fare-route-fields [hidden]{display:none!important}
 .gc-enterprise-fare .gc-fare-route-inline{
-  margin:3px 0 10px!important;
+  margin:0 2px 11px!important;
+  min-height:0!important;
+  height:auto!important;
   padding:0!important;
-  line-height:1.45!important;
-  transform:none!important;
 }
-.gc-enterprise-fare .gc-fare-map-btn{
-  min-height:50px!important;
-  margin:0!important;
-  transform:none;
-}
-
+.gc-enterprise-fare .gc-fare-map-btn{margin:0!important}

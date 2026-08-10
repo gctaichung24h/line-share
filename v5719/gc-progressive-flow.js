@@ -3,7 +3,7 @@
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
   // GC_MASTER_STABLE_2026_08R10Z9N_IOS_SCHEDULE_CONFIRM_GATE
-  // GC_MASTER_STABLE_2026_08R10Z9P_TIME_PICKER_ANCHOR_CONFIRM_GATE
+  // GC_MASTER_STABLE_2026_08R10Z9Q_EXPLICIT_PICKER_COMMIT_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -86,12 +86,7 @@
       // iOS/WKWebView mutates date/time values while the native wheel is still open.
       // Treat the schedule as confirmed only after both values exist AND neither picker input is focused.
       // The blur handler below re-checks on the next animation frame, matching the native 「完成」 close.
-      const scheduleEditing = reserve && (
-        document.activeElement === dateInput ||
-        document.activeElement === timeInput ||
-        dateInput?.dataset.gcPickerOpen === '1' ||
-        timeInput?.dataset.gcPickerOpen === '1'
-      );
+      const scheduleEditing = reserve && (document.activeElement === dateInput || dateInput?.dataset.gcPickerOpen === '1' || timeInput?.dataset.gcPickerOpen === '1');
       const scheduleConfirmed = !reserve || (Boolean(value('date')) && Boolean(value('time')) && !scheduleEditing);
       const serviceReady = chosen && scheduleConfirmed;
       const pickupHasText = value('pickup').length >= 2;
@@ -122,9 +117,7 @@
       control.addEventListener('focus', update, { passive: true });
       control.addEventListener('blur', () => requestAnimationFrame(update), { passive: true });
     });
-    [dateInput, timeInput].filter(Boolean).forEach(control => {
-      control.addEventListener('gc:schedule-picker-state', update, { passive: true });
-    });
+    [dateInput, timeInput].filter(Boolean).forEach(control => control.addEventListener('gc:schedule-picker-state', update, { passive:true }));
     if (dateInput) {
       const markDateOpen = () => { dateInput.dataset.gcPickerOpen = '1'; update(); };
       const markDateClosed = () => requestAnimationFrame(() => {
@@ -132,10 +125,10 @@
         delete dateInput.dataset.gcPickerOpen;
         update();
       });
-      dateInput.addEventListener('pointerdown', markDateOpen, { passive: true });
-      dateInput.addEventListener('focus', markDateOpen, { passive: true });
-      dateInput.addEventListener('change', markDateClosed, { passive: true });
-      dateInput.addEventListener('blur', markDateClosed, { passive: true });
+      dateInput.addEventListener('pointerdown', markDateOpen, { passive:true });
+      dateInput.addEventListener('focus', markDateOpen, { passive:true });
+      dateInput.addEventListener('blur', markDateClosed, { passive:true });
+      dateInput.addEventListener('change', () => setTimeout(markDateClosed, 0), { passive:true });
     }
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     update();
