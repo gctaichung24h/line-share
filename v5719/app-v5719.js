@@ -1,7 +1,10 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z7';
+  const GC_BUILD_VERSION = 'master202608r10z8';
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
+  // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
+  // Never paint a stale form and then replace it. First-paint waits behind the existing loading card
+  // until version.json confirms the bundle, while recent same-session bfcache returns stay instant.
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_BEHAVIOR_RESTORE
   // GC_MASTER_STABLE_2026_08R10Z4_ADDRESS_PROVIDER_LABEL_FIX
   // GC_MASTER_STABLE_2026_08R10Z5_EXPLICIT_SUGGESTION_VISIBLE_SOURCE_LOCK
@@ -25,31 +28,65 @@
   // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
-  // Version safety stays enabled, but it no longer competes with the first usable paint.
+  // R10Z8: version safety is now first-paint coherent. A stale page may show the loading surface,
+  // but it may never show an old usable form for ~1 second and then jump to the new build.
   let gcLastVersionCheck = 0;
+  let gcVersionRedirecting = false;
   const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
-  async function ensureLatestBuild(force = false) {
+  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1600;
+  async function ensureLatestBuild(force = false, options = {}) {
     const now = Date.now();
-    if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return;
+    if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return 'recent';
     gcLastVersionCheck = now;
+    const timeoutMs = Number(options.timeoutMs || 0);
+    const controller = timeoutMs > 0 && typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
-      const res = await fetch('version.json?t=' + now, { cache: 'no-store' });
-      if (!res.ok) return;
+      const res = await fetch('version.json?t=' + now, {
+        cache: 'no-store',
+        signal: controller?.signal
+      });
+      if (!res.ok) return 'unknown';
       const info = await res.json();
       if (info && info.version && info.version !== GC_BUILD_VERSION) {
+        gcVersionRedirecting = true;
+        document.documentElement.classList.add('gc-version-hold');
         const url = new URL(location.href);
         url.searchParams.set('gcver', info.version);
         url.searchParams.set('_r', String(now));
         location.replace(url.toString());
+        return 'stale';
       }
-    } catch (_) {}
+      return 'current';
+    } catch (_) {
+      return 'unknown';
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  function releaseVersionHold(status) {
+    if (status === 'stale' || gcVersionRedirecting) return;
+    document.documentElement.classList.remove('gc-version-hold');
   }
   function scheduleLatestBuildCheck(force = false) {
-    const run = () => ensureLatestBuild(force);
+    const run = () => ensureLatestBuild(force).then(releaseVersionHold);
     if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2200 });
     else setTimeout(run, 900);
   }
-  window.addEventListener('pageshow', () => scheduleLatestBuildCheck(false));
+  window.addEventListener('pagehide', event => {
+    // Only freeze a bfcache snapshot when its last version proof is old. Normal Google Maps
+    // round-trips within the same two-minute window remain immediate and do not flash a loader.
+    if (event.persisted && Date.now() - gcLastVersionCheck >= GC_VERSION_CHECK_INTERVAL_MS) {
+      document.documentElement.classList.add('gc-version-hold');
+    }
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted && document.documentElement.classList.contains('gc-version-hold')) {
+      ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS }).then(releaseVersionHold);
+      return;
+    }
+    scheduleLatestBuildCheck(false);
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleLatestBuildCheck(false); });
 
 
@@ -3397,9 +3434,17 @@
   }
 
   async function initialize() {
+    // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
+    // Keep the existing branded loading card until this exact bundle is confirmed. If the
+    // version endpoint is temporarily unreachable, fail open after a short timeout rather than
+    // trapping the passenger on a loader. Address / fare / form behavior is untouched.
+    const firstBuildStatus = await ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS });
+    if (firstBuildStatus === 'stale' || gcVersionRedirecting) return;
+    releaseVersionHold(firstBuildStatus);
+
     // GC_MASTER_STABLE_2026_08R10P_PROGRESSIVE_LIFF_BOOT
-    // If Rich Menu already gave us a mode, paint the usable form first. LIFF then initializes
-    // in parallel; sendFormMessages still awaits ensureLiffReady(), so delivery safety is unchanged.
+    // After version coherence is proven, paint the requested mode and initialize LIFF in parallel;
+    // sendFormMessages still awaits ensureLiffReady(), so delivery safety is unchanged.
     const initialParams = new URLSearchParams(location.search);
     const initialMode = initialParams.get('mode');
     const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));

@@ -30,12 +30,15 @@
     .loading-card p{margin:15px 0 0;color:#60778b;font-size:13px;font-weight:600;letter-spacing:.01em}
     .gc-loading-dots{display:flex;gap:6px;margin-top:13px;height:7px;align-items:center}.gc-loading-dots span{display:block;width:6px;height:6px;border-radius:50%;background:#6f96b7;opacity:.34;animation:gcCriticalDot 1.05s ease-in-out infinite}.gc-loading-dots span:nth-child(2){animation-delay:.14s}.gc-loading-dots span:nth-child(3){animation-delay:.28s}@keyframes gcCriticalDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-2px)}}
     @media(prefers-reduced-motion:reduce){.gc-loading-dots span{animation:none}}
+    /* R10Z8: when a stale bfcache snapshot is being revalidated, cover it with a neutral loading surface instead of exposing the old form. */
+    html.gc-version-hold body::before{content:'';position:fixed;inset:0;z-index:2147483646;background:linear-gradient(180deg,#edf5fa 0,#f6f9fb 205px,#f6f9fb 100%)}
+    html.gc-version-hold body::after{content:'正在開啟服務…';position:fixed;z-index:2147483647;left:50%;top:46%;transform:translate(-50%,-50%);padding:15px 22px;border:1px solid rgba(217,228,238,.92);border-radius:16px;background:#fff;color:#60778b;box-shadow:0 12px 34px rgba(16,45,81,.12);font-size:13px;font-weight:600;white-space:nowrap}
   </style>
   <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
   <link rel="dns-prefetch" href="//static.line-scdn.net">
-  <link rel="stylesheet" href="gc-app.css?v=1786326852">
-  <link rel="preload" href="表格頭像_直接更換.png?v=1786326852" as="image" type="image/png" fetchpriority="high">
-  <script defer src="gc-app.js?v=1786326852"></script>
+  <link rel="stylesheet" href="gc-app.css?v=1786327615">
+  <link rel="preload" href="表格頭像_直接更換.png?v=1786327615" as="image" type="image/png" fetchpriority="high">
+  <script defer src="gc-app.js?v=1786327615"></script>
   <!-- GC_MASTER_STABLE_2026_08R10Z_DISPATCH_CORE_FINAL -->
   <!-- GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX -->
 <!-- GC_MASTER_STABLE_2026_08R10Z2_FARE_RETURN_SCROLL_STABLE -->
@@ -55,11 +58,12 @@
 <body>
   <main id="app" aria-live="polite">
     <section class="loading-card" aria-label="服務載入中">
-      <img class="brand-avatar" src="表格頭像_直接更換.png?v=1786326852" width="58" height="58" decoding="async" fetchpriority="high" alt="GC 車隊頭像">
+      <img class="brand-avatar" src="表格頭像_直接更換.png?v=1786327615" width="58" height="58" decoding="async" fetchpriority="high" alt="GC 車隊頭像">
       <p id="loadingText">正在開啟服務…</p>
       <div class="gc-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
     </section>
   </main>
   <!-- GC_MASTER_STABLE_2026_08R10Z7_PROGRESSIVE_COMPLETION_UX -->
+  <!-- GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE -->
 </body>
 </html>
