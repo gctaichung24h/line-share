@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9';
+  const GC_BUILD_VERSION = 'master202608r10z9c';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
@@ -601,7 +601,9 @@
     const parts = splitTaiwanSuggestionAddress(item.text);
     const adminParts = [parts.county, parts.district].filter((part, idx, list) => part && !list.slice(0, idx).some(prev => sameAddressPart(prev, part)));
     const admin = adminParts.join('｜');
-    let detail = parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full);
+    let detail = item?.streetAddress
+      ? (splitTaiwanSuggestionAddress(item.streetAddress).detail || stripIndoorAddressInfo(item.streetAddress))
+      : (parts.detail && !sameAddressPart(parts.detail, parts.full) ? parts.detail : stripIndoorAddressInfo(parts.full));
     const placeName = normalizeAddress(item?.placeName || '');
     if (placeName && detail) {
       const placeKey = addressConfidenceKey(placeName);
@@ -621,17 +623,17 @@
     </button>`;
   }
 
-  async function fetchArcgisSuggest(text, locationBias, controller) {
+  async function fetchArcgisSuggest(text, locationBias, controller, options = {}) {
     const params = new URLSearchParams({
       f: 'json',
       text,
       countryCode: 'TWN',
       langCode: 'zh-TW',
       location: locationBias || ADDRESS_BIAS_LOCATION,
-      searchExtent: ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT,
+      searchExtent: options.searchExtent || ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT,
       preferredLabelValues: 'localCity',
-      returnCollections: 'false',
-      maxSuggestions: '6'
+      returnCollections: options.returnCollections === true ? 'true' : 'false',
+      maxSuggestions: String(Math.max(1, Math.min(15, Number(options.maxSuggestions || 8))))
     });
     const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest?${params.toString()}`, {
       method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
@@ -643,6 +645,7 @@
   }
 
   // GC_MASTER_STABLE_2026_08R10Z9_POI_DISCOVERY
+  // GC_MASTER_STABLE_2026_08R10Z9C_BRANCH_POI_ROOT_FIX
   function poiContextFromQuery(value) {
     const raw = normalizeAddress(value).replace(/臺/g, '台');
     const compact = raw.replace(/[\s,，、。．·・_()（）]/g, '');
@@ -691,6 +694,74 @@
     return /[0-9０-９]{5,}號/.test(String(value || ''));
   }
 
+
+  // GC_MASTER_STABLE_2026_08R10Z9C_CHAIN_COLLECTION_BRANCH_EXPANSION
+  // Chain names such as 7-ELEVEN / FamilyMart are collections, not dispatchable places by themselves.
+  // A selectable chain suggestion must resolve to a concrete branch and an actual street-level address.
+  function chainBranchQualifier(value, brand) {
+    if (!brand) return '';
+    let text = normalizeAddress(value).replace(/臺/g, '台');
+    text = text.replace(brand.re, ' ');
+    ADDRESS_TAIWAN_COUNTIES.forEach(name => { text = text.split(name).join(' '); });
+    ADDRESS_TAICHUNG_DISTRICTS.forEach(name => {
+      text = text.split(name).join(' ');
+      const short = name.replace(/區$/, '');
+      if (short.length >= 2) text = text.split(short).join(' ');
+    });
+    text = text
+      .replace(/(?:便利商店|超商|分店|門市|門巿|店舖|店鋪|店)+/gi, ' ')
+      .replace(/(?:台灣|Taiwan|TWN)/gi, ' ')
+      .replace(/\d{3}(?:\d{2,3})?/g, ' ')
+      .replace(/(?:大道|路|街|道|巷|弄)\s*[0-9０-９]*(?:[-之][0-9０-９]+)?(?:號)?(?:.*)$/g, ' ')
+      .replace(/[|｜,，、。．·・_()（）\-—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text;
+  }
+
+  function poiStreetAddress(resolved) {
+    if (!resolved) return '';
+    const attrs = resolved.attrs && typeof resolved.attrs === 'object' ? resolved.attrs : {};
+    const districtRaw = normalizeAddress(attrs.District || attrs.Subregion || attrs.City || '').replace(/臺/g, '台');
+    const district = districtRaw.match(/([\u3400-\u9fff]{1,7}(?:區|鄉|鎮|市))/)?.[1] || '';
+    const admin = `${canonicalTaiwanCounty(attrs.Region || attrs.City || resolved.address || '') || ''}${district}`;
+    const sources = [attrs.Place_addr, attrs.StAddr, attrs.Address, attrs.LongLabel, resolved.address].filter(Boolean);
+    let fallback = '';
+    for (const raw of sources) {
+      let cleaned = canonicalizeSuggestedAddress(raw, attrs);
+      if (!cleaned || hasImplausibleProviderHouse(cleaned) || isRomanizedProviderRoad(cleaned)) continue;
+      if (!canonicalTaiwanCounty(cleaned) && admin && /(?:大道|路|街|道|巷|弄)/.test(cleaned)) cleaned = smartNormalizeTaiwanAddress(`${admin}${cleaned}`);
+      const place = normalizeAddress(resolved.placeName || '');
+      if (place) {
+        const placeCompact = place.replace(/\s+/g, '');
+        const compact = cleaned.replace(/\s+/g, '');
+        if (placeCompact && compact.endsWith(placeCompact)) cleaned = compact.slice(0, -placeCompact.length).trim();
+      }
+      if (hasImplausibleProviderHouse(cleaned) || isRomanizedProviderRoad(cleaned)) continue;
+      if (/(?:大道|路|街|道|巷|弄)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(cleaned)) return cleaned;
+      if (!fallback && /(?:大道|路|街|道|巷|弄)/.test(cleaned)) fallback = cleaned;
+    }
+    return fallback;
+  }
+
+  function isConcreteChainCandidate(resolved, ctx) {
+    if (!ctx?.brand || !resolved) return true;
+    const street = poiStreetAddress(resolved);
+    const qualifier = chainBranchQualifier(resolved.placeName || resolved.shortLabel || '', ctx.brand);
+    // Actual branch results should expose a street address. A branch qualifier is useful for ranking,
+    // but a generic "7-Eleven | 霧峰區" row is never dispatchable and must be dropped.
+    return Boolean(street && /(?:大道|路|街|道|巷|弄)/.test(street) && (/[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(street) || qualifier.length >= 2));
+  }
+
+  function isGenericChainSuggestion(raw, ctx) {
+    if (!ctx?.brand || !raw?.text) return false;
+    if (raw.isCollection === true) return true;
+    const cleaned = canonicalizeSuggestedAddress(raw.text);
+    const qualifier = chainBranchQualifier(raw.text, ctx.brand);
+    const hasStreet = /(?:大道|路|街|道|巷|弄)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(cleaned);
+    return !hasStreet && qualifier.length < 2;
+  }
+
   function safePoiDisplayAddress(resolved) {
     if (!resolved?.address || hasImplausibleProviderHouse(resolved.address) || isRomanizedProviderRoad(resolved.address)) return '';
     let base = smartNormalizeTaiwanAddress(resolved.address);
@@ -730,7 +801,7 @@
     return score;
   }
 
-  async function fetchArcgisPoiCandidates(query, locationBias, controller, searchExtent = '') {
+  async function fetchArcgisPoiCandidates(query, locationBias, controller, searchExtent = '', maxLocations = 12) {
     const params = new URLSearchParams({
       f: 'json',
       SingleLine: query,
@@ -738,7 +809,29 @@
       langCode: 'zh-TW',
       preferredLabelValues: 'localCity',
       outFields: ARCGIS_RESOLVE_OUT_FIELDS,
-      maxLocations: '8',
+      maxLocations: String(Math.max(1, Math.min(30, Number(maxLocations || 12)))),
+      location: locationBias || ADDRESS_BIAS_LOCATION
+    });
+    if (searchExtent) params.set('searchExtent', searchExtent);
+    const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.candidates) ? data.candidates : [];
+  }
+
+  async function fetchArcgisSuggestionCandidates(item, locationBias, controller, searchExtent = '') {
+    if (!item?.text || !item?.magicKey) return [];
+    const params = new URLSearchParams({
+      f: 'json',
+      SingleLine: item.text,
+      magicKey: item.magicKey,
+      countryCode: 'TWN',
+      langCode: 'zh-TW',
+      preferredLabelValues: 'localCity',
+      outFields: ARCGIS_RESOLVE_OUT_FIELDS,
+      maxLocations: item.isCollection === true ? '20' : '4',
       location: locationBias || ADDRESS_BIAS_LOCATION
     });
     if (searchExtent) params.set('searchExtent', searchExtent);
@@ -792,7 +885,7 @@
     if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
 
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 700);
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_SUGGEST_TIMEOUT_MS + 1100);
     try {
       const explicitCounty = explicitTaiwanCountyFromQuery(query);
       const poiCtx = poiContextFromQuery(query);
@@ -809,6 +902,8 @@
       const addSuggestionResults = (items, sourceRegion = '', lookupLocation = '') => {
         items.forEach((raw, order) => {
           if (!raw?.text || isClearlyOutsideTaiwanSuggestion(raw.text)) return;
+          // R10Z9C: chain collection/generic brand rows are navigation terms, not actual pickup locations.
+          if (poiCtx.brand && isGenericChainSuggestion(raw, poiCtx)) return;
           const cleaned = canonicalizeSuggestedAddress(raw.text);
           if (!cleaned || !isTaiwanSuggestion(cleaned) || hasImplausibleProviderHouse(cleaned)) return;
 
@@ -848,8 +943,10 @@
           if (!parts.county || !parts.district) return;
           if (poiCtx.county && parts.county !== poiCtx.county) return;
           if (poiCtx.district && parts.district !== poiCtx.district) return;
-          const dedupeKey = display.replace(/\s+/g, '').toLocaleLowerCase();
-          if (seen.has(dedupeKey)) return;
+          if (poiCtx.brand && !isConcreteChainCandidate(resolved, poiCtx)) return;
+          const streetAddress = poiStreetAddress(resolved);
+          const dedupeKey = addressConfidenceKey(`${resolved.placeName || ''}${streetAddress || display}`);
+          if (!dedupeKey || seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
           merged.push({
             text: display,
@@ -859,9 +956,10 @@
             sourceRegion,
             resolved,
             placeName: normalizeAddress(resolved.placeName || ''),
+            streetAddress,
             kind: 'poi',
             _order: order,
-            _score: poiCandidateScore(resolved, query, sourceRegion)
+            _score: poiCandidateScore(resolved, query, sourceRegion) + (streetAddress ? 180 : 0)
           });
         });
       };
@@ -870,7 +968,21 @@
         ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
         : currentLocationBias;
       const primarySourceRegion = explicitCounty || (currentLocationBias === ADDRESS_BIAS_LOCATION ? '台中市' : '');
-      addSuggestionResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
+      const poiExtent = poiCtx.county && poiCtx.county !== '台中市' ? ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT : ADDRESS_TAICHUNG_EXTENT;
+
+      // R10Z9C enterprise chain flow: keep collection suggestions, expand text+magicKey into real branches,
+      // and merge them with direct name+zone / zone+name POI searches. This makes word order irrelevant.
+      let collectionSuggest = [];
+      if (poiCtx.brand) {
+        collectionSuggest = await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller, {
+          returnCollections: true, maxSuggestions: 12, searchExtent: poiExtent
+        });
+        addSuggestionResults(collectionSuggest.filter(item => item.isCollection !== true), primarySourceRegion, primaryLocation);
+      } else {
+        addSuggestionResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller, {
+          returnCollections: false, maxSuggestions: 8, searchExtent: ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT
+        }), primarySourceRegion, primaryLocation);
+      }
 
       const centralDistrictCount = merged.filter(item => {
         const parts = splitTaiwanSuggestionAddress(item.text);
@@ -878,16 +990,22 @@
       }).length;
       const addressLikeQuery = /[路街道巷弄]|[0-9０-９]/.test(String(query || ''));
 
-      // POI / chain-store fallback: use concrete findAddressCandidates results, not only autocomplete text.
-      // Esri documents both "name + zone" and "zone + name" POI forms; query variants make order insensitive.
-      if (poiCtx.isLikelyPoi && (centralDistrictCount < 6 || poiCtx.brand)) {
+      if (poiCtx.isLikelyPoi && (centralDistrictCount < 7 || poiCtx.brand)) {
         const variants = buildPoiQueryVariants(query);
-        const poiExtent = poiCtx.county && poiCtx.county !== '台中市' ? ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT : ADDRESS_TAICHUNG_EXTENT;
-        const sets = await Promise.all(variants.slice(0, 3).map(async variant => {
-          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent); }
+        const directPromise = Promise.all(variants.slice(0, poiCtx.brand ? 3 : 2).map(async variant => {
+          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent, poiCtx.brand ? 14 : 9); }
           catch (_) { return []; }
         }));
-        sets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+        const collectionPromise = poiCtx.brand
+          ? Promise.all(collectionSuggest.filter(item => item?.isCollection === true && item.magicKey).slice(0, 3).map(async item => {
+              try { return await fetchArcgisSuggestionCandidates(item, primaryLocation, controller, poiExtent); }
+              catch (_) { return []; }
+            }))
+          : Promise.resolve([]);
+        const [directSets, expandedSets] = await Promise.all([directPromise, collectionPromise]);
+        // Collection-expanded branches receive the same district/quality gate as direct POI candidates.
+        expandedSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+        directSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
       }
 
       if (!explicitCounty && !poiCtx.district && (centralDistrictCount < 4 || addressLikeQuery) && !poiCtx.brand) {
@@ -896,7 +1014,7 @@
           : ADDRESS_PRIMARY_REGIONS.filter(region => region.name === '台中市');
         const enrichedSets = await Promise.all(enrichmentRegions.map(async region => {
           try {
-            const items = await fetchArcgisSuggest(`${region.name} ${geocoderQuery}`, region.location, controller);
+            const items = await fetchArcgisSuggest(`${region.name} ${geocoderQuery}`, region.location, controller, { returnCollections:false, maxSuggestions:8 });
             return { items, region: region.name, location: region.location };
           } catch (_) {
             return { items: [], region: region.name, location: region.location };
@@ -908,8 +1026,8 @@
       const suggestions = merged
         .filter(item => !hasImplausibleProviderHouse(item.text))
         .sort((a, b) => (b._score - a._score) || (a._order - b._order))
-        .slice(0, 7)
-        .map(({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }) => ({ text, lookupText, magicKey, lookupLocation, resolved, placeName, kind, isCollection }));
+        .slice(0, 8)
+        .map(({ text, lookupText, magicKey, lookupLocation, resolved, placeName, streetAddress, kind, isCollection }) => ({ text, lookupText, magicKey, lookupLocation, resolved, placeName, streetAddress, kind, isCollection }));
 
       return cacheAddressSuggestions(cacheKey, suggestions);
     } catch (_) {
@@ -1030,7 +1148,13 @@
   function resolvedCandidateFromArcgis(candidate, fallback = '', options = {}) {
     if (!candidate || Number(candidate.score || 0) < 80) return null;
     const attrs = candidate.attributes && typeof candidate.attributes === 'object' ? candidate.attributes : {};
-    const rawAddress = attrs.Match_addr || candidate.address || attrs.LongLabel || attrs.ShortLabel || fallback;
+    // GC_MASTER_STABLE_2026_08R10Z9C_POI_PLACE_ADDRESS_PRIORITY
+    // ArcGIS POI candidate.address / Match_addr may be only the brand name. For POIs, Place_addr is
+    // the actual branch street address and must drive dispatchability; passenger-selected fallback still wins when localized.
+    const candidateType = String(attrs.Addr_type || '');
+    const rawAddress = /^(?:POI|POIExt|BuildingName)$/.test(candidateType)
+      ? (attrs.Place_addr || attrs.StAddr || attrs.Address || attrs.Match_addr || candidate.address || attrs.LongLabel || attrs.ShortLabel || fallback)
+      : (attrs.Match_addr || candidate.address || attrs.LongLabel || attrs.ShortLabel || fallback);
     const candidateAddress = canonicalizeSuggestedAddress(rawAddress, attrs);
     const fallbackAddress = canonicalizeSuggestedAddress(fallback);
     // GC_R10Z5_EXPLICIT_SUGGESTION_RESOLVED_FALLBACK_LOCK

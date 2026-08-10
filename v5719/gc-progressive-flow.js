@@ -1,8 +1,10 @@
 (() => {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
-  // First-screen clean, no service preselection. Existing fields/functions stay in the DOM and are
-  // revealed in context. No auto-scroll, auto-focus or forced viewport movement is introduced.
+  // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
+  // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
+  // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
+  // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
 
   const mode = new URLSearchParams(location.search).get('mode');
   if (!['call','driver','fare'].includes(mode)) return;
@@ -42,19 +44,43 @@
     const optional = [...form.querySelectorAll(':scope > details.optional-box')].filter(el => el !== favorite);
     const notices = [...form.querySelectorAll(':scope > .notice:not(.preview-notice)')];
     const submit = document.getElementById('submitBtn');
+    const fromFareHandoff = document.documentElement.dataset.gcFareHandoffApplied === '1';
+    let serviceInteracted = false;
 
     serviceField?.classList.add('gc-flow-service');
     schedule?.classList.add('gc-flow-schedule');
     pickupField?.classList.add('gc-flow-pickup');
     destinationField?.classList.add('gc-flow-destination');
-    [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => node.classList.add('gc-flow-advanced'));
+    [passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => node.classList.add('gc-flow-advanced'));
+
+    const clearBrowserRestoredService = () => {
+      if (fromFareHandoff || serviceInteracted) return;
+      radios.forEach(radio => { radio.checked = false; });
+    };
+    radios.forEach(radio => {
+      radio.addEventListener('pointerdown', () => { serviceInteracted = true; }, { passive:true });
+      radio.addEventListener('keydown', () => { serviceInteracted = true; }, { passive:true });
+      radio.addEventListener('change', () => { serviceInteracted = true; }, { passive:true });
+    });
+    clearBrowserRestoredService();
+
+    const commitPickup = () => {
+      if (!pickup) return;
+      if (pickup.dataset.gcAddressVerified === '1' || value('pickup').length >= 2) pickup.dataset.gcFlowCommitted = '1';
+      else delete pickup.dataset.gcFlowCommitted;
+    };
+    pickup?.addEventListener('input', () => {
+      if (pickup.dataset.gcAddressVerified !== '1') delete pickup.dataset.gcFlowCommitted;
+    }, { passive:true });
+    pickup?.addEventListener('blur', commitPickup, { passive:true });
+    pickup?.addEventListener('change', commitPickup, { passive:true });
 
     function update() {
       const service = serviceValue();
       const chosen = Boolean(service);
       const reserve = service === 'reserve';
       const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
-      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || value('pickup').length >= 2);
+      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
 
       form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
       form.dataset.gcFlowServiceReady = serviceReady ? '1' : '0';
@@ -66,11 +92,11 @@
       pickupField?.classList.toggle('gc-flow-complete', pickupReady);
       destinationField?.classList.toggle('gc-flow-current', serviceReady && pickupReady && !value('destination'));
 
-      // Initial screen: only service decision. Reserve then asks date/time. Once that is ready,
-      // pickup becomes the task. Destination + complete feature set appears after pickup has begun.
       if (pickupField) setCollapsed(pickupField, !serviceReady);
       if (destinationField) setCollapsed(destinationField, !(serviceReady && pickupReady));
-      [favorite, passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
+      [passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
+      // Favorite trips intentionally stay available in the pickup utility sheet; they can fill both endpoints in one tap.
+      if (favorite) setCollapsed(favorite, false);
     }
 
     [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
@@ -79,10 +105,10 @@
       control.addEventListener('focus', update, { passive: true });
       control.addEventListener('blur', update, { passive: true });
     });
-    form.addEventListener('gc:address-verified', update);
+    form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     update();
-    requestAnimationFrame(update);
-    setTimeout(update, 180);
+    requestAnimationFrame(() => { clearBrowserRestoredService(); update(); });
+    setTimeout(() => { clearBrowserRestoredService(); update(); }, 120);
     return true;
   }
 
@@ -91,7 +117,6 @@
     if (!card || card.dataset.gcEnterpriseProgressive === '1') return Boolean(card);
     card.dataset.gcEnterpriseProgressive = '1';
     card.classList.add('gc-enterprise-fare');
-    const form = document.getElementById('serviceForm');
     const pickup = document.getElementById('pickup');
     const destination = document.getElementById('destination');
     const minutes = document.getElementById('fareMinutes');

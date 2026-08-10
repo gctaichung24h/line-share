@@ -4169,6 +4169,7 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
 
 
 /* GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
+   GC_MASTER_STABLE_2026_08R10Z9C_PREMIUM_REFLOW_POLISH
    Final layer: first-screen clean, progressive reveal, premium enterprise visual system,
    320px+ reflow, large-text resilience, calm motion, POI suggestion hierarchy. */
 :root{
@@ -4285,14 +4286,35 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .gc-fare-route-inline{font-size:11.7px!important}
 }
 @media(max-width:340px){
-  .segmented{grid-template-columns:1fr!important}
+  .segmented{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .choice span{min-height:50px!important;padding-inline:5px!important;font-size:clamp(14px,4.7vw,15px)!important}
   .gc-fare-calc-grid{grid-template-columns:1fr!important}
   .brand-copy span{letter-spacing:0!important}
-  .field-inline-action{width:100%!important}
-  .field-inline-action .location-btn,.field-inline-btn{width:100%!important;white-space:normal!important}
+  .gc-address-utility-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .gc-address-utility-row>*{min-width:0!important;width:100%!important}
+  .gc-address-utility-row .field-inline-action{width:100%!important}
+  .gc-address-utility-row .location-btn,.gc-address-utility-row .field-inline-btn,.gc-address-utility-row .recent-toggle{width:100%!important;white-space:normal!important;padding-inline:7px!important}
 }
+
 @media (prefers-reduced-motion:reduce){
   .gc-enterprise-flow .gc-flow-schedule:not(.hidden),.gc-enterprise-flow .gc-flow-pickup:not(.gc-flow-collapsed),.gc-enterprise-flow .gc-flow-destination:not(.gc-flow-collapsed),.gc-enterprise-flow .gc-flow-advanced:not(.gc-flow-collapsed){animation:none!important}
   .submit-btn,.gc-fare-map-btn,.gc-fare-call-btn{transition:none!important}
+}
+
+
+/* R10Z9C final micro-polish: three pickup shortcuts wrap safely; suggestion cards stay stable under text zoom. */
+.gc-address-utility-row{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;gap:7px!important;min-width:0!important}
+.gc-address-utility-row>*{flex:0 1 auto!important;min-width:0!important}
+.gc-address-utility-row .field-inline-btn,.gc-address-utility-row .recent-toggle,.gc-address-utility-row .location-btn{border-color:#d8e3ea!important;background:rgba(249,251,252,.94)!important;box-shadow:0 1px 2px rgba(19,55,80,.025)!important;color:#506d80!important}
+.gc-address-utility-row .field-inline-btn:active,.gc-address-utility-row .recent-toggle:active,.gc-address-utility-row .location-btn:active{background:#f1f6f9!important}
+.gc-address-suggest-item.is-poi{min-height:64px!important}
+.gc-address-suggest-item.is-poi .gc-address-suggest-detail{padding-top:1px!important;color:#5b7180!important}
+@media(max-width:380px){
+  .gc-address-utility-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important}
+  .gc-address-utility-row>*{width:100%!important}
+  .gc-address-utility-row .field-inline-action,.gc-address-utility-row .location-btn,.gc-address-utility-row .field-inline-btn,.gc-address-utility-row .recent-toggle{width:100%!important;max-width:none!important;white-space:normal!important}
+}
+@supports (-webkit-touch-callout:none){
+  input,textarea,select{font-size:16px!important}
 }
 

@@ -61,15 +61,15 @@
     if (recent && row && !row.contains(recent)) row.appendChild(recent);
   }
 
-  function createFavoriteSheet(destination, favorite) {
-    if (!destination || !favorite || document.getElementById('gcFavoriteSheet')) return;
+  function createFavoriteSheet(hostField, favorite) {
+    if (!hostField || !favorite || document.getElementById('gcFavoriteSheet')) return;
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
     toggle.textContent = '⭐ 常用行程';
     toggle.setAttribute('aria-expanded', 'false');
-    ensureAddressUtilityRow(destination)?.appendChild(toggle);
+    ensureAddressUtilityRow(hostField)?.appendChild(toggle);
 
     const sheet = document.createElement('div');
     sheet.id = 'gcFavoriteSheet';
@@ -216,11 +216,13 @@
         if (locationStatus) pickup.appendChild(locationStatus);
       }
       attachRecentAddressShortcut(pickup);
+      // GC_MASTER_STABLE_2026_08R10Z9C_FAVORITE_ON_PICKUP_SHORTCUT
+      // A saved trip is a speed shortcut for both endpoints, so surface it where the journey starts.
+      createFavoriteSheet(pickup, document.getElementById('favoriteTripsBox'));
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
     if (destination) {
       destination.classList.add('gc-primary-address', 'gc-destination-address');
-      createFavoriteSheet(destination, document.getElementById('favoriteTripsBox'));
       attachRecentAddressShortcut(destination);
     }
   }

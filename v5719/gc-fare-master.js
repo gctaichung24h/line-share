@@ -474,6 +474,15 @@
     const destinationApplied = !trim(destination.value) && trim(handoff.destination) ? setAddressValueSilently(destination, handoff.destination) : false;
     if (pickupApplied && handoff.pickupVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('pickup', 'fare-handoff');
     if (destinationApplied && handoff.destinationVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('destination', 'fare-handoff');
+    // GC_MASTER_STABLE_2026_08R10Z9C_FARE_HANDOFF_INSTANT_INTENT
+    // This is not a fresh Rich Menu visit: the passenger explicitly pressed "立即叫車" on the fare result.
+    // Preserve that intent while fresh call/driver entry remains unselected.
+    const instant = document.querySelector('input[name="serviceType"][value="instant"]');
+    if (instant) {
+      instant.checked = true;
+      document.documentElement.dataset.gcFareHandoffApplied = '1';
+      instant.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     safeSessionRemove(HANDOFF_KEY);
     safeLocalRemove(HANDOFF_KEY);
     return true;
