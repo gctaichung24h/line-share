@@ -500,7 +500,7 @@ window.GC_FORM_CONFIG = {
                  "上車標題":  "上車地址",
                  "上車提示":  "請輸入完整地址或明確地標",
                  "下車標題":  "下車地址",
-                 "下車提示":  "資訊越完整，通常越有助於快速媒合",
+                 "下車提示":  "偏鄉、跨縣市、長途請填目的地",
                  "人數標題":  "5人以上請選人數",
                  "人數提示":  "1～4人免選，5人以上請選擇",
                  "更多資訊標題":  "其他需求",
@@ -510,7 +510,7 @@ window.GC_FORM_CONFIG = {
                  "需求提示":  "請選擇無、有籠或無籠",
                  "備註標題":  "備註資訊",
                  "備註提示":  "其他需要小編或司機留意的資訊",
-                 "表格提醒1":  "",
+                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                  "表格提醒2":  "",
                  "送出按鈕":  "下一步：確認叫車資料",
                  "錯誤_用車方式":  "請選擇服務類型。",
@@ -547,7 +547,7 @@ window.GC_FORM_CONFIG = {
                    "上車標題":  "代駕地址",
                    "上車提示":  "請輸入車輛目前位置或明確地標",
                    "下車標題":  "送達地點",
-                   "下車提示":  "資訊越完整，通常越有助於快速媒合",
+                   "下車提示":  "偏鄉、跨縣市、長途請填目的地",
                    "更多資訊標題":  "備註資訊",
                    "車輛資訊標題":  "車輛資訊",
                    "車輛資訊提示":  "例如：黑色 Toyota、自排、車牌 ABC-1234",
@@ -555,7 +555,7 @@ window.GC_FORM_CONFIG = {
                    "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
                    "備註標題":  "備註資訊",
                    "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
-                   "表格提醒1":  "",
+                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                    "表格提醒2":  "",
                    "送出按鈕":  "下一步：確認代駕資料",
                    "錯誤_用車方式":  "請選擇服務類型。",
@@ -672,15 +672,12 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9q';
+  const GC_BUILD_VERSION = 'master202608r10z9k';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
-  // GC_MASTER_STABLE_2026_08R10Z9M_REQUESTED_UI_FINISH
-  // GC_MASTER_STABLE_2026_08R10Z9N_CALL_PICKUP_FREE_TEXT_AND_IOS_SCHEDULE_CONFIRM
-  // GC_MASTER_STABLE_2026_08R10Z9Q_CENTERED_CUSTOM_TIME_PICKER
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -996,14 +993,14 @@ window.GC_FORM_CONFIG = {
   function scheduleFields(cfg) {
     return `
       <div id="scheduleFields" class="schedule-grid hidden">
-        <div class="field gc-schedule-date-field" style="margin-bottom:0">
+        <div class="field" style="margin-bottom:0">
           <label for="date">${requiredLabel(cfg['日期標題'])}</label>
-          <input class="input gc-schedule-control" id="date" name="date" type="date">
+          <input class="input" id="date" name="date" type="date">
           <div class="error-text" id="dateError"></div>
         </div>
-        <div class="field gc-schedule-time-field" style="margin-bottom:0">
+        <div class="field" style="margin-bottom:0">
           <label for="time">${requiredLabel(cfg['時間標題'])}</label>
-          <input class="input gc-schedule-control gc-time-trigger" id="time" name="time" type="text" inputmode="none" readonly autocomplete="off" aria-haspopup="dialog" aria-controls="gcTimePickerOverlay">
+          <input class="input" id="time" name="time" type="time">
           <div class="error-text" id="timeError"></div>
         </div>
       </div>`;
@@ -2164,13 +2161,6 @@ window.GC_FORM_CONFIG = {
     return activeMode === 'call' || activeMode === 'driver';
   }
 
-  // R10Z9N: call pickup is passenger-owned free text. Smart suggestions remain assistance only;
-  // they may enrich the experience but must never block submission or force an admin-area choice.
-  function isCallPickupFreeText(id) {
-    if (id !== 'pickup') return false;
-    return new URLSearchParams(location.search).get('mode') === 'call';
-  }
-
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
     const poiCtx = poiContextFromQuery(normalized);
@@ -2212,11 +2202,8 @@ window.GC_FORM_CONFIG = {
 
     // R10U: pickup/driver-location stays strict; ride/driver drop-off can remain a broad
     // human-readable destination. Fare keeps strict verification on both ends for Google Maps.
-    if (options.policy === 'relaxed' || isCallPickupFreeText(id)) {
-      // Call pickup accepts the passenger's visible text exactly as dispatch context.
-      // Do not rewrite it, do not require county/district, and do not force a suggestion tap.
+    if (options.policy === 'relaxed') {
       hideAddressSuggestions(id);
-      input.classList.remove('gc-address-needs-choice');
       clearFieldValidation(id);
       return true;
     }
@@ -2447,8 +2434,8 @@ window.GC_FORM_CONFIG = {
         // background, but must never rewrite the field to transliterated provider output.
         const selected = smartNormalizeTaiwanAddress(initialSelected);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
-        const relaxedAddress = isRelaxedRideDestination(id) || isCallPickupFreeText(id);
-        const ready = relaxedAddress || (resolved
+        const relaxedDestination = isRelaxedRideDestination(id);
+        const ready = relaxedDestination || (resolved
           ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
           : (!broad && isLocallyDispatchReady(selected)));
 
@@ -2469,7 +2456,7 @@ window.GC_FORM_CONFIG = {
           return;
         }
 
-        markAddressVerified(input, relaxedAddress ? (isCallPickupFreeText(id) ? 'suggestion-relaxed-call-pickup' : 'suggestion-relaxed-destination') : 'suggestion', resolvedAddress);
+        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
@@ -4237,137 +4224,8 @@ window.GC_FORM_CONFIG = {
     }, { passive: false, capture: true });
   }
 
-  // GC_MASTER_STABLE_2026_08R10Z9Q_CENTERED_CUSTOM_TIME_PICKER
-  // Native iOS time popovers are positioned by WKWebView and cannot be reliably aligned.
-  // Use one deterministic, centered, touch-scroll wheel. The actual field value is committed
-  // only when 「完成」 is pressed, so progressive fields never appear mid-selection.
-  function bindCenteredTimePicker() {
-    const input = document.getElementById('time');
-    if (!input || input.dataset.gcCenteredPickerBound === '1') return;
-    input.dataset.gcCenteredPickerBound = '1';
-
-    const ITEM_HEIGHT = 50;
-    let overlay = document.getElementById('gcTimePickerOverlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'gcTimePickerOverlay';
-      overlay.className = 'gc-time-picker-overlay hidden';
-      overlay.setAttribute('role', 'dialog');
-      overlay.setAttribute('aria-modal', 'true');
-      overlay.setAttribute('aria-label', '選擇用車時間');
-      const hourItems = Array.from({length:24}, (_,i) => `<button type="button" class="gc-time-wheel-item" data-value="${String(i).padStart(2,'0')}" role="option">${String(i).padStart(2,'0')}</button>`).join('');
-      const minuteItems = Array.from({length:60}, (_,i) => `<button type="button" class="gc-time-wheel-item" data-value="${String(i).padStart(2,'0')}" role="option">${String(i).padStart(2,'0')}</button>`).join('');
-      overlay.innerHTML = `
-        <div class="gc-time-picker-card">
-          <div class="gc-time-picker-wheels" aria-label="小時與分鐘">
-            <div class="gc-time-selection-bar" aria-hidden="true"></div>
-            <div class="gc-time-wheel-wrap"><div class="gc-time-wheel" id="gcTimeHourWheel" role="listbox" aria-label="小時">${hourItems}</div></div>
-            <div class="gc-time-wheel-separator" aria-hidden="true">:</div>
-            <div class="gc-time-wheel-wrap"><div class="gc-time-wheel" id="gcTimeMinuteWheel" role="listbox" aria-label="分鐘">${minuteItems}</div></div>
-          </div>
-          <div class="gc-time-picker-actions">
-            <button type="button" class="gc-time-picker-reset" id="gcTimePickerReset">重置</button>
-            <button type="button" class="gc-time-picker-done" id="gcTimePickerDone">完成</button>
-          </div>
-        </div>`;
-      document.body.appendChild(overlay);
-    }
-
-    const hourWheel = overlay.querySelector('#gcTimeHourWheel');
-    const minuteWheel = overlay.querySelector('#gcTimeMinuteWheel');
-    const resetBtn = overlay.querySelector('#gcTimePickerReset');
-    const doneBtn = overlay.querySelector('#gcTimePickerDone');
-    let previousBodyOverflow = '';
-
-    const pickerState = open => {
-      if (open) input.dataset.gcPickerOpen = '1'; else delete input.dataset.gcPickerOpen;
-      try { input.dispatchEvent(new CustomEvent('gc:schedule-picker-state', { bubbles:true })); } catch (_) {}
-    };
-    const nearestIndex = (wheel, max) => Math.max(0, Math.min(max, Math.round((wheel?.scrollTop || 0) / ITEM_HEIGHT)));
-    const syncSelected = wheel => {
-      if (!wheel) return;
-      const idx = nearestIndex(wheel, wheel.children.length - 1);
-      Array.from(wheel.children).forEach((node, i) => {
-        const selected = i === idx;
-        node.classList.toggle('is-selected', selected);
-        node.setAttribute('aria-selected', selected ? 'true' : 'false');
-      });
-    };
-    const setWheel = (wheel, index) => {
-      if (!wheel) return;
-      wheel.scrollTop = Math.max(0, index) * ITEM_HEIGHT;
-      syncSelected(wheel);
-    };
-    const parsedTime = () => {
-      const m = String(input.value || '').match(/^(\d{1,2}):(\d{2})$/);
-      if (m) return [Math.min(23, Number(m[1])), Math.min(59, Number(m[2]))];
-      const now = new Date();
-      return [now.getHours(), now.getMinutes()];
-    };
-    const close = ({ commit = false, clear = false } = {}) => {
-      if (commit) {
-        const hh = String(nearestIndex(hourWheel, 23)).padStart(2, '0');
-        const mm = String(nearestIndex(minuteWheel, 59)).padStart(2, '0');
-        input.value = `${hh}:${mm}`;
-        input.dispatchEvent(new Event('input', { bubbles:true }));
-        input.dispatchEvent(new Event('change', { bubbles:true }));
-      } else if (clear) {
-        input.value = '';
-        input.dispatchEvent(new Event('input', { bubbles:true }));
-        input.dispatchEvent(new Event('change', { bubbles:true }));
-      }
-      overlay.classList.add('hidden');
-      overlay.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('gc-time-picker-open');
-      document.body.style.overflow = previousBodyOverflow;
-      pickerState(false);
-      try { input.blur(); } catch (_) {}
-    };
-    const open = event => {
-      event?.preventDefault?.();
-      const [hh, mm] = parsedTime();
-      previousBodyOverflow = document.body.style.overflow;
-      document.body.classList.add('gc-time-picker-open');
-      document.body.style.overflow = 'hidden';
-      overlay.classList.remove('hidden');
-      overlay.setAttribute('aria-hidden', 'false');
-      pickerState(true);
-      requestAnimationFrame(() => {
-        setWheel(hourWheel, hh);
-        setWheel(minuteWheel, mm);
-        try { doneBtn.focus({preventScroll:true}); } catch (_) {}
-      });
-    };
-
-    [hourWheel, minuteWheel].forEach(wheel => {
-      if (!wheel) return;
-      let raf = 0;
-      wheel.addEventListener('scroll', () => {
-        cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => syncSelected(wheel));
-      }, { passive:true });
-      wheel.addEventListener('click', event => {
-        const item = event.target.closest('.gc-time-wheel-item');
-        if (!item) return;
-        const index = Array.prototype.indexOf.call(wheel.children, item);
-        wheel.scrollTo({ top:index * ITEM_HEIGHT, behavior:'smooth' });
-      });
-    });
-    input.addEventListener('click', open);
-    input.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') open(event);
-    });
-    doneBtn?.addEventListener('click', () => close({commit:true}));
-    resetBtn?.addEventListener('click', () => close({clear:true}));
-    overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !overlay.classList.contains('hidden')) close();
-    });
-  }
-
   function bindRideLike(mode, cfg) {
     setDateMinimum();
-    bindCenteredTimePicker();
     bindRecentAddressControls();
     bindSmallDisclosureTriggers();
     installVerticalOnlyTouchGuard();
@@ -4386,8 +4244,6 @@ window.GC_FORM_CONFIG = {
         if (!reserve) {
           document.getElementById('date').value = '';
           document.getElementById('time').value = '';
-          document.getElementById('gcTimePickerOverlay')?.classList.add('hidden');
-          delete document.getElementById('time').dataset.gcPickerOpen;
           clearFieldValidation('date');
           clearFieldValidation('time');
         }
@@ -5809,22 +5665,6 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-
-      // GC_MASTER_STABLE_2026_08R10Z9M_FARE_DISCLOSURE_SHARED_FRAME
-      // Rate details and manual estimate assistance are one visual information group.
-      // Only the presentation container changes; fare formulas, manual form fields and submit behavior stay untouched.
-      const rates = document.querySelector('.gc-fare-rates');
-      const orDivider = document.querySelector('.gc-fare-or');
-      if (rates && !document.querySelector('.gc-fare-disclosure-group')) {
-        const group = document.createElement('section');
-        group.className = 'gc-fare-disclosure-group';
-        group.setAttribute('aria-label', '車資費率與估價協助');
-        rates.parentNode.insertBefore(group, rates);
-        group.appendChild(rates);
-        group.appendChild(details);
-        orDivider?.remove();
-      }
-
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
@@ -5941,8 +5781,6 @@ window.GC_FORM_CONFIG = {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
-  // GC_MASTER_STABLE_2026_08R10Z9N_IOS_SCHEDULE_CONFIRM_GATE
-  // GC_MASTER_STABLE_2026_08R10Z9Q_EXPLICIT_PICKER_COMMIT_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -5976,8 +5814,6 @@ window.GC_FORM_CONFIG = {
     const radios = [...form.querySelectorAll('input[name="serviceType"]')];
     const serviceField = radios[0]?.closest('.field');
     const schedule = document.getElementById('scheduleFields');
-    const dateInput = document.getElementById('date');
-    const timeInput = document.getElementById('time');
     const pickup = document.getElementById('pickup');
     const destination = document.getElementById('destination');
     const pickupField = pickup?.closest('.field');
@@ -6022,18 +5858,10 @@ window.GC_FORM_CONFIG = {
       const service = serviceValue();
       const chosen = Boolean(service);
       const reserve = service === 'reserve';
-      // iOS/WKWebView mutates date/time values while the native wheel is still open.
-      // Treat the schedule as confirmed only after both values exist AND neither picker input is focused.
-      // The blur handler below re-checks on the next animation frame, matching the native 「完成」 close.
-      const scheduleEditing = reserve && (document.activeElement === dateInput || dateInput?.dataset.gcPickerOpen === '1' || timeInput?.dataset.gcPickerOpen === '1');
-      const scheduleConfirmed = !reserve || (Boolean(value('date')) && Boolean(value('time')) && !scheduleEditing);
-      const serviceReady = chosen && scheduleConfirmed;
-      const pickupHasText = value('pickup').length >= 2;
-      const pickupReady = pickupHasText && Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
+      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
+      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
 
       form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
-      form.dataset.gcFlowScheduleEditing = scheduleEditing ? '1' : '0';
-      form.dataset.gcFlowScheduleConfirmed = scheduleConfirmed ? '1' : '0';
       form.dataset.gcFlowServiceReady = serviceReady ? '1' : '0';
       form.dataset.gcFlowPickupReady = pickupReady ? '1' : '0';
       serviceField?.classList.toggle('gc-flow-complete', chosen);
@@ -6050,25 +5878,12 @@ window.GC_FORM_CONFIG = {
       if (favorite) setCollapsed(favorite, false);
     }
 
-    [...radios, dateInput, timeInput, pickup, destination].filter(Boolean).forEach(control => {
+    [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
       control.addEventListener('input', update, { passive: true });
       control.addEventListener('change', update, { passive: true });
       control.addEventListener('focus', update, { passive: true });
-      control.addEventListener('blur', () => requestAnimationFrame(update), { passive: true });
+      control.addEventListener('blur', update, { passive: true });
     });
-    [dateInput, timeInput].filter(Boolean).forEach(control => control.addEventListener('gc:schedule-picker-state', update, { passive:true }));
-    if (dateInput) {
-      const markDateOpen = () => { dateInput.dataset.gcPickerOpen = '1'; update(); };
-      const markDateClosed = () => requestAnimationFrame(() => {
-        if (document.activeElement === dateInput) return;
-        delete dateInput.dataset.gcPickerOpen;
-        update();
-      });
-      dateInput.addEventListener('pointerdown', markDateOpen, { passive:true });
-      dateInput.addEventListener('focus', markDateOpen, { passive:true });
-      dateInput.addEventListener('blur', markDateClosed, { passive:true });
-      dateInput.addEventListener('change', () => setTimeout(markDateClosed, 0), { passive:true });
-    }
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     update();
     requestAnimationFrame(() => { clearBrowserRestoredService(); update(); });
