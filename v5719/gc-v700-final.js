@@ -67,7 +67,7 @@
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '⭐️ 常用行程';
+    toggle.textContent = '⭐ 常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     ensureAddressUtilityRow(hostField)?.appendChild(toggle);
 

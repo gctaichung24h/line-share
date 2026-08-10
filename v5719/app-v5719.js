@@ -1,10 +1,9 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9t';
+  const GC_BUILD_VERSION = 'master202608r10z9i';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
-  // GC_MASTER_STABLE_2026_08R10Z9T_Z9I_BASELINE_PREMIUM_FIXLIST
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -267,7 +266,7 @@
         <div class="gc-address-suggest hidden" id="${id}Suggest" role="listbox" aria-label="地址建議"></div>
         ${allowLocation ? `
           <div class="location-action hidden" id="locationAction">
-            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 目前位置')}</button>
+            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 使用目前位置')}</button>
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
@@ -2165,7 +2164,7 @@
     const button = document.getElementById('locationBtn');
     if (button) {
       button.disabled = false;
-      button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
+      button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
     }
   }
 
@@ -2397,7 +2396,7 @@
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
-        button.textContent = COMMON['定位重新取得'] || '📍 目前位置';
+        button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
 
         if (!canSendMap) {
           attachedLocation.settingInput = true;
@@ -2484,7 +2483,7 @@
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
-        button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
+        button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
       }
     });
     updateLocationVisibility();
@@ -2564,7 +2563,7 @@
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `${addresses.length}`;
+      if (count) count.textContent = `(${addresses.length})`;
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
@@ -3236,6 +3235,7 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
+          <small>${escapeHtml(allDayShort)}｜最低 $${escapeHtml(formatFareRuleValue(rules.minimum))}</small>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">

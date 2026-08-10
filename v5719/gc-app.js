@@ -480,8 +480,8 @@ window.GC_FORM_CONFIG = {
                    "常用行程儲存成功":  "常用行程已儲存。",
                    "常用行程重複":  "此行程已儲存於常用行程。",
                    "常用行程清除確認":  "確定要清除全部常用行程嗎？",
-                   "定位按鈕":  "📍 目前位置",
-                   "定位重新取得":  "📍 目前位置",
+                   "定位按鈕":  "📍 使用目前位置",
+                   "定位重新取得":  "📍 重新取得位置",
                    "定位取得中":  "正在取得定位…",
                    "定位權限提醒":  "請允許手機存取目前位置。",
                    "定位成功":  "定位已取得，請確認上車地址。",
@@ -510,7 +510,7 @@ window.GC_FORM_CONFIG = {
                  "需求提示":  "請選擇無、有籠或無籠",
                  "備註標題":  "備註資訊",
                  "備註提示":  "其他需要小編或司機留意的資訊",
-                 "表格提醒1":  "填寫越完整，媒合越快速。",
+                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                  "表格提醒2":  "",
                  "送出按鈕":  "下一步：確認叫車資料",
                  "錯誤_用車方式":  "請選擇服務類型。",
@@ -555,7 +555,7 @@ window.GC_FORM_CONFIG = {
                    "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
                    "備註標題":  "備註資訊",
                    "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
-                   "表格提醒1":  "填寫越完整，媒合越快速。",
+                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
                    "表格提醒2":  "",
                    "送出按鈕":  "下一步：確認代駕資料",
                    "錯誤_用車方式":  "請選擇服務類型。",
@@ -672,11 +672,10 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9t';
+  const GC_BUILD_VERSION = 'master202608r10z9i';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
-  // GC_MASTER_STABLE_2026_08R10Z9T_Z9I_BASELINE_PREMIUM_FIXLIST
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -939,7 +938,7 @@ window.GC_FORM_CONFIG = {
         <div class="gc-address-suggest hidden" id="${id}Suggest" role="listbox" aria-label="地址建議"></div>
         ${allowLocation ? `
           <div class="location-action hidden" id="locationAction">
-            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 目前位置')}</button>
+            <button class="location-btn" id="locationBtn" type="button">${escapeHtml(COMMON['定位按鈕'] || '📍 使用目前位置')}</button>
             <div class="location-status" id="locationStatus" aria-live="polite"></div>
           </div>
           <div class="location-review hidden" id="locationReview">
@@ -2837,7 +2836,7 @@ window.GC_FORM_CONFIG = {
     const button = document.getElementById('locationBtn');
     if (button) {
       button.disabled = false;
-      button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
+      button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
     }
   }
 
@@ -3069,7 +3068,7 @@ window.GC_FORM_CONFIG = {
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
-        button.textContent = COMMON['定位重新取得'] || '📍 目前位置';
+        button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
 
         if (!canSendMap) {
           attachedLocation.settingInput = true;
@@ -3156,7 +3155,7 @@ window.GC_FORM_CONFIG = {
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
-        button.textContent = COMMON['定位按鈕'] || '📍 目前位置';
+        button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
       }
     });
     updateLocationVisibility();
@@ -3236,7 +3235,7 @@ window.GC_FORM_CONFIG = {
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `${addresses.length}`;
+      if (count) count.textContent = `(${addresses.length})`;
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
@@ -3908,6 +3907,7 @@ window.GC_FORM_CONFIG = {
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
+          <small>${escapeHtml(allDayShort)}｜最低 $${escapeHtml(formatFareRuleValue(rules.minimum))}</small>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -4761,7 +4761,7 @@ window.GC_FORM_CONFIG = {
     toggle.type = 'button';
     toggle.id = 'gcFavoriteToggle';
     toggle.className = 'field-inline-btn';
-    toggle.textContent = '⭐️ 常用行程';
+    toggle.textContent = '⭐ 常用行程';
     toggle.setAttribute('aria-expanded', 'false');
     ensureAddressUtilityRow(hostField)?.appendChild(toggle);
 
@@ -5641,7 +5641,7 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true" class="gc-manual-chevron">▾</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -5665,7 +5665,7 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '▴' : '▾'; });
+      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
