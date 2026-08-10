@@ -4689,3 +4689,269 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   }
 }
 
+
+/* GC_MASTER_STABLE_2026_08R10Z9U_PRECISE_REMAINDER_FIX
+   Only the remaining visual defects are corrected here. Z9I proportions and behavior stay intact. */
+
+/* 1. Address cards: same base geometry. Extra pickup tools may add height naturally. */
+.form-body .gc-primary-address,
+.form-body .gc-fare-route-fields .gc-primary-address{
+  box-sizing:border-box!important;
+  margin:0 0 16px!important;
+  padding:14px!important;
+  border:1px solid #d6e2e9!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#fcfeff 0%,#f8fbfd 100%)!important;
+  box-shadow:0 5px 16px rgba(25,63,94,.035)!important;
+}
+.form-body .gc-primary-address:before,
+.form-body .gc-fare-route-fields .gc-primary-address:before{
+  display:none!important;
+  content:none!important;
+}
+.form-body .gc-primary-address>.field-label-row,
+.form-body .gc-fare-route-fields .gc-primary-address>.field-label-row{
+  margin-bottom:9px!important;
+}
+.form-body .gc-primary-address>label,
+.form-body .gc-primary-address .field-label-row>label,
+.form-body .gc-fare-route-fields .gc-primary-address>label,
+.form-body .gc-fare-route-fields .gc-primary-address .field-label-row>label{
+  margin:0 0 9px!important;
+  color:#173f5c!important;
+  font-size:16px!important;
+  line-height:1.35!important;
+  font-weight:760!important;
+}
+.form-body .gc-primary-address>.input,
+.form-body .gc-fare-route-fields .gc-primary-address>.input{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-height:58px!important;
+  height:auto!important;
+  margin:0!important;
+  padding:12px 14px!important;
+  border:1px solid #bfd0dc!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:none!important;
+  font-size:16px!important;
+  line-height:1.4!important;
+}
+/* Fare route has no quick actions. Keep pickup and destination exactly equal. */
+.gc-fare-route-fields .gc-primary-address{
+  min-height:111px!important;
+  height:auto!important;
+}
+.gc-fare-route-fields .gc-primary-address>.gc-address-utility-row,
+.gc-fare-route-fields .gc-primary-address>.error-text:empty{
+  display:none!important;
+}
+
+/* 2. Pickup shortcut pills: natural width, premium compact grouping. */
+.gc-pickup-address .gc-address-utility-row{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  width:100%!important;
+  margin-top:10px!important;
+}
+.gc-pickup-address .gc-address-utility-row>*{
+  flex:0 0 auto!important;
+  width:auto!important;
+  max-width:100%!important;
+}
+.gc-pickup-address .gc-address-utility-row .field-inline-action,
+.gc-pickup-address .gc-address-utility-row .recent-address-control{
+  width:auto!important;
+  max-width:100%!important;
+}
+.gc-pickup-address .gc-address-utility-row .location-btn,
+.gc-pickup-address .gc-address-utility-row .field-inline-btn,
+.gc-pickup-address .gc-address-utility-row .recent-toggle,
+.gc-destination-address .recent-toggle{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:0!important;
+  width:auto!important;
+  max-width:100%!important;
+  min-height:38px!important;
+  height:38px!important;
+  padding:0 8px!important;
+  border:1px solid #d4e0e7!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,#fff 0%,#f9fbfc 100%)!important;
+  box-shadow:0 1px 4px rgba(19,55,80,.025)!important;
+  color:#526f82!important;
+  font-size:12px!important;
+  line-height:1!important;
+  font-weight:680!important;
+  white-space:nowrap!important;
+}
+.gc-pickup-address .recent-clock,
+.gc-destination-address .recent-clock{display:none!important}
+.gc-pickup-address .recent-title,
+.gc-destination-address .recent-title{
+  margin:0!important;
+  white-space:nowrap!important;
+}
+.gc-pickup-address .recent-count,
+.gc-destination-address .recent-count{
+  margin-left:6px!important;
+  color:#6e8291!important;
+  font-size:11.5px!important;
+  font-weight:700!important;
+  white-space:nowrap!important;
+}
+.gc-pickup-address .recent-chevron,
+.gc-destination-address .recent-chevron{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:auto!important;
+  height:auto!important;
+  margin-left:5px!important;
+  padding:0!important;
+  color:#728997!important;
+  font-size:0!important;
+  line-height:1!important;
+  background:none!important;
+  border:0!important;
+}
+.gc-pickup-address .recent-chevron::before,
+.gc-destination-address .recent-chevron::before{
+  content:'▾'!important;
+  font-size:12.5px!important;
+  line-height:1!important;
+  font-weight:700!important;
+}
+.recent-address-control.is-open .recent-chevron::before{content:'▴'!important}
+.gc-destination-address .recent-address-control{
+  margin-top:10px!important;
+  margin-left:auto!important;
+  width:max-content!important;
+  max-width:100%!important;
+}
+.gc-primary-address .location-status{
+  margin-top:9px!important;
+  padding-left:1px!important;
+  font-size:12.8px!important;
+  line-height:1.45!important;
+}
+
+/* 3. Fare disclosures: visible chevrons, no text label, no tiny-dot appearance. */
+.gc-fare-rates-summary{
+  min-height:52px!important;
+  padding:12px 42px 12px 13px!important;
+}
+.gc-fare-rates-summary>small{display:none!important}
+.gc-fare-rates-summary::after{
+  content:'▾'!important;
+  right:16px!important;
+  color:#728997!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:700!important;
+}
+.gc-fare-rates[open]>.gc-fare-rates-summary::after{content:'▴'!important}
+
+/* 4. Other estimate help: remove the unused blank top strip completely. */
+.gc-fare-manual-details{
+  box-sizing:border-box!important;
+  margin-top:12px!important;
+  padding:0!important;
+  border:1px solid #e0e8ed!important;
+  border-radius:15px!important;
+  background:#fbfcfd!important;
+  overflow:hidden!important;
+}
+.gc-fare-manual-details>summary{
+  box-sizing:border-box!important;
+  min-height:62px!important;
+  margin:0!important;
+  padding:10px 42px 10px 13px!important;
+  border:0!important;
+  background:transparent!important;
+}
+.gc-fare-manual-details>summary span{
+  min-width:0!important;
+  display:block!important;
+}
+.gc-fare-manual-details>summary strong{
+  color:#748895!important;
+  font-size:13px!important;
+  line-height:1.35!important;
+  font-weight:620!important;
+}
+.gc-fare-manual-details>summary small{
+  display:block!important;
+  margin-top:3px!important;
+  color:#98a6af!important;
+  font-size:10.8px!important;
+  line-height:1.4!important;
+  font-weight:520!important;
+}
+.gc-fare-manual-details>summary>b{
+  position:absolute!important;
+  right:16px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  color:#728997!important;
+  font-size:0!important;
+  line-height:1!important;
+  background:none!important;
+}
+.gc-fare-manual-details>summary>b::before{
+  content:'▾'!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:700!important;
+}
+.gc-fare-manual-details[open]>summary>b::before{content:'▴'!important}
+.gc-fare-manual-details[open]>summary{
+  margin:0!important;
+  border-bottom:1px solid #e8eef2!important;
+}
+.gc-fare-manual-details[open]>.gc-fare-manual-inner{
+  margin:12px!important;
+}
+
+/* Small screens: protect readability; pills may wrap as whole units, never split their text. */
+@media(max-width:360px){
+  .form-body .gc-primary-address,
+  .form-body .gc-fare-route-fields .gc-primary-address{padding:12px!important}
+  .gc-fare-route-fields .gc-primary-address{min-height:107px!important;height:auto!important}
+  .gc-pickup-address .gc-address-utility-row{justify-content:flex-start!important;gap:6px!important}
+  .gc-pickup-address .gc-address-utility-row .location-btn,
+  .gc-pickup-address .gc-address-utility-row .field-inline-btn,
+  .gc-pickup-address .gc-address-utility-row .recent-toggle,
+  .gc-destination-address .recent-toggle{padding:0 7px!important;font-size:11.8px!important}
+}
+@media(max-width:330px){
+  .gc-pickup-address .gc-address-utility-row{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .gc-pickup-address .gc-address-utility-row>*{width:100%!important}
+  .gc-pickup-address .gc-address-utility-row .location-btn,
+  .gc-pickup-address .gc-address-utility-row .field-inline-btn,
+  .gc-pickup-address .gc-address-utility-row .recent-toggle{width:100%!important}
+  .gc-pickup-address .gc-address-utility-row .recent-address-control{
+    grid-column:1 / -1!important;
+    justify-self:start!important;
+    width:max-content!important;
+    max-width:100%!important;
+  }
+  .gc-pickup-address .gc-address-utility-row .recent-address-control .recent-toggle{
+    width:auto!important;
+    max-width:100%!important;
+  }
+}
+

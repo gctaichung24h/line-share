@@ -672,7 +672,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9i';
+  const GC_BUILD_VERSION = 'master202608r10z9u';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -3235,7 +3235,7 @@ window.GC_FORM_CONFIG = {
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `(${addresses.length})`;
+      if (count) count.textContent = `${addresses.length}`;
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
