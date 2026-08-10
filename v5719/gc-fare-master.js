@@ -13,6 +13,7 @@
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
+  // GC_MASTER_STABLE_2026_08R10Z9L_NONBLOCKING_MAP_ADDRESS
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
@@ -238,8 +239,10 @@
 
     const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
     if (verify) {
-      const pickupReady = await verify('pickup', { showError: true });
-      const destinationReady = pickupReady ? await verify('destination', { showError: true }) : false;
+      // R10Z9L: Google Maps receives exactly what the passenger entered (or an already resolved hidden copy).
+      // Smart suggestions/normalization remain available, but missing county/district or geocoder confidence never blocks opening Maps.
+      const pickupReady = await verify('pickup', { showError: true, policy: 'relaxed' });
+      const destinationReady = pickupReady ? await verify('destination', { showError: true, policy: 'relaxed' }) : false;
       if (!pickupReady || !destinationReady) return;
     }
 

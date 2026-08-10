@@ -1,11 +1,12 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9k';
+  const GC_BUILD_VERSION = 'master202608r10z9l';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
+  // GC_MASTER_STABLE_2026_08R10Z9L_NONBLOCKING_ADDRESS_INPUT
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -2185,6 +2186,14 @@
     if (!instant) clearAttachedLocation(true);
   }
 
+  function updateRideProgressiveVisibility() {
+    const wrap = document.getElementById('rideMainFields');
+    if (!wrap) return;
+    const reserve = checked('serviceType') === 'reserve';
+    const ready = !reserve || (value('date') && value('time'));
+    wrap.classList.toggle('hidden', !ready);
+  }
+
   function compactReverseAddressPart(value) {
     return String(value || '').trim().replace(/\s+/g, ' ');
   }
@@ -3106,16 +3115,17 @@
           <div id="globalError" class="global-error"></div>
           ${modeChoices(cfg)}
           ${scheduleFields(cfg)}
-          ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, true)}
-          ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'])}
-          ${renderFavoriteTripsBox()}
-          ${isDriver ? '' : fieldText('passengers', cfg['人數標題'], cfg['人數提示'])}
-          <details class="optional-box">
-            <summary>${escapeHtml(cfg['更多資訊標題'])}</summary>
-            <div class="optional-content">${extraFields}</div>
-          </details>
-          ${renderReminderNotice(cfg)}
-          <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
+          <div id="rideMainFields" class="ride-main-fields">
+            ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, true)}
+            ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'])}
+            ${renderFavoriteTripsBox()}
+            ${isDriver ? '' : fieldText('passengers', cfg['人數標題'], cfg['人數提示'])}
+            <details class="optional-box">
+              <summary>${escapeHtml(cfg['更多資訊標題'])}</summary>
+              <div class="optional-content">${extraFields}</div>
+            </details>
+            <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
+          </div>
         </form>
         ${renderConfirmationModal()}
         ${renderRecentClearModal()}
@@ -3236,6 +3246,7 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
+          <b aria-hidden="true">⌄</b>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -3251,6 +3262,26 @@
       </details>`;
   }
 
+
+
+  function renderFareManualDisclosure(cfg) {
+    return `
+      <details class="gc-fare-manual-details">
+        <summary>
+          <span><strong>${escapeHtml(cfg['人工協助標題'] || '其他估價協助')}</strong></span>
+          <b aria-hidden="true">⌄</b>
+        </summary>
+        <div class="gc-fare-manual-inner">
+          ${(cfg['人工協助提示'] ?? '').trim() ? `<div class="gc-fare-manual-extra"><p>${escapeHtml(cfg['人工協助提示'] ?? '')}</p></div>` : ''}
+          <form class="gc-fare-manual-form" id="serviceForm" novalidate>
+            <div id="globalError" class="global-error"></div>
+            ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
+            ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
+            <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
+          </form>
+        </div>
+      </details>`;
+  }
   function renderFare(cfg) {
     // GC_R10J_FARE_NO_RECENT_ADDRESS: 車資試算不顯示最近使用地址；最近地址只保留給叫車／代駕。
     attachedLocation = null;
@@ -3265,19 +3296,9 @@
         <div class="form-body gc-fare-body">
           ${preview ? `<div class="notice preview-notice"><p>${escapeHtml(COMMON['預覽模式提醒'])}</p></div>` : ''}
           ${renderFareCalculator(cfg)}
-          ${renderFareRateSummary(cfg)}
-          <div class="gc-fare-or" aria-hidden="true"><span>或</span></div>
-          <section class="gc-fare-manual">
-            <div class="gc-fare-manual-head">
-              <strong>${escapeHtml(cfg['人工協助標題'] || '需要客服協助？')}</strong>
-              <span>${escapeHtml(cfg['人工協助提示'] ?? '')}</span>
-            </div>
-            <form class="gc-fare-manual-form" id="serviceForm" novalidate>
-              <div id="globalError" class="global-error"></div>
-              ${fieldAddress('pickup', cfg['上車標題'], cfg['上車提示'], true, false, false)}
-              ${fieldAddress('destination', cfg['下車標題'], cfg['下車提示'], true, false, false)}
-              <button class="submit-btn" id="submitBtn" type="submit">${escapeHtml(cfg['送出按鈕'])}</button>
-            </form>
+          <section class="gc-fare-disclosure-group">
+            ${renderFareRateSummary(cfg)}
+            ${renderFareManualDisclosure(cfg)}
           </section>
         </div>
         ${renderConfirmationModal()}
@@ -3512,15 +3533,13 @@
         trigger = document.createElement('span');
         trigger.className = 'gc-small-disclosure-trigger';
         trigger.setAttribute('aria-hidden', 'true');
-        trigger.innerHTML = '<span class="gc-small-trigger-label">展開</span><span>⌄</span>';
+        trigger.innerHTML = '<span class="gc-small-trigger-arrow">⌄</span>';
         summary.appendChild(trigger);
       }
       const sync = () => {
         const currentTrigger = summary.querySelector('.gc-small-disclosure-trigger');
         if (!currentTrigger) return;
-        const label = currentTrigger.querySelector('.gc-small-trigger-label');
-        if (label) label.textContent = details.open ? '收合' : '展開';
-        const arrow = currentTrigger.lastElementChild;
+        const arrow = currentTrigger.querySelector('.gc-small-trigger-arrow') || currentTrigger.lastElementChild || currentTrigger;
         if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
       };
       sync();
@@ -3576,15 +3595,20 @@
           clearFieldValidation('time');
         }
         updateLocationVisibility();
+        updateRideProgressiveVisibility();
       });
     });
     ['date', 'time', 'pickup'].forEach(id => {
       const input = document.getElementById(id);
       if (!input) return;
-      const clear = () => { if (String(input.value || '').trim()) clearFieldValidation(id); };
+      const clear = () => {
+        if (String(input.value || '').trim()) clearFieldValidation(id);
+        if (id === 'date' || id === 'time') updateRideProgressiveVisibility();
+      };
       input.addEventListener('input', clear);
       input.addEventListener('change', clear);
     });
+    updateRideProgressiveVisibility();
 
     let sending = false;
     document.getElementById('serviceForm').addEventListener('submit', async event => {
@@ -3621,7 +3645,9 @@
         valid = false;
       }
       if (valid && pickup && !(attachedLocation?.requiresConfirmation && !attachedLocation.confirmed)) {
-        if (!(await verifyAddressField('pickup', { showError: true }))) valid = false;
+        // R10Z9L: call/driver typed pickup is dispatch text, not a Google-route gate.
+        // Keep normalization and smart suggestions, but never block submission for missing city/district or geocoder confidence.
+        if (!(await verifyAddressField('pickup', { showError: true, policy: 'relaxed' }))) valid = false;
       }
       if (valid && destination) {
         // Call / drunk-driver drop-off is descriptive dispatch context, not a Google route input.
@@ -3641,7 +3667,7 @@
         pickup = latestPickup;
         destination = latestDestination;
         let latestValid = Boolean(pickup && pickup !== LOCATION_MARKER);
-        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true, policy: 'relaxed' }))) latestValid = false;
         if (latestValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) latestValid = false;
         if (!latestValid) {
           focusFirstValidationError();
@@ -3826,8 +3852,9 @@
         showFieldError('destination', cfg['錯誤_下車地址']);
         valid = false;
       }
-      if (valid && !(await verifyAddressField('pickup', { showError: true }))) valid = false;
-      if (valid && !(await verifyAddressField('destination', { showError: true }))) valid = false;
+      // R10Z9L: fare manual-assistance addresses remain required text, but address precision/geocoder review no longer blocks submission.
+      if (valid && !(await verifyAddressField('pickup', { showError: true, policy: 'relaxed' }))) valid = false;
+      if (valid && !(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) valid = false;
       if (!valid) {
         focusFirstValidationError();
         return;
@@ -3842,8 +3869,8 @@
         pickup = latestPickup;
         destination = latestDestination;
         let latestValid = Boolean(pickup && destination);
-        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
-        if (latestValid && !(await verifyAddressField('destination', { showError: true }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true, policy: 'relaxed' }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) latestValid = false;
         if (!latestValid) {
           focusFirstValidationError();
           return;
