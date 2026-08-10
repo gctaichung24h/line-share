@@ -280,7 +280,7 @@
         <div class="recent-address-control hidden" data-target="${id}">
           <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
-            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
+            <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
@@ -3235,6 +3235,7 @@
       <details class="gc-fare-rates">
         <summary class="gc-fare-rates-summary">
           <span>${escapeHtml(cfg['費率標題'] || '中部地區費率')}</span>
+          <b class="gc-compact-disclosure-state" aria-hidden="true"><span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span></b>
         </summary>
         <div class="gc-fare-rates-content">
           <section class="gc-rate-section" aria-label="基本計費">
@@ -3501,6 +3502,29 @@
     });
   }
 
+  function bindCompactDisclosureStates() {
+    document.querySelectorAll('details.gc-fare-rates, details.gc-fare-manual-details').forEach(details => {
+      const summary = details.querySelector(':scope > summary');
+      if (!summary) return;
+      let state = summary.querySelector('.gc-compact-disclosure-state');
+      if (!state) {
+        state = document.createElement('b');
+        state.className = 'gc-compact-disclosure-state';
+        state.setAttribute('aria-hidden', 'true');
+        state.innerHTML = '<span class="gc-disclosure-label">展開</span><span class="gc-disclosure-arrow">⌄</span>';
+        summary.appendChild(state);
+      }
+      const label = state.querySelector('.gc-disclosure-label');
+      const arrow = state.querySelector('.gc-disclosure-arrow');
+      if (label) label.textContent = details.open ? '收合' : '展開';
+      if (arrow) arrow.textContent = details.open ? '⌃' : '⌄';
+      if (details.dataset.gcCompactStateBound !== '1') {
+        details.dataset.gcCompactStateBound = '1';
+        details.addEventListener('toggle', () => bindCompactDisclosureStates());
+      }
+    });
+  }
+
   function bindSmallDisclosureTriggers() {
     installManagedDisclosureBehavior();
     document.querySelectorAll('details.optional-box:not(.favorite-box)').forEach(details => {
@@ -3528,7 +3552,9 @@
         details.addEventListener('toggle', sync);
       }
     });
+    bindCompactDisclosureStates();
   }
+  window.GC_bindCompactDisclosureStates = bindCompactDisclosureStates;
   window.GC_bindSmallDisclosureTriggers = bindSmallDisclosureTriggers;
   window.GC_installManagedDisclosureBehavior = installManagedDisclosureBehavior;
 
