@@ -500,7 +500,7 @@ window.GC_FORM_CONFIG = {
                  "上車標題":  "上車地址",
                  "上車提示":  "請輸入完整地址或明確地標",
                  "下車標題":  "下車地址",
-                 "下車提示":  "偏鄉、跨縣市、長途請填目的地",
+                 "下車提示":  "資訊越完整，通常越有助於快速媒合",
                  "人數標題":  "5人以上請選人數",
                  "人數提示":  "1～4人免選，5人以上請選擇",
                  "更多資訊標題":  "其他需求",
@@ -510,7 +510,7 @@ window.GC_FORM_CONFIG = {
                  "需求提示":  "請選擇無、有籠或無籠",
                  "備註標題":  "備註資訊",
                  "備註提示":  "其他需要小編或司機留意的資訊",
-                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                 "表格提醒1":  "",
                  "表格提醒2":  "",
                  "送出按鈕":  "下一步：確認叫車資料",
                  "錯誤_用車方式":  "請選擇服務類型。",
@@ -547,7 +547,7 @@ window.GC_FORM_CONFIG = {
                    "上車標題":  "代駕地址",
                    "上車提示":  "請輸入車輛目前位置或明確地標",
                    "下車標題":  "送達地點",
-                   "下車提示":  "偏鄉、跨縣市、長途請填目的地",
+                   "下車提示":  "資訊越完整，通常越有助於快速媒合",
                    "更多資訊標題":  "備註資訊",
                    "車輛資訊標題":  "車輛資訊",
                    "車輛資訊提示":  "例如：黑色 Toyota、自排、車牌 ABC-1234",
@@ -555,7 +555,7 @@ window.GC_FORM_CONFIG = {
                    "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
                    "備註標題":  "備註資訊",
                    "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
-                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
+                   "表格提醒1":  "",
                    "表格提醒2":  "",
                    "送出按鈕":  "下一步：確認代駕資料",
                    "錯誤_用車方式":  "請選擇服務類型。",
@@ -672,12 +672,13 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9k';
+  const GC_BUILD_VERSION = 'master202608r10z9m';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
+  // GC_MASTER_STABLE_2026_08R10Z9M_REQUESTED_UI_FINISH
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -5665,6 +5666,22 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
+
+      // GC_MASTER_STABLE_2026_08R10Z9M_FARE_DISCLOSURE_SHARED_FRAME
+      // Rate details and manual estimate assistance are one visual information group.
+      // Only the presentation container changes; fare formulas, manual form fields and submit behavior stay untouched.
+      const rates = document.querySelector('.gc-fare-rates');
+      const orDivider = document.querySelector('.gc-fare-or');
+      if (rates && !document.querySelector('.gc-fare-disclosure-group')) {
+        const group = document.createElement('section');
+        group.className = 'gc-fare-disclosure-group';
+        group.setAttribute('aria-label', '車資費率與估價協助');
+        rates.parentNode.insertBefore(group, rates);
+        group.appendChild(rates);
+        group.appendChild(details);
+        orDivider?.remove();
+      }
+
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 

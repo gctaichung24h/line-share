@@ -390,6 +390,22 @@
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
+
+      // GC_MASTER_STABLE_2026_08R10Z9M_FARE_DISCLOSURE_SHARED_FRAME
+      // Rate details and manual estimate assistance are one visual information group.
+      // Only the presentation container changes; fare formulas, manual form fields and submit behavior stay untouched.
+      const rates = document.querySelector('.gc-fare-rates');
+      const orDivider = document.querySelector('.gc-fare-or');
+      if (rates && !document.querySelector('.gc-fare-disclosure-group')) {
+        const group = document.createElement('section');
+        group.className = 'gc-fare-disclosure-group';
+        group.setAttribute('aria-label', '車資費率與估價協助');
+        rates.parentNode.insertBefore(group, rates);
+        group.appendChild(rates);
+        group.appendChild(details);
+        orDivider?.remove();
+      }
+
       details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 

@@ -4844,3 +4844,194 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   opacity:1!important;
 }
 
+
+/* GC_MASTER_STABLE_2026_08R10Z9M_REQUESTED_UI_FINISH
+   Scope lock: call/driver progressive completion copy, call special-needs triangle,
+   pickup shortcut density, fare disclosure shared frame/aligned chevrons, and existing placeholder tone only. */
+
+/* Special needs: compact triangle-only disclosure control; keep a safe 44px touch target. */
+.gc-call-needs-box>summary{
+  grid-template-columns:minmax(0,1fr) 44px!important;
+  column-gap:6px!important;
+}
+.gc-call-needs-box>summary .gc-small-disclosure-trigger{
+  position:static!important;
+  justify-self:end!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  padding:0!important;
+  border-radius:10px!important;
+  font-size:0!important;
+  gap:0!important;
+}
+.gc-call-needs-box>summary .gc-small-disclosure-trigger .gc-small-trigger-label{display:none!important}
+.gc-call-needs-box>summary .gc-small-disclosure-trigger>span:last-child{
+  display:block!important;
+  width:9px!important;
+  height:9px!important;
+  color:transparent!important;
+  font-size:0!important;
+  border-right:1.5px solid #8297a6!important;
+  border-bottom:1.5px solid #8297a6!important;
+  transform:translateY(-2px) rotate(45deg)!important;
+  transform-origin:center!important;
+  transition:transform .18s cubic-bezier(.22,.8,.24,1)!important;
+}
+.gc-call-needs-box[open]>summary .gc-small-disclosure-trigger>span:last-child{
+  transform:translateY(2px) rotate(-135deg)!important;
+}
+
+/* Pickup shortcuts: keep current location / favorites / recent address as compact content-width controls. */
+.gc-pickup-address .gc-address-utility-row{
+  display:flex!important;
+  grid-template-columns:none!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:6px!important;
+}
+.gc-pickup-address .gc-address-utility-row>*{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+.gc-pickup-address .gc-address-utility-row .field-inline-action,
+.gc-pickup-address .gc-address-utility-row #gcFavoriteToggle,
+.gc-pickup-address .gc-address-utility-row .recent-address-control,
+.gc-pickup-address .gc-address-utility-row .location-btn,
+.gc-pickup-address .gc-address-utility-row .field-inline-btn,
+.gc-pickup-address .gc-address-utility-row .recent-toggle{
+  width:auto!important;
+  max-width:max-content!important;
+  white-space:nowrap!important;
+}
+.gc-pickup-address .gc-address-utility-row .recent-address-control{
+  display:block!important;
+  flex:0 0 auto!important;
+}
+.gc-pickup-address .gc-address-utility-row .recent-toggle{
+  min-width:0!important;
+  padding-left:8px!important;
+  padding-right:7px!important;
+}
+.gc-pickup-address .recent-toggle{pointer-events:auto!important;cursor:pointer!important}
+.gc-pickup-address .recent-toggle .recent-clock{display:none!important}
+.gc-pickup-address .recent-toggle .recent-count{margin-left:1px!important}
+.gc-pickup-address .recent-toggle .recent-chevron{
+  pointer-events:none!important;
+  flex:0 0 14px!important;
+  width:14px!important;
+  height:20px!important;
+  margin:0 0 0 2px!important;
+  border-radius:0!important;
+}
+
+/* Fare rates + manual assistance: one real outer frame, one divider, aligned right-side chevrons. */
+.gc-fare-disclosure-group{
+  margin-top:12px!important;
+  border:1px solid #dfe7ec!important;
+  border-radius:15px!important;
+  background:#fbfcfd!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.gc-fare-disclosure-group>.gc-fare-rates,
+.gc-fare-disclosure-group>.gc-fare-manual-details{
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details{
+  border-top:1px solid #e3eaef!important;
+}
+.gc-fare-disclosure-group>.gc-fare-rates[open]{background:#f3f7f9!important}
+.gc-fare-disclosure-group>.gc-fare-rates>.gc-fare-rates-summary,
+.gc-fare-disclosure-group>.gc-fare-manual-details>summary{
+  position:relative!important;
+  min-height:50px!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details:not([open])>summary{
+  padding:10px 43px 10px 14px!important;
+  background:transparent!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details[open]>summary{
+  position:relative!important;
+  padding-right:43px!important;
+  margin-bottom:0!important;
+  border-bottom:1px solid #e3eaef!important;
+  background:#fbfcfd!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details>summary b{
+  position:absolute!important;
+  right:16px!important;
+  top:50%!important;
+  width:8px!important;
+  height:8px!important;
+  min-width:8px!important;
+  flex:0 0 8px!important;
+  transform:translateY(-50%)!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details>summary b::after{
+  left:0!important;
+  top:0!important;
+  width:8px!important;
+  height:8px!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details[open]>summary b::after{
+  transform:translateY(4px) rotate(-135deg)!important;
+}
+.gc-fare-disclosure-group>.gc-fare-manual-details>.gc-fare-manual-inner{
+  padding-top:10px!important;
+}
+
+@media(max-width:380px){
+  .gc-pickup-address .gc-address-utility-row{
+    display:flex!important;
+    grid-template-columns:none!important;
+    justify-content:flex-start!important;
+  }
+  .gc-pickup-address .gc-address-utility-row>*{width:auto!important}
+  .gc-pickup-address .gc-address-utility-row .field-inline-action,
+  .gc-pickup-address .gc-address-utility-row #gcFavoriteToggle,
+  .gc-pickup-address .gc-address-utility-row .recent-address-control,
+  .gc-pickup-address .gc-address-utility-row .location-btn,
+  .gc-pickup-address .gc-address-utility-row .field-inline-btn,
+  .gc-pickup-address .gc-address-utility-row .recent-toggle{
+    width:auto!important;
+    max-width:max-content!important;
+    white-space:nowrap!important;
+  }
+}
+@media(max-width:340px){
+  .gc-pickup-address .gc-address-utility-row{gap:4px!important}
+  .gc-pickup-address .gc-address-utility-row .location-btn,
+  .gc-pickup-address .gc-address-utility-row .field-inline-btn,
+  .gc-pickup-address .gc-address-utility-row .recent-toggle{
+    padding-left:5px!important;
+    padding-right:5px!important;
+    font-size:10.5px!important;
+  }
+}
+@media(max-width:300px){
+  .gc-pickup-address .gc-address-utility-row{gap:4px!important}
+  .gc-pickup-address .gc-address-utility-row .location-btn,
+  .gc-pickup-address .gc-address-utility-row .field-inline-btn,
+  .gc-pickup-address .gc-address-utility-row .recent-toggle{
+    padding-left:6px!important;
+    padding-right:6px!important;
+    font-size:10.8px!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .gc-call-needs-box>summary .gc-small-disclosure-trigger>span:last-child{transition:none!important}
+}
+
