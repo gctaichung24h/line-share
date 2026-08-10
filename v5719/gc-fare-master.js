@@ -182,8 +182,8 @@
   }
 
   function googleMapsUrl(pickupValue = '', destinationValue = '') {
-    const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
-    const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
+    const pickup = trim(pickupValue || qs('pickup')?.value);
+    const destination = trim(destinationValue || qs('destination')?.value);
     if (!pickup || !destination) return '';
 
     const base = trim(cfg()['Google地圖路線網址']) || 'https://www.google.com/maps/dir/?api=1';
@@ -223,8 +223,8 @@
   async function openMaps() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
-    const pickup = cleanMapAddress(pickupInput?.value);
-    const destination = cleanMapAddress(destinationInput?.value);
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     // Opening Google Maps must not visibly replace what the passenger typed. The stricter
     // canonical result is carried separately and is used only for map routing.
 
@@ -238,13 +238,15 @@
 
     const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
     if (verify) {
-      const pickupReady = await verify('pickup', { showError: true });
-      const destinationReady = pickupReady ? await verify('destination', { showError: true }) : false;
+      const pickupReady = await verify('pickup', { showError: true, policy: 'manual-authoritative' });
+      const destinationReady = pickupReady ? await verify('destination', { showError: true, policy: 'manual-authoritative' }) : false;
       if (!pickupReady || !destinationReady) return;
     }
 
-    const verifiedPickup = mapAddressFromInput(pickupInput);
-    const verifiedDestination = mapAddressFromInput(destinationInput);
+    // R10Z9L: Google Maps receives exactly the passenger-visible, non-empty text.
+    // Smart-resolution metadata remains advisory and must never block or redirect the route.
+    const verifiedPickup = pickup;
+    const verifiedDestination = destination;
     const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
@@ -366,7 +368,8 @@
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
+      const manualTitle = String(cfg()['人工協助標題'] || 'ⓘ 其他估價協助').replace(/^ⓘ\s*/, '');
+      summary.innerHTML = `<strong class="gc-fare-manual-label"><span aria-hidden="true">ⓘ</span>${escapeHtml(manualTitle)}</strong>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -390,7 +393,6 @@
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，

@@ -2,6 +2,7 @@
   'use strict';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
+  // GC_MASTER_STABLE_2026_08R10Z9L_CONFIRMED_RESERVATION_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -79,7 +80,8 @@
       const service = serviceValue();
       const chosen = Boolean(service);
       const reserve = service === 'reserve';
-      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
+      const scheduleReady = typeof window.GC_isScheduleConfirmed === 'function' && window.GC_isScheduleConfirmed();
+      const serviceReady = chosen && (!reserve || scheduleReady);
       const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
 
       form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
@@ -95,8 +97,8 @@
       if (pickupField) setCollapsed(pickupField, !serviceReady);
       if (destinationField) setCollapsed(destinationField, !(serviceReady && pickupReady));
       [passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
-      // Favorite trips intentionally stay available in the pickup utility sheet; they can fill both endpoints in one tap.
-      if (favorite) setCollapsed(favorite, false);
+      // Reservation mode may not reveal any downstream information until both schedule controls are confirmed.
+      if (favorite) setCollapsed(favorite, !serviceReady);
     }
 
     [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
@@ -106,6 +108,7 @@
       control.addEventListener('blur', update, { passive: true });
     });
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
+    form.addEventListener('gc:schedule-state', update);
     update();
     requestAnimationFrame(() => { clearBrowserRestoredService(); update(); });
     setTimeout(() => { clearBrowserRestoredService(); update(); }, 120);

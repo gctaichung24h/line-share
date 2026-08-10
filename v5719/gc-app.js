@@ -1,683 +1,14 @@
-(() => {
-  'use strict';
-
-  // GC_ADDRESS_GUARD_ACTIVE
-  // GC_ADDRESS_GUARD_R10Z1
-  // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
-  // GC_ADDRESS_GUARD_R10Z6_ROMANIZED_ROAD_PROVIDER_BLOCK
-  // GC_ADDRESS_GUARD_R10Z9_IMPLAUSIBLE_PROVIDER_HOUSE_BLOCK
-  // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
-  // Goals:
-  // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
-  //    become a malformed dispatch string;
-  // 2) keep county/district in canonical Taiwan order;
-  // 3) reject obviously corrupted programmatic address values before they spread to LINE,
-  //    recent addresses, favorites, or Google Maps.
-
-  const VERSION = 'r10z9-address-guard-20260810';
-  const COUNTIES = [
-    '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
-    '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
-    '台東縣','澎湖縣','金門縣','連江縣'
-  ];
-  const COUNTY_RE = new RegExp(`(${COUNTIES.join('|')})`, 'g');
-  const POSTAL_RE = /^[0-9０-９]{3}(?:[0-9０-９]{2,3})?$/;
-  const COUNTRY_RE = /^(?:台灣|臺灣|Taiwan|TWN)$/i;
-  const DISTRICT_RE = /^[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/;
-  const ROAD_RE = /(?:大道|路|街|道|巷|弄)/;
-  const CJK_ROAD_RE = /[\u3400-\u9fff].*(?:大道|路|街|道|巷|弄)/;
-  // Provider romanization such as TaiPingRd22-4 is metadata, never a passenger-facing Taiwan address.
-  const ROMANIZED_ROAD_AFTER_RE = /(?:^|[^A-Za-z])(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?(?:號)?/i;
-  const ROMANIZED_ROAD_BEFORE_RE = /(?:^|[^A-Za-z0-9０-９])[0-9０-９]+(?:[-之][0-9０-９]+)?\s*(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)(?:$|[^A-Za-z])/i;
-
-  function isRomanizedRoadProviderLabel(value) {
-    const text = compact(value);
-    if (!text || !countyFrom(text)) return false;
-    return ROMANIZED_ROAD_AFTER_RE.test(text) || ROMANIZED_ROAD_BEFORE_RE.test(text);
-  }
-
-  const compact = value => String(value ?? '')
-    .replace(/臺/g, '台')
-    .replace(/号/g, '號')
-    .replace(/　/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const noSpace = value => compact(value).replace(/[，,、\s]+/g, '');
-
-  // R10Z ground-route sanitizer: floors/rooms are not routing components.
-  // Preserve the house-number suffix (including 號之N) and discard only indoor data after it.
-  function stripIndoorProviderSuffix(value) {
-    let text = compact(value);
-    if (!text || !/(?:路|街|道|大道)/.test(text) || !text.includes('號')) return text;
-    const m = text.match(/^(.*?號(?:之[0-9０-９]+)?)(?:\s*[,，、-]?\s*(?:地下\s*[0-9０-９]+\s*樓|[Bb]\s*[0-9０-９]+\s*(?:F|樓)?|[0-9０-９]+\s*(?:樓(?:之[0-9０-９]+)?|F|樓層|室))).*$/i);
-    return m ? compact(m[1]) : text;
-  }
-
-  // GC_R10Z4_PROVIDER_POSTAL_DISAMBIGUATION
-  // ArcGIS Taiwan suggestion labels may start with a postal code before either the county
-  // OR the street/POI, e.g. "404007 公園路188號, 北區, 台中市".  Five/six-digit
-  // prefixes are provider postal data whenever a Taiwan county is present.  Three-digit
-  // prefixes are removed only when they are unambiguously postal (county follows directly,
-  // or a different explicit door number already exists later).  This preserves real house
-  // numbers such as "43 自由路二段" and "413 六股路".
-  const TAIWAN_ADMIN_PREFIX_RE = new RegExp(`^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\\s*[,，、]?\\s*(?=(?:${COUNTIES.join('|')}))`);
-  function stripLeadingTaiwanPostalPrefix(value) {
-    let text = compact(value);
-    if (!text || !countyFrom(text)) return text;
-    const strong = text.match(/^([0-9０-９]{5,6})\s+(.+)$/);
-    if (strong) return compact(strong[2]);
-    const admin = text.replace(TAIWAN_ADMIN_PREFIX_RE, '');
-    if (admin !== text) return compact(admin);
-    const three = text.match(/^([0-9０-９]{3})\s+(.+)$/);
-    if (three) {
-      const rest = three[2];
-      const laterDoor = /(?:大道|路|街|道|巷|弄)[^,，、]{0,48}[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(rest);
-      if (laterDoor) return compact(rest);
-    }
-    return text;
-  }
-
-  function stripTrailingPostalHouseArtifact(value) {
-    let text = compact(value);
-    if (!text || !countyFrom(text)) return text;
-    // Known bad historical shape: 台中市北區公園路188號404007號.
-    // Remove only a 5/6-digit final pseudo-house when an earlier true door number exists.
-    const m = text.match(/^(.*(?:大道|路|街|道|巷|弄)[^,，、]{0,64}[0-9０-９]+(?:[-之][0-9０-９]+)?號.*?)([0-9０-９]{5,6})號$/);
-    return m ? compact(m[1]) : text;
-  }
-
-  function samePart(a, b) {
-    const x = noSpace(a);
-    const y = noSpace(b);
-    return Boolean(x && y && x === y);
-  }
-
-  function countyFrom(value) {
-    const text = compact(value);
-    return COUNTIES.find(county => text.includes(county)) || '';
-  }
-
-  // GC_R10Z1_TAIWAN_AVENUE_SAFE
-  // Country labels may be standalone/trailing tokens, but "台灣大道" is a real road name.
-  // Never delete a leading 台灣/臺灣 merely because it starts a provider token.
-  function cleanToken(value) {
-    return compact(value)
-      .replace(/\s*(?:Taiwan|TWN)$/i, '')
-      .trim();
-  }
-
-  function normalizeStreetToken(value) {
-    let text = cleanToken(value);
-    if (!text) return '';
-
-    // ArcGIS may localize Taiwan labels as "43 自由路二段". Taiwan dispatch/navigation
-    // expects "自由路二段43號". Only reorder when a street token is clearly present.
-    const leadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)\s+(.+)$/);
-    if (leadingHouse && ROAD_RE.test(leadingHouse[2])) {
-      const house = leadingHouse[1].replace(/-/g, '之');
-      const street = compact(leadingHouse[2]);
-      text = `${street}${house}${/號$/.test(house) ? '' : '號'}`;
-    }
-
-    // Also handle compact provider labels such as "43自由路二段" without spaces.
-    const compactLeadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)([^0-9０-９].*)$/);
-    if (compactLeadingHouse && ROAD_RE.test(compactLeadingHouse[2])) {
-      const house = compactLeadingHouse[1].replace(/-/g, '之');
-      const street = compact(compactLeadingHouse[2]);
-      text = `${street}${house}號`;
-    }
-
-    // Normalize a trailing house number only when it follows a road/street/alley token.
-    const trailingHouse = text.match(/^(.*(?:路|街|道|大道|巷|弄))\s*([0-9０-９]+(?:[-之][0-9０-９]+)?)$/);
-    if (trailingHouse) text = `${compact(trailingHouse[1])}${trailingHouse[2].replace(/-/g, '之')}號`;
-
-    return compact(text);
-  }
-
-  function parseCommaLabel(value) {
-    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
-    if (!raw) return null;
-    const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
-    if (tokens.length < 2) return null;
-
-    let county = '';
-    let district = '';
-    const detailTokens = [];
-
-    for (const token of tokens) {
-      if (!token || COUNTRY_RE.test(token) || POSTAL_RE.test(noSpace(token))) continue;
-      const tokenCounty = countyFrom(token);
-      if (tokenCounty && (samePart(token, tokenCounty) || noSpace(token).endsWith(noSpace(tokenCounty)))) {
-        if (!county) county = tokenCounty;
-        const leftover = compact(token.replace(tokenCounty, ''));
-        if (leftover && !POSTAL_RE.test(noSpace(leftover))) detailTokens.push(leftover);
-        continue;
-      }
-      if (!district && DISTRICT_RE.test(token) && !samePart(token, county)) {
-        district = token;
-        continue;
-      }
-      detailTokens.push(token);
-    }
-
-    if (!county) county = countyFrom(raw);
-    if (!county || !detailTokens.length) return null;
-
-    // A district may be embedded in a detail token. Pull it out only when it is a clean prefix.
-    if (!district) {
-      for (let i = 0; i < detailTokens.length; i += 1) {
-        const match = detailTokens[i].match(/^([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))\s*(.*)$/);
-        if (match && !samePart(match[1], county)) {
-          district = match[1];
-          detailTokens[i] = compact(match[2]);
-          break;
-        }
-      }
-    }
-
-    const detail = detailTokens.map(normalizeStreetToken).filter(Boolean).join('');
-    if (!detail) return null;
-    return { county, district, detail };
-  }
-
-  function structuredParts(attrs = {}, fallback = '') {
-    if (!attrs || typeof attrs !== 'object') attrs = {};
-    const values = [attrs.Region, attrs.City, attrs.Subregion, attrs.District, fallback].map(compact);
-    let county = '';
-    for (const value of values) {
-      county = countyFrom(value);
-      if (county) break;
-    }
-
-    let district = '';
-    for (const value of [attrs.District, attrs.City, attrs.Subregion]) {
-      const token = compact(value);
-      if (token && DISTRICT_RE.test(token) && !samePart(token, county)) {
-        district = token;
-        break;
-      }
-    }
-
-    const postal = noSpace(attrs.Postal || '');
-    const addrType = compact(attrs.Addr_type);
-    const place = compact(attrs.PlaceName);
-    const addressField = compact(attrs.Address);
-    const stAddr = compact(attrs.StAddr);
-    const placeAddr = compact(attrs.Place_addr);
-    const shortLabel = compact(attrs.ShortLabel);
-    const longLabel = compact(attrs.LongLabel);
-    const streetName = compact(attrs.StName);
-    let addNum = compact(attrs.AddNum).replace(/號$/, '');
-    if (postal && noSpace(addNum) === postal) addNum = '';
-    // Provider data occasionally leaks postal/feature identifiers into AddNum. Taiwan door numbers
-    // should never become 5+ digit pseudo-house numbers such as 400003258號.
-    if (/^[0-9０-９]{5,}$/.test(noSpace(addNum))) addNum = '';
-
-    const parsedFallback = fallback ? parseCommaLabel(fallback) : null;
-    if (!county && parsedFallback?.county) county = parsedFallback.county;
-    if (!district && parsedFallback?.district) district = parsedFallback.district;
-
-    const cleanStructuredCandidate = value => {
-      const raw = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value));
-      if (!raw) return '';
-      const parsed = parseCommaLabel(raw);
-      return parsed?.detail || raw;
-    };
-    const candidates = [addressField, stAddr, placeAddr, shortLabel, parsedFallback?.detail || '', longLabel]
-      .map(cleanStructuredCandidate)
-      .filter(Boolean);
-
-    // Prefer a Chinese street address supplied by ArcGIS labels/Address fields. This prevents
-    // transliterated StName values such as "TaiPingRd" from replacing an available Chinese label.
-    let detail = candidates.find(v => CJK_ROAD_RE.test(v) && /[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(v)) || '';
-    if (!detail) detail = candidates.find(v => CJK_ROAD_RE.test(v)) || '';
-
-    // Structured StName/AddNum are a last resort, not the first choice. ArcGIS documents AddNum
-    // as the house number and Postal as a separate field; never use Postal as AddNum.
-    if (!detail && streetName) {
-      const street = addNum ? `${streetName}${addNum}號` : streetName;
-      const normalizedStreet = normalizeStreetToken(street);
-      // A romanized street is useful as provider metadata but unsafe as passenger-visible text.
-      // Prefer a localized POI label when available; otherwise leave detail empty so caller can fall back safely.
-      if (!isRomanizedRoadProviderLabel(`${county || ''}${district || ''}${normalizedStreet}`)) detail = normalizedStreet;
-    }
-    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
-    if (!detail && parsedFallback?.detail) detail = parsedFallback.detail;
-
-    detail = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(detail));
-    return { county, district, detail };
-  }
-
-  function countOccurrences(text, needle) {
-    if (!text || !needle) return 0;
-    return text.split(needle).length - 1;
-  }
-
-  function isStructurallyCorruptAddress(value) {
-    const text = noSpace(value);
-    if (!text) return false;
-    if (isRomanizedRoadProviderLabel(text)) return true;
-    if (/[0-9０-９]{5,}號/.test(text)) return true;
-    if (/(?:大道|路|街|道|巷|弄)[㐀-鿿A-Za-z]{1,24}[0-9０-９]{5,}號/.test(text)) return true;
-
-    // Same county repeated is never a valid dispatch address.
-    for (const county of COUNTIES) {
-      if (countOccurrences(text, county) > 1) return true;
-    }
-
-    const countyMatches = text.match(COUNTY_RE) || [];
-    if (new Set(countyMatches).size > 1) return true;
-
-    // Provider-order leak: road/house first, then district/county afterwards.
-    const roadIndex = text.search(ROAD_RE);
-    if (roadIndex >= 0) {
-      const afterRoad = text.slice(roadIndex + 1);
-      if (COUNTIES.some(county => afterRoad.includes(county))) return true;
-      const trailingAdminLeak = text.match(/[0-9０-９]號?.{0,12}([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))$/);
-      if (trailingAdminLeak && !/(?:門市|超市|夜市)$/.test(trailingAdminLeak[1])) return true;
-    }
-
-    return false;
-  }
-
-  function canonicalTaiwanAddress(value, attrs = {}) {
-    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
-    if (!raw) return '';
-
-    // R10Z6: never pass provider romanized roads (TaiPingRd / GongYuanRd / etc.) through as UI text.
-    // If ArcGIS also supplied localized structured fields, rebuild from those; otherwise reject this display label.
-    if (isRomanizedRoadProviderLabel(raw)) {
-      const safe = structuredParts(attrs, raw);
-      let detail = normalizeStreetToken(safe.detail || '');
-      if (safe.district) detail = detail.replace(new RegExp(`^${safe.district}`), '').trim();
-      if (safe.county) detail = detail.replace(new RegExp(COUNTIES.join('|'), 'g'), '').trim();
-      const localized = safe.county && detail ? noSpace(stripIndoorProviderSuffix(`${safe.county}${safe.district || ''}${detail}`)) : '';
-      if (localized && !isRomanizedRoadProviderLabel(localized) && !isStructurallyCorruptAddress(localized)) return localized;
-      return '';
-    }
-
-    // Fast path for provider labels already starting with county/city, with or without spaces:
-    // "台中市 霧峰區, 六股路138號" / "台中市霧峰區,六股路138號".
-    // This also keeps postal-prefix cleanup deterministic before the more permissive parser.
-    const leadingCounty = COUNTIES.find(county => noSpace(raw).startsWith(noSpace(county))) || '';
-    if (leadingCounty) {
-      const countyIndex = compact(raw).indexOf(leadingCounty);
-      const rest = compact(raw).slice(countyIndex + leadingCounty.length).trim();
-      const adminMatch = rest.match(/^([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))\s*[,，、]?\s*(.+)$/);
-      if (adminMatch) {
-        const district = compact(adminMatch[1]);
-        const detail = normalizeStreetToken(adminMatch[2]);
-        if (detail) {
-          const direct = noSpace(stripIndoorProviderSuffix(`${leadingCounty}${district}${detail}`));
-          if (!isStructurallyCorruptAddress(direct)) return direct;
-        }
-      }
-    }
-
-    const structured = structuredParts(attrs, raw);
-    let { county, district, detail } = structured;
-
-    if (!county || !detail) {
-      const parsed = parseCommaLabel(raw);
-      if (parsed) ({ county, district, detail } = parsed);
-    }
-
-    if (!county || !detail) {
-      // Do not aggressively rewrite already compact labels. The guard is for provider-order
-      // corruption, not for inventing administrative data that the geocoder did not return.
-      return isStructurallyCorruptAddress(raw) ? '' : compact(raw);
-    }
-
-    detail = normalizeStreetToken(detail)
-      .replace(new RegExp(COUNTIES.join('|'), 'g'), '')
-      .trim();
-    if (district) detail = detail.replace(new RegExp(`^${district}`), '').trim();
-    if (!detail) return '';
-
-    const result = noSpace(stripIndoorProviderSuffix(`${county}${district || ''}${detail}`));
-    return isStructurallyCorruptAddress(result) ? '' : result;
-  }
-
-  // GC_MASTER_STABLE_2026_08R10Y_MAGICKEY_INTEGRITY
-  // IMPORTANT: ArcGIS /suggest returns text + magicKey as a linked pair. Never rewrite
-  // suggestion.text at the fetch boundary. The UI may display a cleaned copy, but
-  // findAddressCandidates must receive the untouched provider text with its magicKey.
-  // Candidate payloads are also kept raw; canonical Taiwan formatting happens only
-  // after the app has received the candidate and structured address attributes.
-
-  function unmistakableProviderArtifact(value) {
-    const raw = compact(value);
-    if (!raw) return false;
-    if (stripTrailingPostalHouseArtifact(raw) !== raw) return true;
-    if (isRomanizedRoadProviderLabel(raw)) return true;
-    if (TAIWAN_ADMIN_PREFIX_RE.test(raw)) return true;
-    if (isStructurallyCorruptAddress(raw)) return true;
-    const hasCounty = Boolean(countyFrom(raw));
-    if (hasCounty && /[,，、]/.test(raw)) return true;
-    return hasCounty && /(?:^|[^A-Za-z])(?:[A-Za-z]{2,}(?:Rd|Road|St|Street|Ave|Avenue|Blvd))\s*[0-9]/i.test(raw);
-  }
-
-  function sanitizeStoredValue(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    const dePostal = stripTrailingPostalHouseArtifact(raw);
-    if (dePostal !== raw) return canonicalTaiwanAddress(dePostal) || dePostal;
-    if (isRomanizedRoadProviderLabel(raw)) return '';
-    if (!unmistakableProviderArtifact(raw)) return raw;
-    return canonicalTaiwanAddress(raw) || '';
-  }
-
-  function purgeKnownCorruption() {
-    try {
-      const raw = localStorage.getItem('gc_recent_addresses_v1');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const clean = parsed.map(sanitizeStoredValue).filter(Boolean);
-          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_recent_addresses_v1', JSON.stringify(clean));
-        }
-      }
-    } catch (_) {}
-
-    try {
-      const raw = localStorage.getItem('gc_favorite_trips_v1');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const clean = parsed.map(item => {
-            if (!item || typeof item !== 'object') return null;
-            const pickup = sanitizeStoredValue(item.pickup);
-            const destination = sanitizeStoredValue(item.destination);
-            if (!pickup || !destination) return null;
-            return { ...item, pickup, destination };
-          }).filter(Boolean);
-          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
-        }
-      }
-    } catch (_) {}
-  }
-
-  const lastGood = new WeakMap();
-  document.addEventListener('focusin', event => {
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement) || !['pickup', 'destination'].includes(input.id)) return;
-    if (!isStructurallyCorruptAddress(input.value)) lastGood.set(input, input.value);
-  }, true);
-
-  document.addEventListener('input', event => {
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement) || !['pickup', 'destination'].includes(input.id)) return;
-    const current = input.value;
-    if (!isStructurallyCorruptAddress(current)) {
-      lastGood.set(input, current);
-      return;
-    }
-
-    // Never alter a trusted user's keystroke. This branch only blocks programmatic corruption
-    // introduced by provider data / old saved data / app transformations.
-    if (event.isTrusted) return;
-    const fallback = lastGood.get(input);
-    if (typeof fallback === 'string') {
-      input.value = fallback;
-      input.dataset.gcSkipSuggestOnce = '1';
-      delete input.dataset.gcAddressVerified;
-      delete input.dataset.gcAddressVerifiedKey;
-      delete input.dataset.gcAddressVerifiedSource;
-      delete input.dataset.gcResolvedAddress;
-      input.classList.remove('gc-address-verified');
-    }
-  }, true);
-
-  purgeKnownCorruption();
-
-  // Exposed only for regression diagnostics. No customer data is stored or transmitted.
-  window.GC_ADDRESS_GUARD = Object.freeze({
-    version: VERSION,
-    stripLeadingTaiwanPostalPrefix,
-    stripTrailingPostalHouseArtifact,
-    stripIndoorProviderSuffix,
-    canonicalTaiwanAddress,
-    isRomanizedRoadProviderLabel,
-    isStructurallyCorruptAddress
-  });
-})();
-
-;
-window.GC_FORM_CONFIG = {
-    "liffId":  "2010952768-gu3rzglx",
-    "common":  {
-                   "品牌名稱":  "GC 台中白牌車隊 24H",
-                   "初始化文字":  "正在開啟服務…",
-                   "非LINE開啟提醒":  "請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。",
-                   "傳送中文字":  "傳送中…",
-                   "傳送失敗文字":  "訊息尚未送出，請確認網路後重新送出。",
-                   "預覽模式提醒":  "目前為電腦預覽模式，不會真的傳送到 LINE。",
-                   "缺少傳送權限提醒":  "此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。",
-                   "訊息欄位符號":  "•",
-                   "最近地址標題":  "最近地址",
-                   "最近地址按鈕":  "最近地址",
-                   "最近地址刪除":  "刪除",
-                   "最近地址清除全部":  "清除全部",
-                   "最近地址清除確認":  "確定要清除全部最近地址嗎？",
-                   "確認提醒":  "請確認上、下車地點與資料是否正確。",
-                   "確認返回按鈕":  "返回修改",
-                   "確認送出按鈕":  "確認送出",
-                   "確認標題_叫車":  "請確認叫車資料",
-                   "確認標題_代駕":  "請確認代駕資料",
-                   "確認標題_估價":  "請確認估價資料",
-                   "選填未填寫":  "未填寫（選填）",
-                   "常用行程標題":  "常用行程",
-                   "常用行程儲存":  "儲存目前行程",
-                   "常用行程儲存標題":  "儲存常用行程",
-                   "常用行程名稱標題":  "行程名稱",
-                   "常用行程名稱提示":  "例如：住家 → 公司",
-                   "常用行程空白":  "尚未儲存常用行程。",
-                   "常用行程已滿按鈕":  "已達 5 組上限",
-                   "常用行程需地址":  "請先填寫完整上下車地址。",
-                   "常用行程定位限制":  "目前定位無法直接儲存，請改填完整地址。",
-                   "常用行程已滿":  "最多可儲存 5 組，請先刪除一組。",
-                   "常用行程儲存成功":  "常用行程已儲存。",
-                   "常用行程重複":  "此行程已儲存於常用行程。",
-                   "常用行程清除確認":  "確定要清除全部常用行程嗎？",
-                   "定位按鈕":  "📍 使用目前位置",
-                   "定位重新取得":  "📍 重新取得位置",
-                   "定位取得中":  "正在取得定位…",
-                   "定位權限提醒":  "請允許手機存取目前位置。",
-                   "定位成功":  "定位已取得，請確認上車地址。",
-                   "定位不支援":  "此裝置不支援定位，請直接輸入地址。",
-                   "定位拒絕":  "定位權限未開啟，請改輸入完整地址。",
-                   "定位失敗":  "無法取得目前位置，請改輸入完整地址。",
-                   "重複送出提醒":  "相同資料剛剛已送出，請稍候小編回覆。"
-               },
-    "call":  {
-                 "頁面標題":  "即時／預約叫車",
-                 "頁面說明":  "填寫必要資料後即可快速送出。",
-                 "即時選項":  "即時叫車",
-                 "預約選項":  "預約叫車",
-                 "日期標題":  "用車日期",
-                 "時間標題":  "用車時間",
-                 "上車標題":  "上車地址",
-                 "上車提示":  "請輸入完整地址或明確地標",
-                 "下車標題":  "下車地址",
-                 "下車提示":  "偏鄉、跨縣市、長途請填目的地",
-                 "人數標題":  "5人以上請選人數",
-                 "人數提示":  "1～4人免選，5人以上請選擇",
-                 "更多資訊標題":  "其他需求",
-                 "行李標題":  "行李數量",
-                 "行李提示":  "例如：1個30吋、1個26吋",
-                 "需求標題":  "寵物同行",
-                 "需求提示":  "請選擇無、有籠或無籠",
-                 "備註標題":  "備註資訊",
-                 "備註提示":  "其他需要小編或司機留意的資訊",
-                 "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
-                 "表格提醒2":  "",
-                 "送出按鈕":  "下一步：確認叫車資料",
-                 "錯誤_用車方式":  "請選擇服務類型。",
-                 "錯誤_日期":  "請填寫資料。",
-                 "錯誤_時間":  "請填寫資料。",
-                 "錯誤_上車地址":  "請填寫資料。",
-                 "訊息標題_即時":  "🚕 我要【叫車】",
-                 "訊息標題_預約":  "🚕 我要【預約叫車】",
-                 "訊息分隔線":  "━─━─━─━─━─━─",
-                 "訊息欄位_用車方式":  "服務類型",
-                 "訊息欄位_日期":  "用車日期",
-                 "訊息欄位_時間":  "用車時間",
-                 "訊息欄位_上車":  "上車地址",
-                 "訊息欄位_下車":  "下車地址",
-                 "訊息欄位_人數":  "搭乘人數",
-                 "訊息欄位_行李":  "行李數量",
-                 "訊息欄位_需求":  "乘車需求",
-                 "訊息欄位_備註":  "備註資訊",
-                 "成功標題":  "✅ 即時叫車表單已成功送出",
-                 "成功內容1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
-                 "成功內容2":  "【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。",
-                 "成功標題_預約":  "✅ 預約叫車表單已成功送出",
-                 "成功內容_預約1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
-                 "成功內容_預約2":  "【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。",
-                 "返回按鈕":  "返回 LINE 聊天室"
-             },
-    "driver":  {
-                   "頁面標題":  "酒後代駕",
-                   "頁面說明":  "填寫代駕地址與服務類型後即可快速送出。",
-                   "即時選項":  "即時代駕",
-                   "預約選項":  "預約代駕",
-                   "日期標題":  "用車日期",
-                   "時間標題":  "用車時間",
-                   "上車標題":  "代駕地址",
-                   "上車提示":  "請輸入車輛目前位置或明確地標",
-                   "下車標題":  "送達地點",
-                   "下車提示":  "偏鄉、跨縣市、長途請填目的地",
-                   "更多資訊標題":  "備註資訊",
-                   "車輛資訊標題":  "車輛資訊",
-                   "車輛資訊提示":  "例如：黑色 Toyota、自排、車牌 ABC-1234",
-                   "停車位置標題":  "車輛停放位置",
-                   "停車位置提示":  "例如：地下 B2、店門口、路邊停車格",
-                   "備註標題":  "備註資訊",
-                   "備註提示":  "例如：車型、車牌、停放位置，或其他需留意事項",
-                   "表格提醒1":  "資訊越完整，通常越有助於快速媒合。",
-                   "表格提醒2":  "",
-                   "送出按鈕":  "下一步：確認代駕資料",
-                   "錯誤_用車方式":  "請選擇服務類型。",
-                   "錯誤_日期":  "請填寫資料。",
-                   "錯誤_時間":  "請填寫資料。",
-                   "錯誤_上車地址":  "請填寫資料。",
-                   "訊息標題_即時":  "🍺 我要【代駕】",
-                   "訊息標題_預約":  "🍺 我要【預約代駕】",
-                   "訊息分隔線":  "━─━─━─━─━─━─",
-                   "訊息欄位_用車方式":  "服務類型",
-                   "訊息欄位_日期":  "用車日期",
-                   "訊息欄位_時間":  "用車時間",
-                   "訊息欄位_上車":  "代駕地點",
-                   "訊息欄位_下車":  "送達地點",
-                   "訊息欄位_車輛":  "車輛資訊",
-                   "訊息欄位_停車":  "車輛停放位置",
-                   "訊息欄位_備註":  "備註資訊",
-                   "成功標題":  "✅ 即時代駕表單已成功送出",
-                   "成功內容1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
-                   "成功內容2":  "【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。",
-                   "成功標題_預約":  "✅ 預約代駕表單已成功送出",
-                   "成功內容_預約1":  "請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏",
-                   "成功內容_預約2":  "【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。",
-                   "返回按鈕":  "返回 LINE 聊天室"
-               },
-    "fare":  {
-                 "頁面標題":  "車資試算",
-                 "頁面引導標題":  "",
-                 "頁面說明":  "查路線 → 填分鐘＋公里",
-                 "路線步驟標題":  "查 Google 路線",
-                 "路線步驟說明":  "",
-                 "路線重點標題":  "想省車資",
-                 "路線重點說明1":  "看公里數較少",
-                 "路線範例1":  "16 分｜10.2 km",
-                 "路線範例2":  "21 分｜7.9 km",
-                 "路線返回提醒":  "距離較長時，車資可能增加。",
-                 "路線快速_快標題":  "趕時間",
-                 "路線快速_快內容":  "看時間較短",
-                 "路線教學按鈕":  "怎麼看？",
-                 "路線範例1標籤":  "時間較短",
-                 "路線範例2標籤":  "距離較短",
-                 "路線按鈕":  "開啟 Google 地圖",
-                 "已知數字捷徑":  "",
-                 "錯誤_情境缺資料":  "請填寫資料。",
-                 "錯誤_相同地址":  "上下車地址不能相同，請確認目的地。",
-                 "計算器標題":  "回來填 2 個數字",
-                 "計算器徽章":  "",
-                 "計算器說明":  "照 Google 地圖顯示填入即可",
-                 "計算器等待":  "輸入後即時顯示",
-                 "公里標題":  "公里數",
-                 "公里提示":  "例如 7.9",
-                 "時間標題":  "預估時間",
-                 "時間提示":  "例如 21",
-                 "結果標題":  "預估車資",
-                 "低消結果提示":  "最低消費",
-                 "結果依據標題":  "本次試算",
-                 "結果說明1":  "",
-                 "結果說明2":  "預估與實際車資可能約有 ±NT${浮動} 元差異。",
-                 "乘車提醒標題":  "路線有偏好？上車直接告知司機即可",
-                 "乘車提醒主句":  "",
-                 "乘車提醒補充1":  "",
-                 "乘車提醒補充2":  "",
-                 "乘車偏好_省標題":  "省車資",
-                 "乘車偏好_省內容":  "較短距離",
-                 "乘車偏好_快標題":  "趕時間",
-                 "乘車偏好_快內容":  "較快路線",
-                 "乘車偏好_補充":  "實際車資依行駛路線、路況及等候時間為準。",
-                 "叫車按鈕":  "立即叫車",
-                 "重新查看路線按鈕":  "重新查看路線",
-                 "費率標題":  "▍中部地區費率",
-                 "費率_全天同價文案":  "24H同一費率｜無夜間加成",
-                 "長途提示格式":  "🚕 {公里}公里以上另有直收優惠價",
-                 "人工協助標題":  "其他估價協助",
-                 "人工協助提示":  "無法完成上方試算時可使用｜繁忙時可能先提供試算資訊",
-                 "人工協助展開標題":  "估價協助",
-                 "人工協助補充":  "繁忙時段可能先提供試算資訊供您參考。",
-                 "人工協助警示標題":  "估價協助說明",
-                 "人工協助警示說明":  "若無法完成上方試算，可送出估價需求。",
-                 "自助上車標題":  "上車地址",
-                 "自助下車標題":  "下車地址",
-                 "上車標題":  "上車地址",
-                 "上車提示":  "請輸入完整地址或明確地標",
-                 "下車標題":  "下車地址",
-                 "下車提示":  "請輸入完整地址或明確地標",
-                 "送出按鈕":  "送出估價需求",
-                 "錯誤_上車地址":  "請填寫資料。",
-                 "錯誤_下車地址":  "請填寫資料。",
-                 "訊息標題":  "🧾【車資估價需求】",
-                 "訊息分隔線":  "──────────",
-                 "訊息提醒":  "💬 想先了解此行程車資，請協助提供估價資訊。",
-                 "訊息提醒2":  "將依當下狀況回覆；繁忙時可能先提供試算資訊供參考。",
-                 "訊息欄位_估價方式":  "回覆管道",
-                 "訊息內容_估價方式":  "LINE 聊天室",
-                 "訊息欄位_上車":  "估價起點",
-                 "訊息欄位_下車":  "估價終點",
-                 "訊息欄位_備註":  "",
-                 "成功標題":  "✅ 估價需求已送出",
-                 "成功內容1":  "需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。",
-                 "成功內容2":  "本次僅為估價需求，尚未成立叫車或預約訂單。",
-                 "成功內容3":  "",
-                 "返回按鈕":  "返回 LINE 聊天室",
-                 "計價_起跳":  "70",
-                 "計價_每分鐘":  "3",
-                 "計價_每公里":  "15",
-                 "計價_加成起始公里":  "21",
-                 "計價_加成每公里":  "10",
-                 "計價_最低消費":  "100",
-                 "計價_預估浮動":  "30",
-                 "計價_長途門檻":  "45",
-                 "Google地圖路線網址":  "https://www.google.com/maps/dir/?api=1"
-             }
-};
-
+window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時叫車表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約叫車表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"偏鄉、跨縣市、長途請填目的地","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"資訊越完整，通常越有助於快速媒合。","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時代駕表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約代駕表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"無法完成上方試算時可使用｜繁忙時可能先提供試算資訊","人工協助展開標題":"估價協助","人工協助補充":"繁忙時段可能先提供試算資訊供您參考。","人工協助警示標題":"估價協助說明","人工協助警示說明":"若無法完成上方試算，可送出估價需求。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【車資估價需求】","訊息分隔線":"──────────","訊息提醒":"💬 想先了解此行程車資，請協助提供估價資訊。","訊息提醒2":"將依當下狀況回覆；繁忙時可能先提供試算資訊供參考。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"✅ 估價需求已送出","成功內容1":"需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。","成功內容2":"本次僅為估價需求，尚未成立叫車或預約訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9k';
+  const GC_BUILD_VERSION = 'master202608r10z9l';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
+  // GC_MASTER_STABLE_2026_08R10Z9L_MANUAL_ADDRESS_AND_CONFIRMED_SCHEDULE
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -993,16 +324,56 @@ window.GC_FORM_CONFIG = {
   function scheduleFields(cfg) {
     return `
       <div id="scheduleFields" class="schedule-grid hidden">
-        <div class="field" style="margin-bottom:0">
+        <div class="field gc-schedule-field" style="margin-bottom:0">
           <label for="date">${requiredLabel(cfg['日期標題'])}</label>
-          <input class="input" id="date" name="date" type="date">
+          <input class="input gc-datetime-control gc-date-control" id="date" name="date" type="date" autocomplete="off" aria-describedby="dateError">
           <div class="error-text" id="dateError"></div>
         </div>
-        <div class="field" style="margin-bottom:0">
-          <label for="time">${requiredLabel(cfg['時間標題'])}</label>
-          <input class="input" id="time" name="time" type="time">
+        <div class="field gc-schedule-field" style="margin-bottom:0">
+          <label id="timeLabel" for="timeTrigger">${requiredLabel(cfg['時間標題'])}</label>
+          <input id="time" name="time" type="hidden">
+          <button class="input gc-datetime-control gc-time-trigger is-empty" id="timeTrigger" type="button" aria-haspopup="dialog" aria-controls="gcTimePicker" aria-expanded="false" aria-describedby="timeError" aria-label="選擇用車時間">
+            <span id="timeDisplay">請選擇時間</span>
+          </button>
           <div class="error-text" id="timeError"></div>
         </div>
+      </div>`;
+  }
+
+  function renderTimeWheelOptions(prefix, count) {
+    return Array.from({ length: count }, (_, value) => {
+      const label = String(value).padStart(2, '0');
+      return `<button id="${prefix}Option${label}" class="gc-time-option" type="button" role="option" aria-selected="false" tabindex="-1" data-value="${label}">${label}</button>`;
+    }).join('');
+  }
+
+  function renderTimePicker() {
+    return `
+      <div id="gcTimePickerOverlay" class="gc-time-picker-overlay hidden" aria-hidden="true">
+        <section id="gcTimePicker" class="gc-time-picker-card" role="dialog" aria-modal="true" aria-labelledby="gcTimePickerTitle" aria-describedby="gcTimePickerHelp" tabindex="-1">
+          <header class="gc-time-picker-head">
+            <h2 id="gcTimePickerTitle">選擇用車時間</h2>
+            <p id="gcTimePickerHelp">上下滑動調整小時與分鐘</p>
+          </header>
+          <p id="gcTimePickerStatus" class="sr-only" aria-live="polite"></p>
+          <div class="gc-time-wheels">
+            <div class="gc-time-wheel-frame">
+              <div id="gcHourWheel" class="gc-time-wheel" role="listbox" aria-label="小時" tabindex="0">
+                ${renderTimeWheelOptions('gcHour', 24)}
+              </div>
+            </div>
+            <span class="gc-time-separator" aria-hidden="true">:</span>
+            <div class="gc-time-wheel-frame">
+              <div id="gcMinuteWheel" class="gc-time-wheel" role="listbox" aria-label="分鐘" tabindex="0">
+                ${renderTimeWheelOptions('gcMinute', 60)}
+              </div>
+            </div>
+          </div>
+          <div class="gc-time-actions">
+            <button class="gc-time-cancel" id="gcTimeCancel" type="button">取消</button>
+            <button class="gc-time-confirm" id="gcTimeConfirm" type="button">完成</button>
+          </div>
+        </section>
       </div>`;
   }
 
@@ -2200,6 +1571,16 @@ window.GC_FORM_CONFIG = {
     const normalized = normalizeAddressInput(id);
     if (!normalized) return Boolean(options.allowEmpty);
 
+    // R10Z9L: in every passenger-facing form, smart address results are assistance only.
+    // Once a non-empty value exists, county/district completeness and suggestion selection
+    // may not block call, driver, fare, Google Maps, or favorite-trip actions.
+    if (options.policy === 'manual-authoritative') {
+      hideAddressSuggestions(id);
+      input.classList.remove('gc-address-needs-choice');
+      clearFieldValidation(id);
+      return true;
+    }
+
     // R10U: pickup/driver-location stays strict; ride/driver drop-off can remain a broad
     // human-readable destination. Fare keeps strict verification on both ends for Google Maps.
     if (options.policy === 'relaxed') {
@@ -2433,11 +1814,9 @@ window.GC_FORM_CONFIG = {
         // the visible source of truth. ArcGIS candidate resolution may validate/route it in the
         // background, but must never rewrite the field to transliterated provider output.
         const selected = smartNormalizeTaiwanAddress(initialSelected);
-        const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
         const relaxedDestination = isRelaxedRideDestination(id);
-        const ready = relaxedDestination || (resolved
-          ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
-          : (!broad && isLocallyDispatchReady(selected)));
+        // R10Z9L: an explicit passenger tap is always an accepted non-empty choice.
+        // Provider resolution can improve hidden route metadata, but can no longer create a red blocking state.
 
         // R10Y explicit-selection rule: only an explicit passenger tap may replace visible text.
         // The replacement is the cleaned canonical candidate; raw provider formatting never becomes UI text.
@@ -2445,17 +1824,6 @@ window.GC_FORM_CONFIG = {
         input.value = selected;
         input.dataset.gcSkipSuggestOnce = '1';
         input._gcCancelSmartSuggestions?.();
-        if (!ready) {
-          clearAddressVerified(input);
-          input.classList.add('gc-address-needs-choice');
-          hideAddressSuggestions(id);
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          // General input handlers clear stale errors; show the guidance after those handlers run.
-          showFieldError(id, addressValidationMessage(input.value, []));
-          return;
-        }
-
         markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
@@ -2684,8 +2052,8 @@ window.GC_FORM_CONFIG = {
       setFavoriteStatus(COMMON['常用行程定位限制'] || '目前定位無法直接儲存，請改填完整地址。', 'error');
       return;
     }
-    const pickupReady = await verifyAddressField('pickup', { showError: true });
-    const destinationReady = pickupReady ? await verifyAddressField('destination', { showError: true }) : false;
+    const pickupReady = await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' });
+    const destinationReady = pickupReady ? await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }) : false;
     if (!pickupReady || !destinationReady) {
       setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
       document.querySelector('#gcFavoriteSheet .gc-sheet-close')?.click();
@@ -3756,6 +3124,7 @@ window.GC_FORM_CONFIG = {
 
   function renderRideLike(mode, cfg) {
     attachedLocation = null;
+    document.querySelector('body > #gcTimePickerOverlay')?.remove();
     const isDriver = mode === 'driver';
     const extraFields = isDriver
       ? `${fieldText('vehicle', cfg['車輛資訊標題'], cfg['車輛資訊提示'])}
@@ -3792,7 +3161,8 @@ window.GC_FORM_CONFIG = {
         ${renderConfirmationModal()}
         ${renderRecentClearModal()}
         ${renderFavoriteSaveModal()}
-      </section>`;
+      </section>
+      ${renderTimePicker()}`;
 
     bindRideLike(mode, cfg);
   }
@@ -3967,14 +3337,343 @@ window.GC_FORM_CONFIG = {
     input.min = local;
   }
 
+  function emitScheduleState() {
+    document.getElementById('serviceForm')?.dispatchEvent(new CustomEvent('gc:schedule-state'));
+  }
+
+  function parseReservationTime(rawValue) {
+    const match = /^(\d{2}):(\d{2})$/.exec(String(rawValue || ''));
+    if (!match) return null;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return { hour, minute };
+  }
+
+  function reservationScheduleReady() {
+    const date = document.getElementById('date');
+    const time = document.getElementById('time');
+    return Boolean(
+      date?.value
+      && date.validity.valid
+      && date.dataset.gcConfirmed === '1'
+      && date.dataset.gcConfirmedValue === date.value
+      && time?.value
+      && parseReservationTime(time.value)
+      && time.dataset.gcConfirmed === '1'
+      && time.dataset.gcConfirmedValue === time.value
+      && time.dataset.gcPickerOpen !== '1'
+    );
+  }
+  window.GC_isScheduleConfirmed = reservationScheduleReady;
+
+  function bindScheduleControls() {
+    const date = document.getElementById('date');
+    const time = document.getElementById('time');
+    const trigger = document.getElementById('timeTrigger');
+    const display = document.getElementById('timeDisplay');
+    const overlay = document.getElementById('gcTimePickerOverlay');
+    const card = document.getElementById('gcTimePicker');
+    const hourWheel = document.getElementById('gcHourWheel');
+    const minuteWheel = document.getElementById('gcMinuteWheel');
+    const cancelButton = document.getElementById('gcTimeCancel');
+    const confirmButton = document.getElementById('gcTimeConfirm');
+    const status = document.getElementById('gcTimePickerStatus');
+    const rideCard = document.querySelector('.gc-ride-card');
+    if (!date || !time || !trigger || !display || !overlay || !card || !hourWheel || !minuteWheel || !cancelButton || !confirmButton) {
+      return { reset() {}, close() {} };
+    }
+
+    // Keep the fixed overlay outside every card/flow stacking context. It is removed again
+    // when the success screen replaces the form.
+    if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+
+    let edit = null;
+    const scrollTimers = new Map();
+    const visualViewport = window.visualViewport;
+    const clamp = (number, min, max) => Math.min(max, Math.max(min, number));
+
+    const wheelLimit = wheel => wheel === hourWheel ? 23 : 59;
+    const wheelDraftKey = wheel => wheel === hourWheel ? 'hour' : 'minute';
+    const wheelOptionHeight = wheel => wheel.querySelector('.gc-time-option')?.getBoundingClientRect().height || 48;
+
+    function syncTriggerPresentation() {
+      const confirmedTime = parseReservationTime(time.value) ? time.value : '';
+      display.textContent = confirmedTime || '請選擇時間';
+      trigger.classList.toggle('is-empty', !confirmedTime);
+      trigger.setAttribute(
+        'aria-label',
+        confirmedTime ? `用車時間 ${confirmedTime}，按下可重新選擇` : '選擇用車時間'
+      );
+    }
+
+    function syncPickerViewport() {
+      const viewport = window.visualViewport;
+      overlay.style.setProperty('--gc-vv-left', `${viewport?.offsetLeft || 0}px`);
+      overlay.style.setProperty('--gc-vv-top', `${viewport?.offsetTop || 0}px`);
+      overlay.style.setProperty('--gc-vv-width', `${viewport?.width || window.innerWidth}px`);
+      overlay.style.setProperty('--gc-vv-height', `${viewport?.height || window.innerHeight}px`);
+    }
+
+    function updateTimeStatus() {
+      if (!edit || !status) return;
+      status.textContent = `目前選擇 ${String(edit.hour).padStart(2, '0')} 時 ${String(edit.minute).padStart(2, '0')} 分`;
+    }
+
+    function selectWheelValue(wheel, nextValue, options = {}) {
+      if (!edit) return;
+      const value = clamp(Number(nextValue) || 0, 0, wheelLimit(wheel));
+      edit[wheelDraftKey(wheel)] = value;
+      const label = String(value).padStart(2, '0');
+      wheel.querySelectorAll('.gc-time-option').forEach(option => {
+        const selected = option.dataset.value === label;
+        option.setAttribute('aria-selected', selected ? 'true' : 'false');
+        // Focus stays on the listbox; aria-activedescendant exposes its selected option
+        // without adding 84 duplicate Tab stops.
+        option.tabIndex = -1;
+        option.classList.toggle('is-selected', selected);
+        if (selected) wheel.setAttribute('aria-activedescendant', option.id);
+      });
+      if (options.scroll !== false) {
+        wheel.scrollTo({ top: value * wheelOptionHeight(wheel), behavior: options.behavior || 'auto' });
+      }
+      updateTimeStatus();
+    }
+
+    function commitWheelPosition(wheel) {
+      if (!edit) return;
+      const value = clamp(Math.round(wheel.scrollTop / wheelOptionHeight(wheel)), 0, wheelLimit(wheel));
+      selectWheelValue(wheel, value, { scroll: false });
+    }
+
+    function scheduleWheelCommit(wheel, delay = 90) {
+      clearTimeout(scrollTimers.get(wheel));
+      scrollTimers.set(wheel, setTimeout(() => commitWheelPosition(wheel), delay));
+    }
+
+    function bindWheel(wheel) {
+      wheel.addEventListener('scroll', () => scheduleWheelCommit(wheel), { passive: true });
+      wheel.addEventListener('pointerup', () => scheduleWheelCommit(wheel, 40), { passive: true });
+      wheel.addEventListener('touchend', () => scheduleWheelCommit(wheel, 80), { passive: true });
+      wheel.addEventListener('click', event => {
+        const option = event.target.closest('.gc-time-option');
+        if (!option) return;
+        // Synchronous positioning keeps an immediate Done click from reading an
+        // intermediate smooth-scroll offset and overwriting the chosen draft.
+        selectWheelValue(wheel, Number(option.dataset.value), { behavior: 'auto' });
+        try { wheel.focus({ preventScroll: true }); }
+        catch (_) { try { wheel.focus(); } catch (_) {} }
+      });
+      wheel.addEventListener('keydown', event => {
+        if (!edit) return;
+        const key = wheelDraftKey(wheel);
+        let next = edit[key];
+        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') next -= 1;
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') next += 1;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = wheelLimit(wheel);
+        else if (event.key === 'PageUp') next -= 5;
+        else if (event.key === 'PageDown') next += 5;
+        else return;
+        event.preventDefault();
+        selectWheelValue(wheel, next, { behavior: 'auto' });
+      });
+    }
+
+    function setPickerOpen(open) {
+      overlay.classList.toggle('hidden', !open);
+      overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+      trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (rideCard) {
+        try { rideCard.inert = open; } catch (_) {}
+      }
+    }
+
+    function stopViewportTracking() {
+      visualViewport?.removeEventListener('resize', syncPickerViewport);
+      visualViewport?.removeEventListener('scroll', syncPickerViewport);
+      window.removeEventListener('resize', syncPickerViewport);
+    }
+
+    function startViewportTracking() {
+      syncPickerViewport();
+      visualViewport?.addEventListener('resize', syncPickerViewport, { passive: true });
+      visualViewport?.addEventListener('scroll', syncPickerViewport, { passive: true });
+      window.addEventListener('resize', syncPickerViewport, { passive: true });
+    }
+
+    function finishClose(restorePrevious, options = {}) {
+      if (overlay.classList.contains('hidden')) return;
+      const previousConfirmed = edit?.previousConfirmed === true;
+      const previousValue = edit?.previousValue || '';
+      const focusWasInsidePicker = overlay.contains(document.activeElement);
+      scrollTimers.forEach(timer => clearTimeout(timer));
+      scrollTimers.clear();
+      setPickerOpen(false);
+      stopViewportTracking();
+      delete time.dataset.gcPickerOpen;
+      if (restorePrevious) {
+        // Wheel movement only changes edit.hour/minute. This assignment is defensive and
+        // guarantees that Cancel/backdrop/Escape restore the exact canonical value.
+        time.value = previousValue;
+        if (previousConfirmed && parseReservationTime(previousValue)) {
+          time.dataset.gcConfirmed = '1';
+          time.dataset.gcConfirmedValue = previousValue;
+        } else {
+          delete time.dataset.gcConfirmed;
+          delete time.dataset.gcConfirmedValue;
+        }
+      }
+      syncTriggerPresentation();
+      edit = null;
+      unlockViewport();
+      emitScheduleState();
+      if (options.restoreFocus === false) {
+        if (focusWasInsidePicker) {
+          try { document.activeElement?.blur(); } catch (_) {}
+        }
+        return;
+      }
+      if (document.getElementById('scheduleFields')?.classList.contains('hidden')) return;
+      try { trigger.focus({ preventScroll: true }); }
+      catch (_) { try { trigger.focus(); } catch (_) {} }
+    }
+
+    function openPicker() {
+      if (!overlay.classList.contains('hidden')) return;
+      scrollTimers.forEach(timer => clearTimeout(timer));
+      scrollTimers.clear();
+      const parsed = parseReservationTime(time.value);
+      const now = new Date();
+      edit = {
+        previousValue: time.value,
+        previousConfirmed: time.dataset.gcConfirmed === '1' && time.dataset.gcConfirmedValue === time.value,
+        hour: parsed ? parsed.hour : now.getHours(),
+        minute: parsed ? parsed.minute : now.getMinutes()
+      };
+      time.dataset.gcPickerOpen = '1';
+      delete time.dataset.gcConfirmed;
+      delete time.dataset.gcConfirmedValue;
+      clearFieldValidation('time');
+      lockViewport();
+      setPickerOpen(true);
+      startViewportTracking();
+      emitScheduleState();
+      requestAnimationFrame(() => {
+        selectWheelValue(hourWheel, edit.hour, { behavior: 'auto' });
+        selectWheelValue(minuteWheel, edit.minute, { behavior: 'auto' });
+        try { hourWheel.focus({ preventScroll: true }); }
+        catch (_) { try { hourWheel.focus(); } catch (_) {} }
+      });
+    }
+
+    function confirmTime() {
+      if (!edit) return;
+      commitWheelPosition(hourWheel);
+      commitWheelPosition(minuteWheel);
+      const nextValue = `${String(edit.hour).padStart(2, '0')}:${String(edit.minute).padStart(2, '0')}`;
+      time.value = nextValue;
+      display.textContent = nextValue;
+      time.dataset.gcConfirmed = '1';
+      time.dataset.gcConfirmedValue = nextValue;
+      delete time.dataset.gcPickerOpen;
+      syncTriggerPresentation();
+      finishClose(false);
+      time.dispatchEvent(new Event('input', { bubbles: true }));
+      time.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function resetSchedule(options = {}) {
+      date.value = '';
+      time.value = '';
+      delete date.dataset.gcConfirmed;
+      delete date.dataset.gcConfirmedValue;
+      delete time.dataset.gcConfirmed;
+      delete time.dataset.gcConfirmedValue;
+      delete time.dataset.gcPickerOpen;
+      syncTriggerPresentation();
+      if (!overlay.classList.contains('hidden')) {
+        finishClose(false, { restoreFocus: options.restoreFocus !== false });
+      }
+      emitScheduleState();
+    }
+
+    bindWheel(hourWheel);
+    bindWheel(minuteWheel);
+    syncTriggerPresentation();
+    trigger.addEventListener('click', openPicker);
+    cancelButton.addEventListener('click', () => finishClose(true));
+    confirmButton.addEventListener('click', confirmTime);
+    overlay.addEventListener('click', event => { if (event.target === overlay) finishClose(true); });
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finishClose(true);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const controls = [...card.querySelectorAll('[tabindex="0"],button:not([disabled]):not([tabindex="-1"])')]
+        .filter(control => control.offsetParent !== null);
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!controls.includes(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    // Native iOS date controls expose neither an "opened" state nor a Cancel event.
+    // Keep an unchanged committed value valid, invalidate as soon as the value itself
+    // changes, and restore it if WebKit reports the old value again after Cancel.
+    date.addEventListener('input', () => {
+      if (date.value && date.validity.valid && date.value === date.dataset.gcConfirmedValue) {
+        date.dataset.gcConfirmed = '1';
+      } else {
+        delete date.dataset.gcConfirmed;
+      }
+      emitScheduleState();
+    }, { passive: true });
+    date.addEventListener('change', () => {
+      if (date.value && date.validity.valid) {
+        date.dataset.gcConfirmed = '1';
+        date.dataset.gcConfirmedValue = date.value;
+        clearFieldValidation('date');
+      } else {
+        delete date.dataset.gcConfirmed;
+        delete date.dataset.gcConfirmedValue;
+      }
+      emitScheduleState();
+    }, { passive: true });
+
+    const resetPersistedSchedule = event => {
+      if (!event.persisted) return;
+      // A bfcache snapshot can preserve form values, data attributes and expanded DOM.
+      // Clear the canonical schedule so returning users must explicitly confirm both
+      // controls again; instant service still becomes ready solely from its radio value.
+      resetSchedule({ restoreFocus: false });
+    };
+    window.addEventListener('pagehide', resetPersistedSchedule, { passive: true });
+    window.addEventListener('pageshow', resetPersistedSchedule, { passive: true });
+
+    return { reset: resetSchedule, close: () => finishClose(false) };
+  }
+
   function clearFieldValidation(id) {
     const input = document.getElementById(id);
+    const visualControl = id === 'time' ? document.getElementById('timeTrigger') : input;
     const error = document.getElementById(`${id}Error`);
-    if (input) {
-      input.classList.remove('invalid');
-      input.removeAttribute('aria-invalid');
+    if (visualControl) {
+      visualControl.classList.remove('invalid');
+      visualControl.removeAttribute('aria-invalid');
     }
-    input?.closest('.field')?.classList.remove('gc-validation-error');
+    visualControl?.closest('.field')?.classList.remove('gc-validation-error');
     if (error) {
       error.textContent = '';
       error.classList.remove('show');
@@ -4011,11 +3710,12 @@ window.GC_FORM_CONFIG = {
 
   function showFieldError(id, message) {
     const input = document.getElementById(id);
+    const visualControl = id === 'time' ? document.getElementById('timeTrigger') : input;
     const error = document.getElementById(`${id}Error`);
-    if (input) {
-      input.classList.add('invalid');
-      input.setAttribute('aria-invalid', 'true');
-      input.closest('.field')?.classList.add('gc-validation-error');
+    if (visualControl) {
+      visualControl.classList.add('invalid');
+      visualControl.setAttribute('aria-invalid', 'true');
+      visualControl.closest('.field')?.classList.add('gc-validation-error');
     }
     if (error) {
       error.textContent = message;
@@ -4039,7 +3739,7 @@ window.GC_FORM_CONFIG = {
     if (!field) return;
     requestAnimationFrame(() => {
       field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const target = field.querySelector('input:not([type="radio"]), select, textarea, input[type="radio"]');
+      const target = field.querySelector('.gc-time-trigger:not([disabled]), input:not([type="hidden"]):not([type="radio"]), select, textarea, input[type="radio"]');
       setTimeout(() => {
         try { target?.focus({ preventScroll: true }); }
         catch (_) { try { target?.focus(); } catch (_) {} }
@@ -4226,6 +3926,7 @@ window.GC_FORM_CONFIG = {
 
   function bindRideLike(mode, cfg) {
     setDateMinimum();
+    const scheduleControls = bindScheduleControls();
     bindRecentAddressControls();
     bindSmallDisclosureTriggers();
     installVerticalOnlyTouchGuard();
@@ -4242,10 +3943,11 @@ window.GC_FORM_CONFIG = {
         const reserve = checked('serviceType') === 'reserve';
         document.getElementById('scheduleFields').classList.toggle('hidden', !reserve);
         if (!reserve) {
-          document.getElementById('date').value = '';
-          document.getElementById('time').value = '';
+          scheduleControls.reset();
           clearFieldValidation('date');
           clearFieldValidation('time');
+        } else {
+          emitScheduleState();
         }
         updateLocationVisibility();
       });
@@ -4275,11 +3977,15 @@ window.GC_FORM_CONFIG = {
         showNamedError('serviceTypeError', cfg['錯誤_用車方式']);
         valid = false;
       }
-      if (serviceType === 'reserve' && !value('date')) {
+      const dateControl = document.getElementById('date');
+      const timeControl = document.getElementById('time');
+      const dateConfirmed = Boolean(dateControl?.value && dateControl.validity.valid && dateControl.dataset.gcConfirmed === '1' && dateControl.dataset.gcConfirmedValue === dateControl.value);
+      const timeConfirmed = Boolean(parseReservationTime(timeControl?.value) && timeControl.dataset.gcConfirmed === '1' && timeControl.dataset.gcConfirmedValue === timeControl.value && timeControl.dataset.gcPickerOpen !== '1');
+      if (serviceType === 'reserve' && !dateConfirmed) {
         showFieldError('date', cfg['錯誤_日期']);
         valid = false;
       }
-      if (serviceType === 'reserve' && !value('time')) {
+      if (serviceType === 'reserve' && !timeConfirmed) {
         showFieldError('time', cfg['錯誤_時間']);
         valid = false;
       }
@@ -4293,12 +3999,12 @@ window.GC_FORM_CONFIG = {
         valid = false;
       }
       if (valid && pickup && !(attachedLocation?.requiresConfirmation && !attachedLocation.confirmed)) {
-        if (!(await verifyAddressField('pickup', { showError: true }))) valid = false;
+        if (!(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) valid = false;
       }
       if (valid && destination) {
         // Call / drunk-driver drop-off is descriptive dispatch context, not a Google route input.
         // Keep smart suggestions available, but do not block a valid request just because it is broad.
-        if (!(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) valid = false;
+        if (!(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) valid = false;
       }
       if (!valid) {
         focusFirstValidationError();
@@ -4313,8 +4019,8 @@ window.GC_FORM_CONFIG = {
         pickup = latestPickup;
         destination = latestDestination;
         let latestValid = Boolean(pickup && pickup !== LOCATION_MARKER);
-        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
-        if (latestValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'relaxed' }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
+        if (latestValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
         if (!latestValid) {
           focusFirstValidationError();
           return;
@@ -4498,8 +4204,8 @@ window.GC_FORM_CONFIG = {
         showFieldError('destination', cfg['錯誤_下車地址']);
         valid = false;
       }
-      if (valid && !(await verifyAddressField('pickup', { showError: true }))) valid = false;
-      if (valid && !(await verifyAddressField('destination', { showError: true }))) valid = false;
+      if (valid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) valid = false;
+      if (valid && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) valid = false;
       if (!valid) {
         focusFirstValidationError();
         return;
@@ -4514,8 +4220,8 @@ window.GC_FORM_CONFIG = {
         pickup = latestPickup;
         destination = latestDestination;
         let latestValid = Boolean(pickup && destination);
-        if (latestValid && !(await verifyAddressField('pickup', { showError: true }))) latestValid = false;
-        if (latestValid && !(await verifyAddressField('destination', { showError: true }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
+        if (latestValid && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
         if (!latestValid) {
           focusFirstValidationError();
           return;
@@ -4586,6 +4292,7 @@ window.GC_FORM_CONFIG = {
     document.body.style.width = '';
     document.body.style.height = '';
     document.body.style.overflow = '';
+    document.getElementById('gcTimePickerOverlay')?.remove();
     window.scrollTo(0, 0);
   }
 
@@ -4690,7 +4397,451 @@ window.GC_FORM_CONFIG = {
   if (loadingText && COMMON['初始化文字']) loadingText.textContent = COMMON['初始化文字'];
   initialize();
 })();
+;
+(() => {
+  'use strict';
 
+  // GC_ADDRESS_GUARD_ACTIVE
+  // GC_ADDRESS_GUARD_R10Z1
+  // GC_ADDRESS_GUARD_R10Z4_POSTAL_AND_LOCAL_LABEL_FIX
+  // GC_ADDRESS_GUARD_R10Z6_ROMANIZED_ROAD_PROVIDER_BLOCK
+  // GC_ADDRESS_GUARD_R10Z9_IMPLAUSIBLE_PROVIDER_HOUSE_BLOCK
+  // Boundary hardening for Taiwan address data returned by ArcGIS; R10W keeps passenger text authoritative.
+  // Goals:
+  // 1) never let provider label order (e.g. "43 自由路二段, 東區, 台中市")
+  //    become a malformed dispatch string;
+  // 2) keep county/district in canonical Taiwan order;
+  // 3) reject obviously corrupted programmatic address values before they spread to LINE,
+  //    recent addresses, favorites, or Google Maps.
+
+  const VERSION = 'r10z9-address-guard-20260810';
+  const COUNTIES = [
+    '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
+    '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
+    '台東縣','澎湖縣','金門縣','連江縣'
+  ];
+  const COUNTY_RE = new RegExp(`(${COUNTIES.join('|')})`, 'g');
+  const POSTAL_RE = /^[0-9０-９]{3}(?:[0-9０-９]{2,3})?$/;
+  const COUNTRY_RE = /^(?:台灣|臺灣|Taiwan|TWN)$/i;
+  const DISTRICT_RE = /^[\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市)$/;
+  const ROAD_RE = /(?:大道|路|街|道|巷|弄)/;
+  const CJK_ROAD_RE = /[\u3400-\u9fff].*(?:大道|路|街|道|巷|弄)/;
+  // Provider romanization such as TaiPingRd22-4 is metadata, never a passenger-facing Taiwan address.
+  const ROMANIZED_ROAD_AFTER_RE = /(?:^|[^A-Za-z])(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)\s*[0-9０-９]+(?:[-之][0-9０-９]+)?(?:號)?/i;
+  const ROMANIZED_ROAD_BEFORE_RE = /(?:^|[^A-Za-z0-9０-９])[0-9０-９]+(?:[-之][0-9０-９]+)?\s*(?:[A-Za-z][A-Za-z .'-]{1,48}?)(?:Rd|Road|St|Street|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Alley)(?:$|[^A-Za-z])/i;
+
+  function isRomanizedRoadProviderLabel(value) {
+    const text = compact(value);
+    if (!text || !countyFrom(text)) return false;
+    return ROMANIZED_ROAD_AFTER_RE.test(text) || ROMANIZED_ROAD_BEFORE_RE.test(text);
+  }
+
+  const compact = value => String(value ?? '')
+    .replace(/臺/g, '台')
+    .replace(/号/g, '號')
+    .replace(/　/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const noSpace = value => compact(value).replace(/[，,、\s]+/g, '');
+
+  // R10Z ground-route sanitizer: floors/rooms are not routing components.
+  // Preserve the house-number suffix (including 號之N) and discard only indoor data after it.
+  function stripIndoorProviderSuffix(value) {
+    let text = compact(value);
+    if (!text || !/(?:路|街|道|大道)/.test(text) || !text.includes('號')) return text;
+    const m = text.match(/^(.*?號(?:之[0-9０-９]+)?)(?:\s*[,，、-]?\s*(?:地下\s*[0-9０-９]+\s*樓|[Bb]\s*[0-9０-９]+\s*(?:F|樓)?|[0-9０-９]+\s*(?:樓(?:之[0-9０-９]+)?|F|樓層|室))).*$/i);
+    return m ? compact(m[1]) : text;
+  }
+
+  // GC_R10Z4_PROVIDER_POSTAL_DISAMBIGUATION
+  // ArcGIS Taiwan suggestion labels may start with a postal code before either the county
+  // OR the street/POI, e.g. "404007 公園路188號, 北區, 台中市".  Five/six-digit
+  // prefixes are provider postal data whenever a Taiwan county is present.  Three-digit
+  // prefixes are removed only when they are unambiguously postal (county follows directly,
+  // or a different explicit door number already exists later).  This preserves real house
+  // numbers such as "43 自由路二段" and "413 六股路".
+  const TAIWAN_ADMIN_PREFIX_RE = new RegExp(`^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\\s*[,，、]?\\s*(?=(?:${COUNTIES.join('|')}))`);
+  function stripLeadingTaiwanPostalPrefix(value) {
+    let text = compact(value);
+    if (!text || !countyFrom(text)) return text;
+    const strong = text.match(/^([0-9０-９]{5,6})\s+(.+)$/);
+    if (strong) return compact(strong[2]);
+    const admin = text.replace(TAIWAN_ADMIN_PREFIX_RE, '');
+    if (admin !== text) return compact(admin);
+    const three = text.match(/^([0-9０-９]{3})\s+(.+)$/);
+    if (three) {
+      const rest = three[2];
+      const laterDoor = /(?:大道|路|街|道|巷|弄)[^,，、]{0,48}[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(rest);
+      if (laterDoor) return compact(rest);
+    }
+    return text;
+  }
+
+  function stripTrailingPostalHouseArtifact(value) {
+    let text = compact(value);
+    if (!text || !countyFrom(text)) return text;
+    // Known bad historical shape: 台中市北區公園路188號404007號.
+    // Remove only a 5/6-digit final pseudo-house when an earlier true door number exists.
+    const m = text.match(/^(.*(?:大道|路|街|道|巷|弄)[^,，、]{0,64}[0-9０-９]+(?:[-之][0-9０-９]+)?號.*?)([0-9０-９]{5,6})號$/);
+    return m ? compact(m[1]) : text;
+  }
+
+  function samePart(a, b) {
+    const x = noSpace(a);
+    const y = noSpace(b);
+    return Boolean(x && y && x === y);
+  }
+
+  function countyFrom(value) {
+    const text = compact(value);
+    return COUNTIES.find(county => text.includes(county)) || '';
+  }
+
+  // GC_R10Z1_TAIWAN_AVENUE_SAFE
+  // Country labels may be standalone/trailing tokens, but "台灣大道" is a real road name.
+  // Never delete a leading 台灣/臺灣 merely because it starts a provider token.
+  function cleanToken(value) {
+    return compact(value)
+      .replace(/\s*(?:Taiwan|TWN)$/i, '')
+      .trim();
+  }
+
+  function normalizeStreetToken(value) {
+    let text = cleanToken(value);
+    if (!text) return '';
+
+    // ArcGIS may localize Taiwan labels as "43 自由路二段". Taiwan dispatch/navigation
+    // expects "自由路二段43號". Only reorder when a street token is clearly present.
+    const leadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)\s+(.+)$/);
+    if (leadingHouse && ROAD_RE.test(leadingHouse[2])) {
+      const house = leadingHouse[1].replace(/-/g, '之');
+      const street = compact(leadingHouse[2]);
+      text = `${street}${house}${/號$/.test(house) ? '' : '號'}`;
+    }
+
+    // Also handle compact provider labels such as "43自由路二段" without spaces.
+    const compactLeadingHouse = text.match(/^([0-9０-９]{1,4}(?:[-之][0-9０-９]+)?)([^0-9０-９].*)$/);
+    if (compactLeadingHouse && ROAD_RE.test(compactLeadingHouse[2])) {
+      const house = compactLeadingHouse[1].replace(/-/g, '之');
+      const street = compact(compactLeadingHouse[2]);
+      text = `${street}${house}號`;
+    }
+
+    // Normalize a trailing house number only when it follows a road/street/alley token.
+    const trailingHouse = text.match(/^(.*(?:路|街|道|大道|巷|弄))\s*([0-9０-９]+(?:[-之][0-9０-９]+)?)$/);
+    if (trailingHouse) text = `${compact(trailingHouse[1])}${trailingHouse[2].replace(/-/g, '之')}號`;
+
+    return compact(text);
+  }
+
+  function parseCommaLabel(value) {
+    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
+    if (!raw) return null;
+    const tokens = raw.split(/[,，、]+/).map(cleanToken).filter(Boolean);
+    if (tokens.length < 2) return null;
+
+    let county = '';
+    let district = '';
+    const detailTokens = [];
+
+    for (const token of tokens) {
+      if (!token || COUNTRY_RE.test(token) || POSTAL_RE.test(noSpace(token))) continue;
+      const tokenCounty = countyFrom(token);
+      if (tokenCounty && (samePart(token, tokenCounty) || noSpace(token).endsWith(noSpace(tokenCounty)))) {
+        if (!county) county = tokenCounty;
+        const leftover = compact(token.replace(tokenCounty, ''));
+        if (leftover && !POSTAL_RE.test(noSpace(leftover))) detailTokens.push(leftover);
+        continue;
+      }
+      if (!district && DISTRICT_RE.test(token) && !samePart(token, county)) {
+        district = token;
+        continue;
+      }
+      detailTokens.push(token);
+    }
+
+    if (!county) county = countyFrom(raw);
+    if (!county || !detailTokens.length) return null;
+
+    // A district may be embedded in a detail token. Pull it out only when it is a clean prefix.
+    if (!district) {
+      for (let i = 0; i < detailTokens.length; i += 1) {
+        const match = detailTokens[i].match(/^([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))\s*(.*)$/);
+        if (match && !samePart(match[1], county)) {
+          district = match[1];
+          detailTokens[i] = compact(match[2]);
+          break;
+        }
+      }
+    }
+
+    const detail = detailTokens.map(normalizeStreetToken).filter(Boolean).join('');
+    if (!detail) return null;
+    return { county, district, detail };
+  }
+
+  function structuredParts(attrs = {}, fallback = '') {
+    if (!attrs || typeof attrs !== 'object') attrs = {};
+    const values = [attrs.Region, attrs.City, attrs.Subregion, attrs.District, fallback].map(compact);
+    let county = '';
+    for (const value of values) {
+      county = countyFrom(value);
+      if (county) break;
+    }
+
+    let district = '';
+    for (const value of [attrs.District, attrs.City, attrs.Subregion]) {
+      const token = compact(value);
+      if (token && DISTRICT_RE.test(token) && !samePart(token, county)) {
+        district = token;
+        break;
+      }
+    }
+
+    const postal = noSpace(attrs.Postal || '');
+    const addrType = compact(attrs.Addr_type);
+    const place = compact(attrs.PlaceName);
+    const addressField = compact(attrs.Address);
+    const stAddr = compact(attrs.StAddr);
+    const placeAddr = compact(attrs.Place_addr);
+    const shortLabel = compact(attrs.ShortLabel);
+    const longLabel = compact(attrs.LongLabel);
+    const streetName = compact(attrs.StName);
+    let addNum = compact(attrs.AddNum).replace(/號$/, '');
+    if (postal && noSpace(addNum) === postal) addNum = '';
+    // Provider data occasionally leaks postal/feature identifiers into AddNum. Taiwan door numbers
+    // should never become 5+ digit pseudo-house numbers such as 400003258號.
+    if (/^[0-9０-９]{5,}$/.test(noSpace(addNum))) addNum = '';
+
+    const parsedFallback = fallback ? parseCommaLabel(fallback) : null;
+    if (!county && parsedFallback?.county) county = parsedFallback.county;
+    if (!district && parsedFallback?.district) district = parsedFallback.district;
+
+    const cleanStructuredCandidate = value => {
+      const raw = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value));
+      if (!raw) return '';
+      const parsed = parseCommaLabel(raw);
+      return parsed?.detail || raw;
+    };
+    const candidates = [addressField, stAddr, placeAddr, shortLabel, parsedFallback?.detail || '', longLabel]
+      .map(cleanStructuredCandidate)
+      .filter(Boolean);
+
+    // Prefer a Chinese street address supplied by ArcGIS labels/Address fields. This prevents
+    // transliterated StName values such as "TaiPingRd" from replacing an available Chinese label.
+    let detail = candidates.find(v => CJK_ROAD_RE.test(v) && /[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(v)) || '';
+    if (!detail) detail = candidates.find(v => CJK_ROAD_RE.test(v)) || '';
+
+    // Structured StName/AddNum are a last resort, not the first choice. ArcGIS documents AddNum
+    // as the house number and Postal as a separate field; never use Postal as AddNum.
+    if (!detail && streetName) {
+      const street = addNum ? `${streetName}${addNum}號` : streetName;
+      const normalizedStreet = normalizeStreetToken(street);
+      // A romanized street is useful as provider metadata but unsafe as passenger-visible text.
+      // Prefer a localized POI label when available; otherwise leave detail empty so caller can fall back safely.
+      if (!isRomanizedRoadProviderLabel(`${county || ''}${district || ''}${normalizedStreet}`)) detail = normalizedStreet;
+    }
+    if (!detail && place && !samePart(place, county) && !samePart(place, district)) detail = place;
+    if (!detail && parsedFallback?.detail) detail = parsedFallback.detail;
+
+    detail = stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(detail));
+    return { county, district, detail };
+  }
+
+  function countOccurrences(text, needle) {
+    if (!text || !needle) return 0;
+    return text.split(needle).length - 1;
+  }
+
+  function isStructurallyCorruptAddress(value) {
+    const text = noSpace(value);
+    if (!text) return false;
+    if (isRomanizedRoadProviderLabel(text)) return true;
+    if (/[0-9０-９]{5,}號/.test(text)) return true;
+    if (/(?:大道|路|街|道|巷|弄)[㐀-鿿A-Za-z]{1,24}[0-9０-９]{5,}號/.test(text)) return true;
+
+    // Same county repeated is never a valid dispatch address.
+    for (const county of COUNTIES) {
+      if (countOccurrences(text, county) > 1) return true;
+    }
+
+    const countyMatches = text.match(COUNTY_RE) || [];
+    if (new Set(countyMatches).size > 1) return true;
+
+    // Provider-order leak: road/house first, then district/county afterwards.
+    const roadIndex = text.search(ROAD_RE);
+    if (roadIndex >= 0) {
+      const afterRoad = text.slice(roadIndex + 1);
+      if (COUNTIES.some(county => afterRoad.includes(county))) return true;
+      const trailingAdminLeak = text.match(/[0-9０-９]號?.{0,12}([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))$/);
+      if (trailingAdminLeak && !/(?:門市|超市|夜市)$/.test(trailingAdminLeak[1])) return true;
+    }
+
+    return false;
+  }
+
+  function canonicalTaiwanAddress(value, attrs = {}) {
+    const raw = stripIndoorProviderSuffix(stripTrailingPostalHouseArtifact(stripLeadingTaiwanPostalPrefix(value)));
+    if (!raw) return '';
+
+    // R10Z6: never pass provider romanized roads (TaiPingRd / GongYuanRd / etc.) through as UI text.
+    // If ArcGIS also supplied localized structured fields, rebuild from those; otherwise reject this display label.
+    if (isRomanizedRoadProviderLabel(raw)) {
+      const safe = structuredParts(attrs, raw);
+      let detail = normalizeStreetToken(safe.detail || '');
+      if (safe.district) detail = detail.replace(new RegExp(`^${safe.district}`), '').trim();
+      if (safe.county) detail = detail.replace(new RegExp(COUNTIES.join('|'), 'g'), '').trim();
+      const localized = safe.county && detail ? noSpace(stripIndoorProviderSuffix(`${safe.county}${safe.district || ''}${detail}`)) : '';
+      if (localized && !isRomanizedRoadProviderLabel(localized) && !isStructurallyCorruptAddress(localized)) return localized;
+      return '';
+    }
+
+    // Fast path for provider labels already starting with county/city, with or without spaces:
+    // "台中市 霧峰區, 六股路138號" / "台中市霧峰區,六股路138號".
+    // This also keeps postal-prefix cleanup deterministic before the more permissive parser.
+    const leadingCounty = COUNTIES.find(county => noSpace(raw).startsWith(noSpace(county))) || '';
+    if (leadingCounty) {
+      const countyIndex = compact(raw).indexOf(leadingCounty);
+      const rest = compact(raw).slice(countyIndex + leadingCounty.length).trim();
+      const adminMatch = rest.match(/^([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))\s*[,，、]?\s*(.+)$/);
+      if (adminMatch) {
+        const district = compact(adminMatch[1]);
+        const detail = normalizeStreetToken(adminMatch[2]);
+        if (detail) {
+          const direct = noSpace(stripIndoorProviderSuffix(`${leadingCounty}${district}${detail}`));
+          if (!isStructurallyCorruptAddress(direct)) return direct;
+        }
+      }
+    }
+
+    const structured = structuredParts(attrs, raw);
+    let { county, district, detail } = structured;
+
+    if (!county || !detail) {
+      const parsed = parseCommaLabel(raw);
+      if (parsed) ({ county, district, detail } = parsed);
+    }
+
+    if (!county || !detail) {
+      // Do not aggressively rewrite already compact labels. The guard is for provider-order
+      // corruption, not for inventing administrative data that the geocoder did not return.
+      return isStructurallyCorruptAddress(raw) ? '' : compact(raw);
+    }
+
+    detail = normalizeStreetToken(detail)
+      .replace(new RegExp(COUNTIES.join('|'), 'g'), '')
+      .trim();
+    if (district) detail = detail.replace(new RegExp(`^${district}`), '').trim();
+    if (!detail) return '';
+
+    const result = noSpace(stripIndoorProviderSuffix(`${county}${district || ''}${detail}`));
+    return isStructurallyCorruptAddress(result) ? '' : result;
+  }
+
+  // GC_MASTER_STABLE_2026_08R10Y_MAGICKEY_INTEGRITY
+  // IMPORTANT: ArcGIS /suggest returns text + magicKey as a linked pair. Never rewrite
+  // suggestion.text at the fetch boundary. The UI may display a cleaned copy, but
+  // findAddressCandidates must receive the untouched provider text with its magicKey.
+  // Candidate payloads are also kept raw; canonical Taiwan formatting happens only
+  // after the app has received the candidate and structured address attributes.
+
+  function unmistakableProviderArtifact(value) {
+    const raw = compact(value);
+    if (!raw) return false;
+    if (stripTrailingPostalHouseArtifact(raw) !== raw) return true;
+    if (isRomanizedRoadProviderLabel(raw)) return true;
+    if (TAIWAN_ADMIN_PREFIX_RE.test(raw)) return true;
+    if (isStructurallyCorruptAddress(raw)) return true;
+    const hasCounty = Boolean(countyFrom(raw));
+    if (hasCounty && /[,，、]/.test(raw)) return true;
+    return hasCounty && /(?:^|[^A-Za-z])(?:[A-Za-z]{2,}(?:Rd|Road|St|Street|Ave|Avenue|Blvd))\s*[0-9]/i.test(raw);
+  }
+
+  function sanitizeStoredValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const dePostal = stripTrailingPostalHouseArtifact(raw);
+    if (dePostal !== raw) return canonicalTaiwanAddress(dePostal) || dePostal;
+    if (isRomanizedRoadProviderLabel(raw)) return '';
+    if (!unmistakableProviderArtifact(raw)) return raw;
+    return canonicalTaiwanAddress(raw) || '';
+  }
+
+  function purgeKnownCorruption() {
+    try {
+      const raw = localStorage.getItem('gc_recent_addresses_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const clean = parsed.map(sanitizeStoredValue).filter(Boolean);
+          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_recent_addresses_v1', JSON.stringify(clean));
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const raw = localStorage.getItem('gc_favorite_trips_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const clean = parsed.map(item => {
+            if (!item || typeof item !== 'object') return null;
+            const pickup = sanitizeStoredValue(item.pickup);
+            const destination = sanitizeStoredValue(item.destination);
+            if (!pickup || !destination) return null;
+            return { ...item, pickup, destination };
+          }).filter(Boolean);
+          if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
+        }
+      }
+    } catch (_) {}
+  }
+
+  const lastGood = new WeakMap();
+  document.addEventListener('focusin', event => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !['pickup', 'destination'].includes(input.id)) return;
+    if (!isStructurallyCorruptAddress(input.value)) lastGood.set(input, input.value);
+  }, true);
+
+  document.addEventListener('input', event => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !['pickup', 'destination'].includes(input.id)) return;
+    const current = input.value;
+    if (!isStructurallyCorruptAddress(current)) {
+      lastGood.set(input, current);
+      return;
+    }
+
+    // Never alter a trusted user's keystroke. This branch only blocks programmatic corruption
+    // introduced by provider data / old saved data / app transformations.
+    if (event.isTrusted) return;
+    const fallback = lastGood.get(input);
+    if (typeof fallback === 'string') {
+      input.value = fallback;
+      input.dataset.gcSkipSuggestOnce = '1';
+      delete input.dataset.gcAddressVerified;
+      delete input.dataset.gcAddressVerifiedKey;
+      delete input.dataset.gcAddressVerifiedSource;
+      delete input.dataset.gcResolvedAddress;
+      input.classList.remove('gc-address-verified');
+    }
+  }, true);
+
+  purgeKnownCorruption();
+
+  // Exposed only for regression diagnostics. No customer data is stored or transmitted.
+  window.GC_ADDRESS_GUARD = Object.freeze({
+    version: VERSION,
+    stripLeadingTaiwanPostalPrefix,
+    stripTrailingPostalHouseArtifact,
+    stripIndoorProviderSuffix,
+    canonicalTaiwanAddress,
+    isRomanizedRoadProviderLabel,
+    isStructurallyCorruptAddress
+  });
+})();
 ;
 (() => {
   'use strict';
@@ -5237,7 +5388,6 @@ window.GC_FORM_CONFIG = {
     if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
   }, 50);
 })();
-
 ;
 (() => {
   'use strict';
@@ -5271,7 +5421,6 @@ window.GC_FORM_CONFIG = {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', placePassenger, { once: true });
   else placePassenger();
 })();
-
 ;
 (() => {
   'use strict';
@@ -5457,8 +5606,8 @@ window.GC_FORM_CONFIG = {
   }
 
   function googleMapsUrl(pickupValue = '', destinationValue = '') {
-    const pickup = cleanMapAddress(pickupValue || qs('pickup')?.value);
-    const destination = cleanMapAddress(destinationValue || qs('destination')?.value);
+    const pickup = trim(pickupValue || qs('pickup')?.value);
+    const destination = trim(destinationValue || qs('destination')?.value);
     if (!pickup || !destination) return '';
 
     const base = trim(cfg()['Google地圖路線網址']) || 'https://www.google.com/maps/dir/?api=1';
@@ -5498,8 +5647,8 @@ window.GC_FORM_CONFIG = {
   async function openMaps() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
-    const pickup = cleanMapAddress(pickupInput?.value);
-    const destination = cleanMapAddress(destinationInput?.value);
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     // Opening Google Maps must not visibly replace what the passenger typed. The stricter
     // canonical result is carried separately and is used only for map routing.
 
@@ -5513,13 +5662,15 @@ window.GC_FORM_CONFIG = {
 
     const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
     if (verify) {
-      const pickupReady = await verify('pickup', { showError: true });
-      const destinationReady = pickupReady ? await verify('destination', { showError: true }) : false;
+      const pickupReady = await verify('pickup', { showError: true, policy: 'manual-authoritative' });
+      const destinationReady = pickupReady ? await verify('destination', { showError: true, policy: 'manual-authoritative' }) : false;
       if (!pickupReady || !destinationReady) return;
     }
 
-    const verifiedPickup = mapAddressFromInput(pickupInput);
-    const verifiedDestination = mapAddressFromInput(destinationInput);
+    // R10Z9L: Google Maps receives exactly the passenger-visible, non-empty text.
+    // Smart-resolution metadata remains advisory and must never block or redirect the route.
+    const verifiedPickup = pickup;
+    const verifiedDestination = destination;
     const sameAddress = addressComparisonKey(verifiedPickup) && addressComparisonKey(verifiedPickup) === addressComparisonKey(verifiedDestination);
     if (sameAddress) {
       setFieldError('pickup', '');
@@ -5641,7 +5792,8 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
+      const manualTitle = String(cfg()['人工協助標題'] || 'ⓘ 其他估價協助').replace(/^ⓘ\s*/, '');
+      summary.innerHTML = `<strong class="gc-fare-manual-label"><span aria-hidden="true">ⓘ</span>${escapeHtml(manualTitle)}</strong>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -5665,7 +5817,6 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
@@ -5775,12 +5926,12 @@ window.GC_FORM_CONFIG = {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })();
-
 ;
 (() => {
   'use strict';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
+  // GC_MASTER_STABLE_2026_08R10Z9L_CONFIRMED_RESERVATION_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -5858,7 +6009,8 @@ window.GC_FORM_CONFIG = {
       const service = serviceValue();
       const chosen = Boolean(service);
       const reserve = service === 'reserve';
-      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
+      const scheduleReady = typeof window.GC_isScheduleConfirmed === 'function' && window.GC_isScheduleConfirmed();
+      const serviceReady = chosen && (!reserve || scheduleReady);
       const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
 
       form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
@@ -5874,8 +6026,8 @@ window.GC_FORM_CONFIG = {
       if (pickupField) setCollapsed(pickupField, !serviceReady);
       if (destinationField) setCollapsed(destinationField, !(serviceReady && pickupReady));
       [passenger, ...optional, ...notices, submit].filter(Boolean).forEach(node => setCollapsed(node, !(serviceReady && pickupReady)));
-      // Favorite trips intentionally stay available in the pickup utility sheet; they can fill both endpoints in one tap.
-      if (favorite) setCollapsed(favorite, false);
+      // Reservation mode may not reveal any downstream information until both schedule controls are confirmed.
+      if (favorite) setCollapsed(favorite, !serviceReady);
     }
 
     [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
@@ -5885,6 +6037,7 @@ window.GC_FORM_CONFIG = {
       control.addEventListener('blur', update, { passive: true });
     });
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
+    form.addEventListener('gc:schedule-state', update);
     update();
     requestAnimationFrame(() => { clearBrowserRestoredService(); update(); });
     setTimeout(() => { clearBrowserRestoredService(); update(); }, 120);
@@ -5925,4 +6078,3 @@ window.GC_FORM_CONFIG = {
     setTimeout(() => { observer?.disconnect(); observer = null; }, 12000);
   }
 })();
-
