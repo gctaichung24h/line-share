@@ -4806,4 +4806,41 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .gc-fare-rates-summary::after,.gc-fare-manual-details>summary b::after{transition:none!important}
 }
 
+/* GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
+   Scope lock: collapsed manual-help presentation and placeholder color only.
+   Expanded manual-help contents, typography, form logic, address logic and fare logic are untouched. */
+
+/* Collapsed manual estimate help: integrate it into the fare-card footer instead of rendering another card. */
+.gc-fare-manual-details:not([open]){
+  margin-top:10px!important;
+  padding-top:0!important;
+  border:0!important;
+  border-top:1px solid #e8eef2!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.gc-fare-manual-details:not([open])>summary{
+  min-height:48px!important;
+  padding:8px 2px!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.gc-fare-manual-details:not([open])>summary strong{
+  color:#718694!important;
+}
+
+/* One placeholder tone across fare / call / driver forms. Only hint text changes; labels, units and entered values stay intact. */
+.gc-fare-card .input::placeholder,
+.gc-fare-card textarea::placeholder,
+.gc-fare-card .gc-fare-calc-input::placeholder,
+.gc-call-card .input::placeholder,
+.gc-call-card textarea::placeholder,
+.gc-driver-card .input::placeholder,
+.gc-driver-card textarea::placeholder{
+  color:#a7b3bd!important;
+  opacity:1!important;
+}
 
