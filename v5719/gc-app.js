@@ -672,7 +672,7 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9v';
+  const GC_BUILD_VERSION = 'master202608r10z9i';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -954,7 +954,7 @@ window.GC_FORM_CONFIG = {
             <span class="recent-clock" aria-hidden="true">↺</span>
             <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
-            <span class="recent-chevron" aria-hidden="true">▾</span>
+            <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
           <div class="recent-panel hidden" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
         </div>` : ''}
@@ -3235,7 +3235,7 @@ window.GC_FORM_CONFIG = {
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `${addresses.length}`;
+      if (count) count.textContent = `(${addresses.length})`;
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
@@ -3917,7 +3917,7 @@ window.GC_FORM_CONFIG = {
           <section class="gc-rate-section" aria-label="費率說明">
             <strong class="gc-rate-section-title">費率說明</strong>
             <div class="gc-rate-note-list">${noteRows.map(line => `<div class="gc-rate-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('')}</div>
-            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong><span class="gc-long-benefit-part">${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，`)}</span><span class="gc-long-benefit-part">可享直收優惠價</span></strong></div>
+            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong>${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，可享直收優惠價`)}</strong></div>
           </section>
         </div>
       </details>`;
@@ -5204,9 +5204,7 @@ window.GC_FORM_CONFIG = {
     const form = document.getElementById('serviceForm');
     if (!form || applied) return false;
     applied = true;
-    // GC_MASTER_STABLE_2026_08R10Z9V_FARE_NO_SHORTCUT_DOM
-    // Fare route addresses must stay structurally identical. Call/driver shortcuts never belong here.
-    if (!isFare) compactAddressActions();
+    compactAddressActions();
     removeFieldByInputName('direction');
     if (isCall) {
       addVehicleField();
@@ -5623,15 +5621,6 @@ window.GC_FORM_CONFIG = {
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);
     const routeFields = qs('gcFareRouteFields');
-    // GC_MASTER_STABLE_2026_08R10Z9V_FARE_ADDRESS_GEOMETRY_LOCK
-    // Remove any shortcut/action residue before moving the fields. This makes pickup/destination
-    // the same DOM shape on iOS Safari, not merely the same CSS min-height.
-    [pickupField, destinationField].forEach(field => {
-      if (!field) return;
-      field.classList.add('gc-primary-address', 'gc-fare-route-address');
-      field.classList.remove('gc-pickup-address', 'gc-destination-address');
-      field.querySelectorAll('.gc-address-utility-row,.recent-address-control,.location-action,.location-review,.location-status').forEach(node => node.remove());
-    });
     if (pickupField) routeFields.appendChild(pickupField);
     if (destinationField) routeFields.appendChild(destinationField);
 
@@ -5652,7 +5641,7 @@ window.GC_FORM_CONFIG = {
       const details = document.createElement('details');
       details.className = 'gc-fare-manual-details';
       const summary = document.createElement('summary');
-      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">▾</b>`;
+      summary.innerHTML = `<span><strong>${escapeHtml(cfg()['人工協助標題'] || '其他估價協助')}</strong><small>${escapeHtml(cfg()['人工協助提示'] ?? '無法完成上方試算時可使用｜繁忙時可能先提供試算資訊')}</small></span><b aria-hidden="true">⌄</b>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
       const panelTitle = document.createElement('strong');
@@ -5676,7 +5665,7 @@ window.GC_FORM_CONFIG = {
       inner.appendChild(extra);
       inner.appendChild(form);
       manual.remove();
-      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '▴' : '▾'; });
+      details.addEventListener('toggle', () => { const b = summary.querySelector('b'); if (b) b.textContent = details.open ? '⌃' : '⌄'; });
       window.GC_installManagedDisclosureBehavior?.();
 
       // 估價協助按鈕在頁面底部；地址在上方。缺地址時不能像「沒反應」，
