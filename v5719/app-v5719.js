@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9u';
+  const GC_BUILD_VERSION = 'master202608r10z9v';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -282,7 +282,7 @@
             <span class="recent-clock" aria-hidden="true">↺</span>
             <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
-            <span class="recent-chevron" aria-hidden="true">⌄</span>
+            <span class="recent-chevron" aria-hidden="true">▾</span>
           </button>
           <div class="recent-panel hidden" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
         </div>` : ''}
@@ -3245,7 +3245,7 @@
           <section class="gc-rate-section" aria-label="費率說明">
             <strong class="gc-rate-section-title">費率說明</strong>
             <div class="gc-rate-note-list">${noteRows.map(line => `<div class="gc-rate-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('')}</div>
-            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong>${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，可享直收優惠價`)}</strong></div>
+            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong><span class="gc-long-benefit-part">${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，`)}</span><span class="gc-long-benefit-part">可享直收優惠價</span></strong></div>
           </section>
         </div>
       </details>`;

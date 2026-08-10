@@ -727,3 +727,112 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
     max-width:100%!important;
   }
 }
+
+
+/* GC_MASTER_STABLE_2026_08R10Z9V_IPHONE13_17MAX_REAL_DEVICE_FIX
+   Real-device fixes based on iPhone 13 + iPhone 17 Pro Max screenshots.
+   Scope is intentionally narrow: fare address geometry, disclosure arrows, long-benefit wrapping. */
+
+/* 1) Fare pickup/destination: identical DOM + identical geometry. No utility/action residue. */
+.gc-fare-route-fields .gc-fare-route-address{
+  box-sizing:border-box!important;
+  min-height:0!important;
+  height:auto!important;
+  margin:0 0 16px!important;
+  padding:14px!important;
+  border:1px solid #d6e2e9!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,#fcfeff 0%,#f8fbfd 100%)!important;
+  box-shadow:0 5px 16px rgba(25,63,94,.035)!important;
+}
+.gc-fare-route-fields .gc-fare-route-address>.gc-address-utility-row,
+.gc-fare-route-fields .gc-fare-route-address>.recent-address-control,
+.gc-fare-route-fields .gc-fare-route-address>.location-action,
+.gc-fare-route-fields .gc-fare-route-address>.location-review,
+.gc-fare-route-fields .gc-fare-route-address>.location-status,
+.gc-fare-route-fields .gc-fare-route-address>.error-text:empty{display:none!important}
+.gc-fare-route-fields .gc-fare-route-address>.input{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-height:58px!important;
+  height:auto!important;
+  margin:0!important;
+  padding:12px 14px!important;
+}
+
+/* 2) Disclosure controls: exactly one arrow, anchored to its own summary. */
+.gc-fare-rates>summary,
+.gc-fare-manual-details>summary{
+  list-style:none!important;
+  position:relative!important;
+}
+.gc-fare-rates>summary::-webkit-details-marker,
+.gc-fare-manual-details>summary::-webkit-details-marker{display:none!important}
+.gc-fare-rates>summary::marker,
+.gc-fare-manual-details>summary::marker{content:''!important;font-size:0!important}
+.gc-fare-manual-details>summary>b{
+  position:absolute!important;
+  right:16px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:20px!important;
+  height:20px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#728997!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:700!important;
+}
+.gc-fare-manual-details>summary>b::before{content:none!important;display:none!important}
+
+/* 3) Long-distance benefit: Safari may wrap Chinese at any character. Break only between semantic chunks. */
+.gc-rate-long-benefit{flex-wrap:wrap!important}
+.gc-rate-long-benefit>strong{
+  min-width:0!important;
+  display:flex!important;
+  flex:1 1 auto!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  column-gap:4px!important;
+  row-gap:1px!important;
+  word-break:keep-all!important;
+  overflow-wrap:normal!important;
+}
+.gc-rate-long-benefit>strong>.gc-long-benefit-part{
+  display:inline-block!important;
+  white-space:nowrap!important;
+  word-break:keep-all!important;
+}
+@media(max-width:400px){
+  .gc-rate-long-benefit{gap:7px!important;padding:9px 9px!important}
+  .gc-rate-long-benefit>span{padding:3px 6px!important;font-size:10.9px!important}
+  .gc-rate-long-benefit>strong{font-size:12.8px!important;letter-spacing:-.01em!important}
+}
+
+/* 4) Recent-address arrow: direct glyph, no pseudo-element or detached arrow region on iOS. */
+.gc-pickup-address .recent-chevron,
+.gc-destination-address .recent-chevron{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 auto!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0 0 0 5px!important;
+  padding:0!important;
+  color:#728997!important;
+  font-size:13px!important;
+  line-height:1!important;
+  transform:none!important;
+}
+.gc-pickup-address .recent-chevron::before,
+.gc-destination-address .recent-chevron::before{content:none!important;display:none!important}
+.gc-pickup-address .recent-toggle[aria-expanded="true"] .recent-chevron,
+.gc-destination-address .recent-toggle[aria-expanded="true"] .recent-chevron,
+.recent-address-control.is-open .recent-chevron{transform:rotate(180deg)!important}

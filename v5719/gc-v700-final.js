@@ -510,7 +510,9 @@
     const form = document.getElementById('serviceForm');
     if (!form || applied) return false;
     applied = true;
-    compactAddressActions();
+    // GC_MASTER_STABLE_2026_08R10Z9V_FARE_NO_SHORTCUT_DOM
+    // Fare route addresses must stay structurally identical. Call/driver shortcuts never belong here.
+    if (!isFare) compactAddressActions();
     removeFieldByInputName('direction');
     if (isCall) {
       addVehicleField();
