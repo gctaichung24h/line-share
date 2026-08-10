@@ -2,6 +2,7 @@
   'use strict';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_PROGRESSIVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
+  // GC_MASTER_STABLE_2026_08R10Z9N_IOS_SCHEDULE_CONFIRM_GATE
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -35,6 +36,8 @@
     const radios = [...form.querySelectorAll('input[name="serviceType"]')];
     const serviceField = radios[0]?.closest('.field');
     const schedule = document.getElementById('scheduleFields');
+    const dateInput = document.getElementById('date');
+    const timeInput = document.getElementById('time');
     const pickup = document.getElementById('pickup');
     const destination = document.getElementById('destination');
     const pickupField = pickup?.closest('.field');
@@ -79,10 +82,18 @@
       const service = serviceValue();
       const chosen = Boolean(service);
       const reserve = service === 'reserve';
-      const serviceReady = chosen && (!reserve || (Boolean(value('date')) && Boolean(value('time'))));
-      const pickupReady = Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
+      // iOS/WKWebView mutates date/time values while the native wheel is still open.
+      // Treat the schedule as confirmed only after both values exist AND neither picker input is focused.
+      // The blur handler below re-checks on the next animation frame, matching the native 「完成」 close.
+      const scheduleEditing = reserve && (document.activeElement === dateInput || document.activeElement === timeInput);
+      const scheduleConfirmed = !reserve || (Boolean(value('date')) && Boolean(value('time')) && !scheduleEditing);
+      const serviceReady = chosen && scheduleConfirmed;
+      const pickupHasText = value('pickup').length >= 2;
+      const pickupReady = pickupHasText && Boolean(pickup?.dataset.gcAddressVerified === '1' || pickup?.dataset.gcFlowCommitted === '1');
 
       form.dataset.gcFlowServiceChosen = chosen ? '1' : '0';
+      form.dataset.gcFlowScheduleEditing = scheduleEditing ? '1' : '0';
+      form.dataset.gcFlowScheduleConfirmed = scheduleConfirmed ? '1' : '0';
       form.dataset.gcFlowServiceReady = serviceReady ? '1' : '0';
       form.dataset.gcFlowPickupReady = pickupReady ? '1' : '0';
       serviceField?.classList.toggle('gc-flow-complete', chosen);
@@ -99,11 +110,11 @@
       if (favorite) setCollapsed(favorite, false);
     }
 
-    [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
+    [...radios, dateInput, timeInput, pickup, destination].filter(Boolean).forEach(control => {
       control.addEventListener('input', update, { passive: true });
       control.addEventListener('change', update, { passive: true });
       control.addEventListener('focus', update, { passive: true });
-      control.addEventListener('blur', update, { passive: true });
+      control.addEventListener('blur', () => requestAnimationFrame(update), { passive: true });
     });
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     update();

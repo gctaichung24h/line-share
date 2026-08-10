@@ -1,12 +1,13 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9m';
+  const GC_BUILD_VERSION = 'master202608r10z9n';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
   // GC_MASTER_STABLE_2026_08R10Z9M_REQUESTED_UI_FINISH
+  // GC_MASTER_STABLE_2026_08R10Z9N_CALL_PICKUP_FREE_TEXT_AND_IOS_SCHEDULE_CONFIRM
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -1490,6 +1491,13 @@
     return activeMode === 'call' || activeMode === 'driver';
   }
 
+  // R10Z9N: call pickup is passenger-owned free text. Smart suggestions remain assistance only;
+  // they may enrich the experience but must never block submission or force an admin-area choice.
+  function isCallPickupFreeText(id) {
+    if (id !== 'pickup') return false;
+    return new URLSearchParams(location.search).get('mode') === 'call';
+  }
+
   function addressValidationMessage(query, suggestions = []) {
     const normalized = smartNormalizeTaiwanAddress(query);
     const poiCtx = poiContextFromQuery(normalized);
@@ -1531,8 +1539,11 @@
 
     // R10U: pickup/driver-location stays strict; ride/driver drop-off can remain a broad
     // human-readable destination. Fare keeps strict verification on both ends for Google Maps.
-    if (options.policy === 'relaxed') {
+    if (options.policy === 'relaxed' || isCallPickupFreeText(id)) {
+      // Call pickup accepts the passenger's visible text exactly as dispatch context.
+      // Do not rewrite it, do not require county/district, and do not force a suggestion tap.
       hideAddressSuggestions(id);
+      input.classList.remove('gc-address-needs-choice');
       clearFieldValidation(id);
       return true;
     }
@@ -1763,8 +1774,8 @@
         // background, but must never rewrite the field to transliterated provider output.
         const selected = smartNormalizeTaiwanAddress(initialSelected);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
-        const relaxedDestination = isRelaxedRideDestination(id);
-        const ready = relaxedDestination || (resolved
+        const relaxedAddress = isRelaxedRideDestination(id) || isCallPickupFreeText(id);
+        const ready = relaxedAddress || (resolved
           ? isResolvedCandidateDispatchReady(selected, resolved, { fromSelection: true })
           : (!broad && isLocallyDispatchReady(selected)));
 
@@ -1785,7 +1796,7 @@
           return;
         }
 
-        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
+        markAddressVerified(input, relaxedAddress ? (isCallPickupFreeText(id) ? 'suggestion-relaxed-call-pickup' : 'suggestion-relaxed-destination') : 'suggestion', resolvedAddress);
         input.classList.remove('invalid', 'gc-address-needs-choice');
         document.getElementById(`${id}Error`)?.classList.remove('show');
         hideAddressSuggestions(id);
