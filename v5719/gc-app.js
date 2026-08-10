@@ -637,10 +637,13 @@ window.GC_FORM_CONFIG = {
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z4';
+  const GC_BUILD_VERSION = 'master202608r10z5';
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_BEHAVIOR_RESTORE
   // GC_MASTER_STABLE_2026_08R10Z4_ADDRESS_PROVIDER_LABEL_FIX
+  // GC_MASTER_STABLE_2026_08R10Z5_EXPLICIT_SUGGESTION_VISIBLE_SOURCE_LOCK
+  // Explicit suggestion tap keeps the cleaned suggestion label as passenger-visible truth;
+  // candidate resolution is validation/route metadata only and may never replace it with transliterated provider fields.
   // Address-only repair: restore R10Q-style autocomplete availability; keep format sanitation and mode-aware submit gates separate.
   // GC_MASTER_STABLE_2026_08R10V_ADDRESS_CORRUPTION_FIREWALL
   // GC_MASTER_STABLE_2026_08R10Y_LARGE_FLEET_ADDRESS_RESOLUTION
@@ -1275,7 +1278,11 @@ window.GC_FORM_CONFIG = {
       const primaryLocation = explicitCounty
         ? ADDRESS_PRIMARY_REGIONS.find(item => item.name === explicitCounty)?.location || currentLocationBias
         : currentLocationBias;
-      addResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), explicitCounty || '', primaryLocation);
+      // GC_R10Z5_DEFAULT_TAICHUNG_PRIMARY_RANK
+      // With no explicit county and no user GPS bias, the fleet's default Taichung request should
+      // remain ahead of enrichment results from Changhua/Nantou. This changes ranking only, not scope.
+      const primarySourceRegion = explicitCounty || (currentLocationBias === ADDRESS_BIAS_LOCATION ? '台中市' : '');
+      addResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller), primarySourceRegion, primaryLocation);
 
       // Only enrich when the first response did not already give enough safe,
       // district-labelled Central Taiwan choices. This keeps 中彰投 prominent
@@ -1422,11 +1429,19 @@ window.GC_FORM_CONFIG = {
   const typedAddressResolveCache = new Map();
   const ARCGIS_RESOLVE_OUT_FIELDS = 'Addr_type,Match_addr,ShortLabel,LongLabel,MatchID,City,District,Region,Subregion,StName,AddNum,Address,StAddr,PlaceName,Place_addr,Postal,CountryCode';
 
-  function resolvedCandidateFromArcgis(candidate, fallback = '') {
+  function resolvedCandidateFromArcgis(candidate, fallback = '', options = {}) {
     if (!candidate || Number(candidate.score || 0) < 80) return null;
     const attrs = candidate.attributes && typeof candidate.attributes === 'object' ? candidate.attributes : {};
     const rawAddress = attrs.Match_addr || candidate.address || attrs.LongLabel || attrs.ShortLabel || fallback;
-    const address = canonicalizeSuggestedAddress(rawAddress, attrs) || canonicalizeSuggestedAddress(fallback);
+    const candidateAddress = canonicalizeSuggestedAddress(rawAddress, attrs);
+    const fallbackAddress = canonicalizeSuggestedAddress(fallback);
+    // GC_R10Z5_EXPLICIT_SUGGESTION_RESOLVED_FALLBACK_LOCK
+    // When this candidate came from an explicit suggestion tap, the cleaned suggestion text is
+    // the stable localized label the passenger actually chose. Do not let a later ArcGIS candidate
+    // response replace it with transliterated fields such as TaiPingRd22-4.
+    const address = options.preferFallback === true && fallbackAddress && canonicalTaiwanCounty(fallbackAddress)
+      ? fallbackAddress
+      : (candidateAddress || fallbackAddress);
     if (!address || isClearlyOutsideTaiwanSuggestion(address)) return null;
     return {
       type: String(attrs.Addr_type || ''),
@@ -1480,7 +1495,7 @@ window.GC_FORM_CONFIG = {
       if (!response.ok) return null;
       const data = await response.json();
       const candidate = Array.isArray(data?.candidates) ? data.candidates[0] : null;
-      const resolved = resolvedCandidateFromArcgis(candidate, item.text);
+      const resolved = resolvedCandidateFromArcgis(candidate, item.text, { preferFallback: true });
       if (!resolved) return null;
       if (addressResolveCache.size >= ADDRESS_RESOLVE_CACHE_LIMIT) {
         const firstKey = addressResolveCache.keys().next().value;
@@ -1867,10 +1882,11 @@ window.GC_FORM_CONFIG = {
         if (!initialSelected) return;
 
         const resolved = await resolveAddressSuggestion(item);
-        // The customer explicitly chose this suggestion, so changing the field is allowed.
-        // Use the candidate's structured/canonical address when available; never expose raw
-        // provider postal codes, commas, spaces, or reverse-order labels.
-        const selected = smartNormalizeTaiwanAddress(resolved?.address || initialSelected);
+        // GC_R10Z5_EXPLICIT_SUGGESTION_VISIBLE_SOURCE_LOCK
+        // The passenger tapped the rendered suggestion. That cleaned suggestion label is therefore
+        // the visible source of truth. ArcGIS candidate resolution may validate/route it in the
+        // background, but must never rewrite the field to transliterated provider output.
+        const selected = smartNormalizeTaiwanAddress(initialSelected);
         const broad = isBroadRoadOnlyAddress(selected) || isGenericAreaText(selected);
         const relaxedDestination = isRelaxedRideDestination(id);
         const ready = relaxedDestination || (resolved
@@ -1879,7 +1895,7 @@ window.GC_FORM_CONFIG = {
 
         // R10Y explicit-selection rule: only an explicit passenger tap may replace visible text.
         // The replacement is the cleaned canonical candidate; raw provider formatting never becomes UI text.
-        const resolvedAddress = resolvedAddressForInput(selected, resolved, item.text) || selected;
+        const resolvedAddress = resolvedAddressForInput(selected, resolved, selected) || selected;
         input.value = selected;
         input.dataset.gcSkipSuggestOnce = '1';
         input._gcCancelSmartSuggestions?.();
