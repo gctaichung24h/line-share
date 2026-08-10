@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9c';
+  const GC_BUILD_VERSION = 'master202608r10z9d';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
@@ -646,6 +646,7 @@
 
   // GC_MASTER_STABLE_2026_08R10Z9_POI_DISCOVERY
   // GC_MASTER_STABLE_2026_08R10Z9C_BRANCH_POI_ROOT_FIX
+  // GC_MASTER_STABLE_2026_08R10Z9D_CHAIN_BRANCH_DISCOVERY_PARALLEL
   function poiContextFromQuery(value) {
     const raw = normalizeAddress(value).replace(/臺/g, '台');
     const compact = raw.replace(/[\s,，、。．·・_()（）]/g, '');
@@ -695,6 +696,59 @@
   }
 
 
+  // GC_MASTER_STABLE_2026_08R10Z9D_PROVIDER_ADMIN_LOCALIZATION
+  // ArcGIS structured POI attributes are sometimes returned with English administrative names
+  // even when zh-TW labels are requested. Translate only provider-owned admin fields; never alter
+  // passenger typing. This lets a real branch keep its street address without inventing a district.
+  const PROVIDER_TAICHUNG_DISTRICT_ALIASES = [
+    ['中區', /(?:^|\b)(?:Central|Zhong)\s*District(?:$|\b)/i],
+    ['東區', /(?:^|\b)(?:East|Dong)\s*District(?:$|\b)/i],
+    ['南區', /(?:^|\b)(?:South|Nan)\s*District(?:$|\b)/i],
+    ['西區', /(?:^|\b)(?:West|Xi)\s*District(?:$|\b)/i],
+    ['北區', /(?:^|\b)(?:North|Bei)\s*District(?:$|\b)/i],
+    ['西屯區', /(?:Xitun|Situn)\s*District/i],
+    ['南屯區', /(?:Nantun)\s*District/i],
+    ['北屯區', /(?:Beitun)\s*District/i],
+    ['豐原區', /(?:Fengyuan)\s*District/i],
+    ['東勢區', /(?:Dongshi|Tungshih)\s*District/i],
+    ['大甲區', /(?:Dajia|Tachia)\s*District/i],
+    ['清水區', /(?:Qingshui|Chingshui)\s*District/i],
+    ['沙鹿區', /(?:Shalu)\s*District/i],
+    ['梧棲區', /(?:Wuqi|Wuchi)\s*District/i],
+    ['后里區', /(?:Houli)\s*District/i],
+    ['神岡區', /(?:Shengang|Shenkang)\s*District/i],
+    ['潭子區', /(?:Tanzi|Tantzu)\s*District/i],
+    ['大雅區', /(?:Daya)\s*District/i],
+    ['新社區', /(?:Xinshe|Hinshe)\s*District/i],
+    ['石岡區', /(?:Shigang|Shihkang)\s*District/i],
+    ['外埔區', /(?:Waipu)\s*District/i],
+    ['大安區', /(?:Daan|Da'an)\s*District/i],
+    ['烏日區', /(?:Wuri|Wujih)\s*District/i],
+    ['大肚區', /(?:Dadu)\s*District/i],
+    ['龍井區', /(?:Longjing|Lungching)\s*District/i],
+    ['霧峰區', /(?:Wufeng)\s*District/i],
+    ['太平區', /(?:Taiping)\s*District/i],
+    ['大里區', /(?:Dali)\s*District/i],
+    ['和平區', /(?:Heping|Ho-Ping)\s*District/i]
+  ];
+
+  function canonicalProviderCounty(value) {
+    const direct = canonicalTaiwanCounty(value);
+    if (direct) return direct;
+    const text = String(value || '');
+    if (/Taichung/i.test(text)) return '台中市';
+    if (/Changhua/i.test(text)) return '彰化縣';
+    if (/Nantou/i.test(text)) return '南投縣';
+    return '';
+  }
+
+  function canonicalProviderTaichungDistrict(value) {
+    const text = String(value || '').replace(/臺/g, '台');
+    const direct = ADDRESS_TAICHUNG_DISTRICTS.find(name => text.includes(name));
+    if (direct) return direct;
+    return PROVIDER_TAICHUNG_DISTRICT_ALIASES.find(([, re]) => re.test(text))?.[0] || '';
+  }
+
   // GC_MASTER_STABLE_2026_08R10Z9C_CHAIN_COLLECTION_BRANCH_EXPANSION
   // Chain names such as 7-ELEVEN / FamilyMart are collections, not dispatchable places by themselves.
   // A selectable chain suggestion must resolve to a concrete branch and an actual street-level address.
@@ -711,7 +765,7 @@
     text = text
       .replace(/(?:便利商店|超商|分店|門市|門巿|店舖|店鋪|店)+/gi, ' ')
       .replace(/(?:台灣|Taiwan|TWN)/gi, ' ')
-      .replace(/\d{3}(?:\d{2,3})?/g, ' ')
+      .replace(/\b\d{3}(?:\d{2,3})?\b/g, ' ')
       .replace(/(?:大道|路|街|道|巷|弄)\s*[0-9０-９]*(?:[-之][0-9０-９]+)?(?:號)?(?:.*)$/g, ' ')
       .replace(/[|｜,，、。．·・_()（）\-—]/g, ' ')
       .replace(/\s+/g, ' ')
@@ -722,9 +776,9 @@
   function poiStreetAddress(resolved) {
     if (!resolved) return '';
     const attrs = resolved.attrs && typeof resolved.attrs === 'object' ? resolved.attrs : {};
-    const districtRaw = normalizeAddress(attrs.District || attrs.Subregion || attrs.City || '').replace(/臺/g, '台');
-    const district = districtRaw.match(/([\u3400-\u9fff]{1,7}(?:區|鄉|鎮|市))/)?.[1] || '';
-    const admin = `${canonicalTaiwanCounty(attrs.Region || attrs.City || resolved.address || '') || ''}${district}`;
+    const districtRaw = normalizeAddress(attrs.District || attrs.Subregion || attrs.City || resolved.address || '').replace(/臺/g, '台');
+    const district = canonicalProviderTaichungDistrict(districtRaw) || districtRaw.match(/([\u3400-\u9fff]{1,7}(?:區|鄉|鎮|市))/)?.[1] || '';
+    const admin = `${canonicalProviderCounty(attrs.Region || attrs.City || resolved.address || '') || ''}${district}`;
     const sources = [attrs.Place_addr, attrs.StAddr, attrs.Address, attrs.LongLabel, resolved.address].filter(Boolean);
     let fallback = '';
     for (const raw of sources) {
@@ -763,12 +817,13 @@
   }
 
   function safePoiDisplayAddress(resolved) {
-    if (!resolved?.address || hasImplausibleProviderHouse(resolved.address) || isRomanizedProviderRoad(resolved.address)) return '';
-    let base = smartNormalizeTaiwanAddress(resolved.address);
+    if (!resolved) return '';
+    const street = poiStreetAddress(resolved);
+    let source = street || resolved.address || '';
+    if (!source || hasImplausibleProviderHouse(source) || isRomanizedProviderRoad(source)) return '';
+    let base = smartNormalizeTaiwanAddress(source);
     if (!base || isClearlyOutsideTaiwanSuggestion(base)) return '';
-    const place = normalizeAddress(resolved.placeName || '');
-    if (place && !addressConfidenceKey(base).includes(addressConfidenceKey(place))) base = `${base}${place}`;
-    return smartNormalizeTaiwanAddress(base);
+    return base;
   }
 
   function poiCandidateScore(resolved, query, sourceRegion = '') {
@@ -937,14 +992,14 @@
           if (!resolved) return;
           const precise = new Set(['POI','POIExt','BuildingName','PointAddress','PointAddressInt','StreetAddress','Subaddress']);
           if (!precise.has(resolved.type)) return;
-          const display = safePoiDisplayAddress(resolved);
+          const streetAddress = poiStreetAddress(resolved);
+          const display = streetAddress || safePoiDisplayAddress(resolved);
           if (!display || hasImplausibleProviderHouse(display)) return;
           const parts = splitTaiwanSuggestionAddress(display);
           if (!parts.county || !parts.district) return;
           if (poiCtx.county && parts.county !== poiCtx.county) return;
           if (poiCtx.district && parts.district !== poiCtx.district) return;
           if (poiCtx.brand && !isConcreteChainCandidate(resolved, poiCtx)) return;
-          const streetAddress = poiStreetAddress(resolved);
           const dedupeKey = addressConfidenceKey(`${resolved.placeName || ''}${streetAddress || display}`);
           if (!dedupeKey || seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
@@ -970,18 +1025,53 @@
       const primarySourceRegion = explicitCounty || (currentLocationBias === ADDRESS_BIAS_LOCATION ? '台中市' : '');
       const poiExtent = poiCtx.county && poiCtx.county !== '台中市' ? ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT : ADDRESS_TAICHUNG_EXTENT;
 
-      // R10Z9C enterprise chain flow: keep collection suggestions, expand text+magicKey into real branches,
-      // and merge them with direct name+zone / zone+name POI searches. This makes word order irrelevant.
+      // R10Z9D: chain searches must not serialize suggest -> direct geocode on mobile WebViews.
+      // Start concrete POI searches at the same time as /suggest, then use text+magicKey only as
+      // a second source. This both lowers latency and follows ArcGIS collection semantics.
       let collectionSuggest = [];
       if (poiCtx.brand) {
-        collectionSuggest = await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller, {
+        const variants = buildPoiQueryVariants(query);
+        const suggestPromise = fetchArcgisSuggest(geocoderQuery, primaryLocation, controller, {
           returnCollections: true, maxSuggestions: 12, searchExtent: poiExtent
-        });
+        }).catch(() => []);
+        const directPromise = Promise.all(variants.slice(0, 4).map(async variant => {
+          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent, 18); }
+          catch (_) { return []; }
+        }));
+        const [suggestItems, directSets] = await Promise.all([suggestPromise, directPromise]);
+        collectionSuggest = Array.isArray(suggestItems) ? suggestItems : [];
+        // Keep any already-discrete suggestion rows that carry useful address/branch information.
         addSuggestionResults(collectionSuggest.filter(item => item.isCollection !== true), primarySourceRegion, primaryLocation);
+        directSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+
+        const concreteCount = merged.filter(item => item.kind === 'poi').length;
+        if (concreteCount < 6) {
+          // Both collection and discrete magicKey suggestions may resolve to a concrete branch.
+          // ArcGIS requires the untouched text+magicKey pair and the same location/search extent.
+          const magicItems = collectionSuggest.filter(item => item?.magicKey).slice(0, 8);
+          const expandedSets = await Promise.all(magicItems.map(async item => {
+            try { return await fetchArcgisSuggestionCandidates(item, primaryLocation, controller, poiExtent); }
+            catch (_) { return []; }
+          }));
+          expandedSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+        }
       } else {
         addSuggestionResults(await fetchArcgisSuggest(geocoderQuery, primaryLocation, controller, {
           returnCollections: false, maxSuggestions: 8, searchExtent: ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT
-        }), primarySourceRegion, primaryLocation);
+        }).catch(() => []), primarySourceRegion, primaryLocation);
+
+        const centralDistrictCount = merged.filter(item => {
+          const parts = splitTaiwanSuggestionAddress(item.text);
+          return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
+        }).length;
+        if (poiCtx.isLikelyPoi && centralDistrictCount < 7) {
+          const variants = buildPoiQueryVariants(query);
+          const directSets = await Promise.all(variants.slice(0, 2).map(async variant => {
+            try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent, 9); }
+            catch (_) { return []; }
+          }));
+          directSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
+        }
       }
 
       const centralDistrictCount = merged.filter(item => {
@@ -989,24 +1079,6 @@
         return Boolean(parts.district && ADDRESS_PRIMARY_REGIONS.some(region => region.name === parts.county));
       }).length;
       const addressLikeQuery = /[路街道巷弄]|[0-9０-９]/.test(String(query || ''));
-
-      if (poiCtx.isLikelyPoi && (centralDistrictCount < 7 || poiCtx.brand)) {
-        const variants = buildPoiQueryVariants(query);
-        const directPromise = Promise.all(variants.slice(0, poiCtx.brand ? 3 : 2).map(async variant => {
-          try { return await fetchArcgisPoiCandidates(variant, primaryLocation, controller, poiExtent, poiCtx.brand ? 14 : 9); }
-          catch (_) { return []; }
-        }));
-        const collectionPromise = poiCtx.brand
-          ? Promise.all(collectionSuggest.filter(item => item?.isCollection === true && item.magicKey).slice(0, 3).map(async item => {
-              try { return await fetchArcgisSuggestionCandidates(item, primaryLocation, controller, poiExtent); }
-              catch (_) { return []; }
-            }))
-          : Promise.resolve([]);
-        const [directSets, expandedSets] = await Promise.all([directPromise, collectionPromise]);
-        // Collection-expanded branches receive the same district/quality gate as direct POI candidates.
-        expandedSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
-        directSets.forEach(items => addPoiCandidates(items, poiCtx.county || primarySourceRegion, primaryLocation));
-      }
 
       if (!explicitCounty && !poiCtx.district && (centralDistrictCount < 4 || addressLikeQuery) && !poiCtx.brand) {
         const enrichmentRegions = centralDistrictCount < 4
@@ -1023,8 +1095,12 @@
         enrichedSets.forEach(result => addSuggestionResults(result.items, result.region, result.location));
       }
 
+      // GC_MASTER_STABLE_2026_08R10Z9D_CONCRETE_BRANCH_ONLY_GATE
       const suggestions = merged
-        .filter(item => !hasImplausibleProviderHouse(item.text))
+        // Chain searches only surface concrete resolved POIs with a real street-level branch address.
+        // Discrete provider labels without an address may still be expanded via magicKey above, but
+        // they are never shown as the final selectable row by themselves.
+        .filter(item => !hasImplausibleProviderHouse(item.text) && (!poiCtx.brand || item.kind === 'poi'))
         .sort((a, b) => (b._score - a._score) || (a._order - b._order))
         .slice(0, 8)
         .map(({ text, lookupText, magicKey, lookupLocation, resolved, placeName, streetAddress, kind, isCollection }) => ({ text, lookupText, magicKey, lookupLocation, resolved, placeName, streetAddress, kind, isCollection }));
@@ -1146,8 +1222,11 @@
   const ARCGIS_RESOLVE_OUT_FIELDS = 'Addr_type,Match_addr,ShortLabel,LongLabel,MatchID,City,District,Region,Subregion,StName,AddNum,Address,StAddr,PlaceName,Place_addr,Postal,CountryCode';
 
   function resolvedCandidateFromArcgis(candidate, fallback = '', options = {}) {
-    if (!candidate || Number(candidate.score || 0) < 80) return null;
+    if (!candidate) return null;
     const attrs = candidate.attributes && typeof candidate.attributes === 'object' ? candidate.attributes : {};
+    const candidateTypeForScore = String(attrs.Addr_type || '');
+    const minimumScore = /^(?:POI|POIExt|BuildingName)$/.test(candidateTypeForScore) ? 65 : 80;
+    if (Number(candidate.score || 0) < minimumScore) return null;
     // GC_MASTER_STABLE_2026_08R10Z9C_POI_PLACE_ADDRESS_PRIORITY
     // ArcGIS POI candidate.address / Match_addr may be only the brand name. For POIs, Place_addr is
     // the actual branch street address and must drive dispatchability; passenger-selected fallback still wins when localized.
@@ -2498,25 +2577,71 @@
       <button class="recent-manage" type="button">管理地址紀錄</button>` : '';
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z9D_RECENT_VIEWPORT_SAFE_POPOVER
+  // The recent picker is positioned against the visual viewport and the whole address card,
+  // not against the small toggle button. This prevents left clipping on Display Zoom / Android
+  // font scaling and keeps long addresses inside the phone screen.
+  function clearRecentQuickPanelInlinePosition(panel) {
+    if (!panel) return;
+    ['position','left','right','top','bottom','width','max-width','max-height'].forEach(prop => panel.style.removeProperty(prop));
+    const control = panel.closest('.recent-address-control');
+    control?.style.removeProperty('position');
+  }
+
   function positionRecentQuickPanel(control) {
     const panel = control?.querySelector('.recent-panel');
     if (!panel || panel.classList.contains('hidden')) return;
-    panel.classList.remove('is-upward');
+    const host = control.closest('.address-field');
+    if (!host) return;
     const viewport = window.visualViewport;
-    const viewportHeight = viewport?.height || window.innerHeight;
     const viewportTop = viewport?.offsetTop || 0;
+    const viewportHeight = viewport?.height || window.innerHeight;
+    const viewportBottom = viewportTop + viewportHeight;
+    const viewportWidth = viewport?.width || window.innerWidth;
     const anchorRect = control.getBoundingClientRect();
-    const panelHeight = Math.min(panel.scrollHeight || 0, 340);
-    const below = viewportTop + viewportHeight - anchorRect.bottom;
-    const above = anchorRect.top - viewportTop;
-    if (below < panelHeight + 14 && above > below && above > 150) panel.classList.add('is-upward');
+    const hostRect = host.getBoundingClientRect();
+    const safe = 8;
+    const sideInset = Math.max(8, Math.min(12, hostRect.width * 0.035));
+    const desiredWidth = Math.min(360, Math.max(210, hostRect.width - sideInset * 2), Math.max(0, viewportWidth - safe * 2));
+
+    // The progressive reveal layer may keep a transformed ancestor. A fixed descendant would then
+    // be positioned relative to that ancestor instead of the visual viewport on iOS/WebKit. Anchor
+    // the popover absolutely to the whole address card instead; this is stable under zoom/animation.
+    control.style.setProperty('position', 'static', 'important');
+    panel.classList.remove('is-upward');
+    panel.style.setProperty('position', 'absolute', 'important');
+    panel.style.setProperty('left', `${Math.round(sideInset)}px`, 'important');
+    panel.style.setProperty('right', 'auto', 'important');
+    panel.style.setProperty('width', `${Math.round(desiredWidth)}px`, 'important');
+    panel.style.setProperty('max-width', `${Math.round(Math.max(0, hostRect.width - sideInset * 2))}px`, 'important');
+
+    // Measure after width is fixed so long addresses wrap before direction/max-height are chosen.
+    const naturalHeight = Math.min(Math.max(panel.scrollHeight || 0, 150), 360);
+    const below = Math.max(0, viewportBottom - anchorRect.bottom - safe);
+    const above = Math.max(0, anchorRect.top - viewportTop - safe);
+    const openUpward = below < Math.min(naturalHeight, 190) && above > below;
+    // Leave a small rendering cushion for borders/margins and fractional CSS pixels so the
+    // panel never touches or crosses the visual viewport edge on WebKit/Display Zoom.
+    const available = Math.max(116, (openUpward ? above : below) - 5);
+    const maxHeight = Math.min(355, available);
+    const anchorTopInHost = anchorRect.top - hostRect.top;
+    const anchorBottomInHost = anchorRect.bottom - hostRect.top;
+    let top = openUpward
+      ? anchorTopInHost - safe - Math.min(naturalHeight, maxHeight)
+      : anchorBottomInHost + safe;
+    if (openUpward) panel.classList.add('is-upward');
+    panel.style.setProperty('top', `${Math.round(top)}px`, 'important');
+    panel.style.setProperty('bottom', 'auto', 'important');
+    panel.style.setProperty('max-height', `${Math.round(maxHeight)}px`, 'important');
   }
 
   function closeRecentQuickPicker() {
     if (!activeRecentControl || recentManagementOpen) return;
     activeRecentControl.classList.remove('is-open');
     activeRecentControl.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'false');
-    activeRecentControl.querySelector('.recent-panel')?.classList.add('hidden');
+    const recentPanel = activeRecentControl.querySelector('.recent-panel');
+    recentPanel?.classList.add('hidden');
+    clearRecentQuickPanelInlinePosition(recentPanel);
     activeRecentControl = null;
     activeRecentTargetId = '';
   }

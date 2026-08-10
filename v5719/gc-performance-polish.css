@@ -1662,3 +1662,35 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
     max-width:calc(100vw - 40px)!important;
   }
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z9D_SHORTCUT_AND_RECENT_POPOVER_FINAL
+   Final safeguard after every legacy layer: quick shortcuts use completion priority,
+   and the recent list is viewport-safe even under iOS Display Zoom / Android font scaling. */
+.gc-pickup-address .gc-address-utility-row{justify-content:flex-end!important}
+.gc-pickup-address .gc-address-utility-row #locationAction{order:1!important}
+.gc-pickup-address .gc-address-utility-row #gcFavoriteToggle{order:2!important}
+.gc-pickup-address .gc-address-utility-row .recent-address-control{order:3!important}
+.recent-address-control.is-open .recent-panel{
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  box-sizing:border-box!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:auto!important;
+}
+.recent-use,.recent-use span{
+  max-width:100%!important;
+  min-width:0!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+@media(max-width:360px){
+  .gc-pickup-address .gc-address-utility-row{justify-content:flex-start!important}
+  .gc-pickup-address .gc-address-utility-row .recent-address-control{
+    flex:0 0 100%!important;
+    display:flex!important;
+    justify-content:flex-end!important;
+    max-width:100%!important;
+  }
+}
+

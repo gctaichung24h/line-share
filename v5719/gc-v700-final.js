@@ -215,10 +215,11 @@
         utility.appendChild(locationAction);
         if (locationStatus) pickup.appendChild(locationStatus);
       }
-      attachRecentAddressShortcut(pickup);
-      // GC_MASTER_STABLE_2026_08R10Z9C_FAVORITE_ON_PICKUP_SHORTCUT
-      // A saved trip is a speed shortcut for both endpoints, so surface it where the journey starts.
+      // GC_MASTER_STABLE_2026_08R10Z9D_PICKUP_SHORTCUT_PRIORITY
+      // Priority follows speed-to-completion: current location -> saved full trip -> recent single address.
+      // A saved trip can populate both endpoints, so it belongs before the recent-address fallback.
       createFavoriteSheet(pickup, document.getElementById('favoriteTripsBox'));
+      attachRecentAddressShortcut(pickup);
     }
     const destination = document.getElementById('destination')?.closest('.address-field');
     if (destination) {
