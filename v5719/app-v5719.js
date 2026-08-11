@@ -1,12 +1,13 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9l';
+  const GC_BUILD_VERSION = 'master202608r10z9w';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
   // GC_MASTER_STABLE_2026_08R10Z9J_FARE_DISCLOSURE_REFINEMENT
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
   // GC_MASTER_STABLE_2026_08R10Z9L_MANUAL_ADDRESS_AND_CONFIRMED_SCHEDULE
+  // GC_MASTER_STABLE_2026_08R10Z9W_TRUE_IPHONE_FLOW_AND_MOTHER_VISUAL_LOCK
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -324,7 +325,10 @@
       <div id="scheduleFields" class="schedule-grid hidden">
         <div class="field gc-schedule-field" style="margin-bottom:0">
           <label for="date">${requiredLabel(cfg['日期標題'])}</label>
-          <input class="input gc-datetime-control gc-date-control" id="date" name="date" type="date" autocomplete="off" aria-describedby="dateError">
+          <div class="input gc-datetime-control gc-date-control gc-date-shell is-empty" id="dateShell" style="position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <span class="gc-date-display" id="dateDisplay" aria-hidden="true">請選擇日期</span>
+            <input class="gc-date-native" id="date" name="date" type="date" autocomplete="off" aria-describedby="dateError" style="position:absolute;z-index:2;inset:0;display:block;width:100%;height:100%;min-width:0;max-width:100%;margin:0;padding:0;border:0;opacity:.001;cursor:pointer">
+          </div>
           <div class="error-text" id="dateError"></div>
         </div>
         <div class="field gc-schedule-field" style="margin-bottom:0">
@@ -3348,6 +3352,26 @@
     return { hour, minute };
   }
 
+  function formatReservationDate(rawValue) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rawValue || ''));
+    if (!match) return '';
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day, 12));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+    try {
+      return new Intl.DateTimeFormat('zh-TW', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'Asia/Taipei'
+      }).format(date);
+    } catch (_) {
+      return `${match[1]}/${match[2]}/${match[3]}`;
+    }
+  }
+
   function reservationScheduleReady() {
     const date = document.getElementById('date');
     const time = document.getElementById('time');
@@ -3367,6 +3391,8 @@
 
   function bindScheduleControls() {
     const date = document.getElementById('date');
+    const dateShell = document.getElementById('dateShell');
+    const dateDisplay = document.getElementById('dateDisplay');
     const time = document.getElementById('time');
     const trigger = document.getElementById('timeTrigger');
     const display = document.getElementById('timeDisplay');
@@ -3378,7 +3404,7 @@
     const confirmButton = document.getElementById('gcTimeConfirm');
     const status = document.getElementById('gcTimePickerStatus');
     const rideCard = document.querySelector('.gc-ride-card');
-    if (!date || !time || !trigger || !display || !overlay || !card || !hourWheel || !minuteWheel || !cancelButton || !confirmButton) {
+    if (!date || !dateShell || !dateDisplay || !time || !trigger || !display || !overlay || !card || !hourWheel || !minuteWheel || !cancelButton || !confirmButton) {
       return { reset() {}, close() {} };
     }
 
@@ -3394,6 +3420,17 @@
     const wheelLimit = wheel => wheel === hourWheel ? 23 : 59;
     const wheelDraftKey = wheel => wheel === hourWheel ? 'hour' : 'minute';
     const wheelOptionHeight = wheel => wheel.querySelector('.gc-time-option')?.getBoundingClientRect().height || 48;
+
+    function syncDatePresentation() {
+      const formattedDate = date.validity.valid ? formatReservationDate(date.value) : '';
+      dateDisplay.textContent = formattedDate || '請選擇日期';
+      dateShell.classList.toggle('is-empty', !formattedDate);
+      dateShell.style.setProperty('color', formattedDate ? '#183a51' : '#a7b3bd', 'important');
+      date.setAttribute(
+        'aria-label',
+        formattedDate ? `用車日期 ${formattedDate}，按下可重新選擇` : '選擇用車日期'
+      );
+    }
 
     function syncTriggerPresentation() {
       const confirmedTime = parseReservationTime(time.value) ? time.value : '';
@@ -3589,6 +3626,7 @@
       delete time.dataset.gcConfirmed;
       delete time.dataset.gcConfirmedValue;
       delete time.dataset.gcPickerOpen;
+      syncDatePresentation();
       syncTriggerPresentation();
       if (!overlay.classList.contains('hidden')) {
         finishClose(false, { restoreFocus: options.restoreFocus !== false });
@@ -3598,6 +3636,7 @@
 
     bindWheel(hourWheel);
     bindWheel(minuteWheel);
+    syncDatePresentation();
     syncTriggerPresentation();
     trigger.addEventListener('click', openPicker);
     cancelButton.addEventListener('click', () => finishClose(true));
@@ -3631,6 +3670,7 @@
     // Keep an unchanged committed value valid, invalidate as soon as the value itself
     // changes, and restore it if WebKit reports the old value again after Cancel.
     date.addEventListener('input', () => {
+      syncDatePresentation();
       if (date.value && date.validity.valid && date.value === date.dataset.gcConfirmedValue) {
         date.dataset.gcConfirmed = '1';
       } else {
@@ -3639,6 +3679,7 @@
       emitScheduleState();
     }, { passive: true });
     date.addEventListener('change', () => {
+      syncDatePresentation();
       if (date.value && date.validity.valid) {
         date.dataset.gcConfirmed = '1';
         date.dataset.gcConfirmedValue = date.value;
@@ -3665,12 +3706,15 @@
 
   function clearFieldValidation(id) {
     const input = document.getElementById(id);
-    const visualControl = id === 'time' ? document.getElementById('timeTrigger') : input;
+    const visualControl = id === 'date'
+      ? document.getElementById('dateShell')
+      : id === 'time' ? document.getElementById('timeTrigger') : input;
+    const accessibleControl = id === 'time' ? visualControl : input;
     const error = document.getElementById(`${id}Error`);
     if (visualControl) {
       visualControl.classList.remove('invalid');
-      visualControl.removeAttribute('aria-invalid');
     }
+    accessibleControl?.removeAttribute('aria-invalid');
     visualControl?.closest('.field')?.classList.remove('gc-validation-error');
     if (error) {
       error.textContent = '';
@@ -3698,6 +3742,7 @@
       el.classList.remove('invalid');
       el.removeAttribute('aria-invalid');
     });
+    document.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
     document.querySelectorAll('.gc-validation-error').forEach(el => el.classList.remove('gc-validation-error'));
     const global = document.getElementById('globalError');
     if (global) {
@@ -3708,13 +3753,16 @@
 
   function showFieldError(id, message) {
     const input = document.getElementById(id);
-    const visualControl = id === 'time' ? document.getElementById('timeTrigger') : input;
+    const visualControl = id === 'date'
+      ? document.getElementById('dateShell')
+      : id === 'time' ? document.getElementById('timeTrigger') : input;
+    const accessibleControl = id === 'time' ? visualControl : input;
     const error = document.getElementById(`${id}Error`);
     if (visualControl) {
       visualControl.classList.add('invalid');
-      visualControl.setAttribute('aria-invalid', 'true');
       visualControl.closest('.field')?.classList.add('gc-validation-error');
     }
+    accessibleControl?.setAttribute('aria-invalid', 'true');
     if (error) {
       error.textContent = message;
       error.classList.add('show');
