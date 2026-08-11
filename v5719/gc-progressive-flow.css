@@ -450,6 +450,14 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
     padding-top:11px!important;
   }
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z13_NARROW_SCREEN_LARGE_TEXT_COMPAT_SEAL
+   Hidden state must remain authoritative on narrow screens. An older <=360px
+   layout rule made an empty recent-address control participate in the no-wrap
+   shortcut row, clipping the two real actions for first-time users. */
+.gc-ride-card .gc-address-utility-row>.recent-address-control.hidden{
+  display:none!important;
+}
 @media(max-width:330px){
   .gc-call-needs-box>summary{
     column-gap:5px!important;
@@ -1725,4 +1733,126 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 }
 .gc-ride-card .gc-pickup-address>.location-status.is-address-admin-strong{
   margin-top:6px!important;
+}
+
+/* GC_MASTER_STABLE_2026_08R10Z12_PREMIUM_VISUAL_HIERARCHY
+   Long-term visual lock: readable hierarchy, visible keyboard focus, stable
+   disclosure geometry and larger effective touch targets without changing copy,
+   business logic, visible shortcut geometry or the LINE payload. */
+:root{
+  --gc-premium-muted:#5f7585;
+  --gc-premium-control-border:#7f96a5;
+  --gc-premium-focus:#4f84ab;
+}
+
+.form-head p,
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy,
+.gc-enterprise-fare .gc-fare-step-kicker span,
+.gc-enterprise-fare .gc-fare-calc-kicker span,
+.gc-call-needs-box>summary .gc-needs-summary-meta,
+.gc-ride-card .gc-pickup-address>.location-status.is-address-admin-soft,
+.gc-fare-card .gc-fare-manual-details>summary .gc-fare-manual-label{
+  color:var(--gc-premium-muted)!important;
+}
+
+.gc-fare-card .input::placeholder,
+.gc-fare-card textarea::placeholder,
+.gc-fare-card .gc-fare-calc-input::placeholder,
+.gc-call-card .input::placeholder,
+.gc-call-card textarea::placeholder,
+.gc-driver-card .input::placeholder,
+.gc-driver-card textarea::placeholder,
+.gc-ride-card .gc-date-shell.is-empty,
+.gc-ride-card .gc-time-trigger.is-empty{
+  color:var(--gc-premium-muted)!important;
+  opacity:1!important;
+}
+
+.gc-ride-card .field:not(.gc-validation-error)>.input:not(:focus-visible),
+.gc-ride-card .field:not(.gc-validation-error)>textarea:not(:focus-visible),
+.gc-fare-card .field:not(.gc-validation-error)>.input:not(:focus-visible),
+.gc-fare-card .field:not(.gc-validation-error)>textarea:not(:focus-visible),
+.gc-ride-card .gc-date-shell:not(.invalid):not(:focus-visible),
+.gc-ride-card .gc-time-trigger:not(.invalid):not(:focus-visible),
+.gc-fare-card .gc-fare-calc-input-wrap:not(:focus-within),
+.segmented .choice input:not(:checked)+span{
+  border-color:var(--gc-premium-control-border)!important;
+}
+
+.gc-ride-card .gc-address-utility-row button:focus-visible,
+.gc-address-admin-options>button:focus-visible,
+.gc-fare-admin-options>button:focus-visible,
+.location-confirm-btn:focus-visible{
+  outline:2px solid var(--gc-premium-focus)!important;
+  outline-offset:2px!important;
+}
+
+.gc-ride-card .input:focus-visible,
+.gc-ride-card textarea:focus-visible,
+.gc-ride-card .gc-select:focus-visible,
+.gc-fare-card .input:focus-visible,
+.gc-fare-card textarea:focus-visible,
+.gc-fare-card .gc-fare-calc-input:focus-visible{
+  border-color:var(--gc-premium-focus)!important;
+  outline:2px solid var(--gc-premium-focus)!important;
+  outline-offset:1px!important;
+  box-shadow:0 0 0 3px rgba(79,132,171,.14)!important;
+}
+
+.segmented .choice input:focus-visible+span{
+  outline:2px solid var(--gc-premium-focus)!important;
+  outline-offset:2px!important;
+}
+
+.gc-address-admin-options>button{
+  min-height:44px!important;
+}
+
+.gc-fare-manual-details[open]>summary{
+  min-height:48px!important;
+  padding:10px 13px!important;
+}
+.gc-fare-manual-details[open]>summary .gc-fare-manual-label{
+  transform:none!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .gc-ride-card *,
+  .gc-ride-card *::before,
+  .gc-ride-card *::after,
+  .gc-fare-card *,
+  .gc-fare-card *::before,
+  .gc-fare-card *::after{
+    animation:none!important;
+    transition:none!important;
+    scroll-behavior:auto!important;
+  }
+  .gc-enterprise-flow[data-gc-flow-pickup-ready="1"] .gc-flow-advanced{
+    animation:none!important;
+    transition:none!important;
+  }
+}
+
+/* GC_MASTER_STABLE_2026_08R10Z13_EXTREME_TEXT_BOUNDS_SEAL
+   Scope lock: sub-320px seeded instant shortcuts and the two picker labels only.
+   Normal 320px+ control geometry, colour and application behaviour stay owned by
+   the sealed R10Z11/R10Z12 layers above. */
+@media(max-width:318px){
+  .gc-ride-card .gc-pickup-address>.gc-address-utility-row{
+    --gc-shortcut-pill-width:calc((100% - 10px)/3);
+  }
+  .gc-ride-card .gc-pickup-address>.gc-address-utility-row .location-btn,
+  .gc-ride-card .gc-pickup-address>.gc-address-utility-row>#gcFavoriteToggle,
+  .gc-ride-card .gc-pickup-address>.gc-address-utility-row .recent-toggle{
+    -webkit-text-size-adjust:100%!important;
+    text-size-adjust:100%!important;
+  }
+  .gc-date-day{
+    -webkit-text-size-adjust:100%!important;
+    text-size-adjust:100%!important;
+  }
+}
+.gc-time-option{
+  -webkit-text-size-adjust:100%!important;
+  text-size-adjust:100%!important;
 }

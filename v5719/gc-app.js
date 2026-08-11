@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z11';
+  const GC_BUILD_VERSION = 'master202608r10z13';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -170,25 +170,61 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let modalScrollY = 0;
   let modalLockDepth = 0;
   let liffReadyPromise = null;
+  // GC_MASTER_STABLE_2026_08R10Z12_LIFF_BOUNDED_FAILURE
+  // A stalled CDN or LIFF initialization must end in a recoverable error card,
+  // never an indefinitely loading form or an indefinitely pending submit.
+  const GC_LIFF_SDK_TIMEOUT_MS = 12000;
+  const GC_LIFF_INIT_TIMEOUT_MS = 12000;
+
+  function withTimeout(work, timeoutMs, message) {
+    let timer = 0;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+    return Promise.race([Promise.resolve(work), timeout]).finally(() => window.clearTimeout(timer));
+  }
 
   function loadLiffSdk() {
     if (window.liff) return Promise.resolve(window.liff);
     return new Promise((resolve, reject) => {
-      const finish = () => window.liff ? resolve(window.liff) : reject(new Error('LIFF SDK 載入失敗。'));
-      const fail = () => reject(new Error('LIFF SDK 載入失敗，請確認網路後重試。'));
-      const existing = document.querySelector('script[data-gc-liff-sdk="1"]');
-      if (existing) {
-        existing.addEventListener('load', finish, { once: true });
-        existing.addEventListener('error', fail, { once: true });
-        return;
+      let settled = false;
+      let timer = 0;
+      let script = document.querySelector('script[data-gc-liff-sdk="1"]');
+      const createdHere = !script;
+      const cleanup = () => {
+        window.clearTimeout(timer);
+        script?.removeEventListener('load', finish);
+        script?.removeEventListener('error', fail);
+      };
+      const settle = (handler, value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        handler(value);
+      };
+      const finish = () => window.liff
+        ? settle(resolve, window.liff)
+        : settle(reject, new Error('LIFF SDK 載入失敗。'));
+      const fail = () => {
+        if (createdHere) script?.remove();
+        settle(reject, new Error('LIFF SDK 載入失敗，請確認網路後重試。'));
+      };
+      if (!script) {
+        script = document.createElement('script');
+        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+        script.async = true;
+        script.dataset.gcLiffSdk = '1';
       }
-      const script = document.createElement('script');
-      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-      script.async = true;
-      script.dataset.gcLiffSdk = '1';
-      script.addEventListener('load', finish, { once: true });
-      script.addEventListener('error', fail, { once: true });
-      document.head.appendChild(script);
+      script.addEventListener('load', finish);
+      script.addEventListener('error', fail);
+      timer = window.setTimeout(() => {
+        if (createdHere) script?.remove();
+        settle(reject, new Error('LIFF SDK 載入逾時，請確認網路後重試。'));
+      }, GC_LIFF_SDK_TIMEOUT_MS);
+      if (createdHere) document.head.appendChild(script);
+      // Close the tiny race where an existing SDK tag finishes between the
+      // initial window.liff check and listener attachment.
+      if (window.liff) finish();
     });
   }
 
@@ -196,9 +232,17 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (preview) return Promise.resolve(null);
     if (!liffReadyPromise) {
       liffReadyPromise = loadLiffSdk().then(async sdk => {
-        await sdk.init({ liffId: CONFIG.liffId });
+        await withTimeout(
+          sdk.init({ liffId: CONFIG.liffId }),
+          GC_LIFF_INIT_TIMEOUT_MS,
+          'LIFF 初始化逾時，請確認網路後重試。'
+        );
         return sdk;
       });
+      liffReadyPromise.then(
+        () => window.dispatchEvent(new CustomEvent('gc:liff-settled', { detail: { ready: true } })),
+        () => window.dispatchEvent(new CustomEvent('gc:liff-settled', { detail: { ready: false } }))
+      );
     }
     return liffReadyPromise;
   }
@@ -294,13 +338,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
-          <button class="recent-toggle" type="button" aria-expanded="false" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
+          <button class="recent-toggle" type="button" aria-expanded="false" aria-haspopup="dialog" aria-controls="${id}RecentPanel" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}">
             <span class="recent-clock" aria-hidden="true">↺</span>
             <span class="recent-title">${escapeHtml(COMMON['最近地址按鈕'] || '最近地址')}</span>
             <span class="recent-count"></span>
             <span class="recent-chevron" aria-hidden="true">⌄</span>
           </button>
-          <div class="recent-panel hidden" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
+          <div class="recent-panel hidden" id="${id}RecentPanel" role="dialog" aria-label="${escapeHtml(COMMON['最近地址標題'] || '最近地址')}"></div>
         </div>` : ''}
         <div class="error-text" id="${id}Error"></div>
       </div>`;
@@ -6143,11 +6187,19 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   let tries = 0;
   const timer = setInterval(() => {
+    if (document.querySelector('.error-card')) {
+      clearInterval(timer);
+      return;
+    }
     tries += 1;
     applyOnce();
     patchSend();
     if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
   }, 50);
+  window.addEventListener('gc:liff-settled', event => {
+    if (event.detail?.ready) patchSend();
+    else clearInterval(timer);
+  }, { once: true });
 })();
 ;
 (() => {

@@ -550,9 +550,17 @@
 
   let tries = 0;
   const timer = setInterval(() => {
+    if (document.querySelector('.error-card')) {
+      clearInterval(timer);
+      return;
+    }
     tries += 1;
     applyOnce();
     patchSend();
     if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
   }, 50);
+  window.addEventListener('gc:liff-settled', event => {
+    if (event.detail?.ready) patchSend();
+    else clearInterval(timer);
+  }, { once: true });
 })();
