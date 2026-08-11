@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9w';
+  const GC_BUILD_VERSION = 'master202608r10z9x';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -8,6 +8,7 @@
   // GC_MASTER_STABLE_2026_08R10Z9K_INLINE_HELP_AND_PLACEHOLDER_TONE
   // GC_MASTER_STABLE_2026_08R10Z9L_MANUAL_ADDRESS_AND_CONFIRMED_SCHEDULE
   // GC_MASTER_STABLE_2026_08R10Z9W_TRUE_IPHONE_FLOW_AND_MOTHER_VISUAL_LOCK
+  // GC_MASTER_STABLE_2026_08R10Z9X_CUSTOM_FROSTED_DATE_MODAL
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -324,11 +325,11 @@
     return `
       <div id="scheduleFields" class="schedule-grid hidden">
         <div class="field gc-schedule-field" style="margin-bottom:0">
-          <label for="date">${requiredLabel(cfg['日期標題'])}</label>
-          <div class="input gc-datetime-control gc-date-control gc-date-shell is-empty" id="dateShell" style="position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <label for="dateShell">${requiredLabel(cfg['日期標題'])}</label>
+          <button class="input gc-datetime-control gc-date-control gc-date-shell is-empty" id="dateShell" type="button" aria-haspopup="dialog" aria-controls="gcDatePicker" aria-expanded="false" aria-describedby="dateError" aria-label="選擇用車日期">
             <span class="gc-date-display" id="dateDisplay" aria-hidden="true">請選擇日期</span>
-            <input class="gc-date-native" id="date" name="date" type="date" autocomplete="off" aria-describedby="dateError" style="position:absolute;z-index:2;inset:0;display:block;width:100%;height:100%;min-width:0;max-width:100%;margin:0;padding:0;border:0;opacity:.001;cursor:pointer">
-          </div>
+          </button>
+          <input class="gc-date-native" id="date" name="date" type="date" autocomplete="off" tabindex="-1" aria-hidden="true" hidden>
           <div class="error-text" id="dateError"></div>
         </div>
         <div class="field gc-schedule-field" style="margin-bottom:0">
@@ -347,6 +348,34 @@
       const label = String(value).padStart(2, '0');
       return `<button id="${prefix}Option${label}" class="gc-time-option" type="button" role="option" aria-selected="false" tabindex="-1" data-value="${label}">${label}</button>`;
     }).join('');
+  }
+
+  function renderDatePicker() {
+    return `
+      <div id="gcDatePickerOverlay" class="gc-time-picker-overlay gc-date-picker-overlay hidden" aria-hidden="true">
+        <section id="gcDatePicker" class="gc-time-picker-card gc-date-picker-card" role="dialog" aria-modal="true" aria-labelledby="gcDatePickerTitle" aria-describedby="gcDatePickerHelp" tabindex="-1">
+          <header class="gc-time-picker-head gc-date-picker-head">
+            <h2 id="gcDatePickerTitle">選擇用車日期</h2>
+            <p id="gcDatePickerHelp">點選日期後按完成</p>
+          </header>
+          <p id="gcDatePickerStatus" class="sr-only" aria-live="polite"></p>
+          <div class="gc-date-picker-panel">
+            <div class="gc-date-month-bar">
+              <button id="gcDatePrev" class="gc-date-month-nav" type="button" aria-label="上一個月"></button>
+              <strong id="gcDateMonthLabel" class="gc-date-month-label" aria-live="polite"></strong>
+              <button id="gcDateNext" class="gc-date-month-nav gc-date-next" type="button" aria-label="下一個月"></button>
+            </div>
+            <div class="gc-date-weekdays" aria-hidden="true">
+              <span>週日</span><span>週一</span><span>週二</span><span>週三</span><span>週四</span><span>週五</span><span>週六</span>
+            </div>
+            <div id="gcDateGrid" class="gc-date-grid" role="grid" aria-labelledby="gcDateMonthLabel"></div>
+          </div>
+          <div class="gc-time-actions gc-date-actions">
+            <button class="gc-time-cancel gc-date-cancel" id="gcDateCancel" type="button">取消</button>
+            <button class="gc-time-confirm gc-date-confirm" id="gcDateConfirm" type="button">完成</button>
+          </div>
+        </section>
+      </div>`;
   }
 
   function renderTimePicker() {
@@ -3126,6 +3155,7 @@
 
   function renderRideLike(mode, cfg) {
     attachedLocation = null;
+    document.querySelector('body > #gcDatePickerOverlay')?.remove();
     document.querySelector('body > #gcTimePickerOverlay')?.remove();
     const isDriver = mode === 'driver';
     const extraFields = isDriver
@@ -3164,6 +3194,7 @@
         ${renderRecentClearModal()}
         ${renderFavoriteSaveModal()}
       </section>
+      ${renderDatePicker()}
       ${renderTimePicker()}`;
 
     bindRideLike(mode, cfg);
@@ -3352,23 +3383,40 @@
     return { hour, minute };
   }
 
-  function formatReservationDate(rawValue) {
+  function parseReservationDate(rawValue) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(rawValue || ''));
-    if (!match) return '';
+    if (!match) return null;
     const year = Number(match[1]);
     const month = Number(match[2]);
     const day = Number(match[3]);
     const date = new Date(Date.UTC(year, month - 1, day, 12));
-    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return { year, month, day, date, value: `${match[1]}-${match[2]}-${match[3]}` };
+  }
+
+  function reservationDateValue(date) {
+    return `${String(date.getUTCFullYear()).padStart(4, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  }
+
+  function reservationDateAllowed(rawValue, minValue = '') {
+    const parsed = parseReservationDate(rawValue);
+    if (!parsed) return false;
+    const minimum = parseReservationDate(minValue);
+    return !minimum || parsed.value >= minimum.value;
+  }
+
+  function formatReservationDate(rawValue) {
+    const parsed = parseReservationDate(rawValue);
+    if (!parsed) return '';
     try {
       return new Intl.DateTimeFormat('zh-TW', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         timeZone: 'Asia/Taipei'
-      }).format(date);
+      }).format(parsed.date);
     } catch (_) {
-      return `${match[1]}/${match[2]}/${match[3]}`;
+      return `${String(parsed.year).padStart(4, '0')}/${String(parsed.month).padStart(2, '0')}/${String(parsed.day).padStart(2, '0')}`;
     }
   }
 
@@ -3377,7 +3425,8 @@
     const time = document.getElementById('time');
     return Boolean(
       date?.value
-      && date.validity.valid
+      && reservationDateAllowed(date.value, date.min)
+      && date.dataset.gcPickerOpen !== '1'
       && date.dataset.gcConfirmed === '1'
       && date.dataset.gcConfirmedValue === date.value
       && time?.value
@@ -3393,6 +3442,15 @@
     const date = document.getElementById('date');
     const dateShell = document.getElementById('dateShell');
     const dateDisplay = document.getElementById('dateDisplay');
+    const dateOverlay = document.getElementById('gcDatePickerOverlay');
+    const dateCard = document.getElementById('gcDatePicker');
+    const dateMonthLabel = document.getElementById('gcDateMonthLabel');
+    const datePrevButton = document.getElementById('gcDatePrev');
+    const dateNextButton = document.getElementById('gcDateNext');
+    const dateGrid = document.getElementById('gcDateGrid');
+    const dateCancelButton = document.getElementById('gcDateCancel');
+    const dateConfirmButton = document.getElementById('gcDateConfirm');
+    const dateStatus = document.getElementById('gcDatePickerStatus');
     const time = document.getElementById('time');
     const trigger = document.getElementById('timeTrigger');
     const display = document.getElementById('timeDisplay');
@@ -3404,14 +3462,16 @@
     const confirmButton = document.getElementById('gcTimeConfirm');
     const status = document.getElementById('gcTimePickerStatus');
     const rideCard = document.querySelector('.gc-ride-card');
-    if (!date || !dateShell || !dateDisplay || !time || !trigger || !display || !overlay || !card || !hourWheel || !minuteWheel || !cancelButton || !confirmButton) {
+    if (!date || !dateShell || !dateDisplay || !dateOverlay || !dateCard || !dateMonthLabel || !datePrevButton || !dateNextButton || !dateGrid || !dateCancelButton || !dateConfirmButton || !time || !trigger || !display || !overlay || !card || !hourWheel || !minuteWheel || !cancelButton || !confirmButton) {
       return { reset() {}, close() {} };
     }
 
     // Keep the fixed overlay outside every card/flow stacking context. It is removed again
     // when the success screen replaces the form.
+    if (dateOverlay.parentElement !== document.body) document.body.appendChild(dateOverlay);
     if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
 
+    let dateEdit = null;
     let edit = null;
     const scrollTimers = new Map();
     const visualViewport = window.visualViewport;
@@ -3422,11 +3482,11 @@
     const wheelOptionHeight = wheel => wheel.querySelector('.gc-time-option')?.getBoundingClientRect().height || 48;
 
     function syncDatePresentation() {
-      const formattedDate = date.validity.valid ? formatReservationDate(date.value) : '';
+      const formattedDate = reservationDateAllowed(date.value, date.min) ? formatReservationDate(date.value) : '';
       dateDisplay.textContent = formattedDate || '請選擇日期';
       dateShell.classList.toggle('is-empty', !formattedDate);
       dateShell.style.setProperty('color', formattedDate ? '#183a51' : '#a7b3bd', 'important');
-      date.setAttribute(
+      dateShell.setAttribute(
         'aria-label',
         formattedDate ? `用車日期 ${formattedDate}，按下可重新選擇` : '選擇用車日期'
       );
@@ -3440,6 +3500,196 @@
         'aria-label',
         confirmedTime ? `用車時間 ${confirmedTime}，按下可重新選擇` : '選擇用車時間'
       );
+    }
+
+    function syncDatePickerViewport() {
+      const viewport = window.visualViewport;
+      dateOverlay.style.setProperty('--gc-vv-left', `${viewport?.offsetLeft || 0}px`);
+      dateOverlay.style.setProperty('--gc-vv-top', `${viewport?.offsetTop || 0}px`);
+      dateOverlay.style.setProperty('--gc-vv-width', `${viewport?.width || window.innerWidth}px`);
+      dateOverlay.style.setProperty('--gc-vv-height', `${viewport?.height || window.innerHeight}px`);
+    }
+
+    function stopDateViewportTracking() {
+      visualViewport?.removeEventListener('resize', syncDatePickerViewport);
+      visualViewport?.removeEventListener('scroll', syncDatePickerViewport);
+      window.removeEventListener('resize', syncDatePickerViewport);
+    }
+
+    function startDateViewportTracking() {
+      syncDatePickerViewport();
+      visualViewport?.addEventListener('resize', syncDatePickerViewport, { passive: true });
+      visualViewport?.addEventListener('scroll', syncDatePickerViewport, { passive: true });
+      window.addEventListener('resize', syncDatePickerViewport, { passive: true });
+    }
+
+    function setDatePickerOpen(open) {
+      dateOverlay.classList.toggle('hidden', !open);
+      dateOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+      dateShell.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (rideCard) {
+        try { rideCard.inert = open; } catch (_) {}
+      }
+    }
+
+    function dateFromParts(year, month, day) {
+      return new Date(Date.UTC(year, month - 1, day, 12));
+    }
+
+    function shiftedDateValue(rawValue, days) {
+      const parsed = parseReservationDate(rawValue);
+      if (!parsed) return '';
+      const shifted = new Date(parsed.date.getTime());
+      shifted.setUTCDate(shifted.getUTCDate() + days);
+      return reservationDateValue(shifted);
+    }
+
+    function shiftedMonthValue(rawValue, months) {
+      const parsed = parseReservationDate(rawValue);
+      if (!parsed) return '';
+      const first = new Date(Date.UTC(parsed.year, parsed.month - 1 + months, 1, 12));
+      const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0, 12)).getUTCDate();
+      return reservationDateValue(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(parsed.day, lastDay), 12)));
+    }
+
+    function dateAriaLabel(parsed) {
+      try {
+        return new Intl.DateTimeFormat('zh-TW', {
+          year: 'numeric', month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Taipei'
+        }).format(parsed.date);
+      } catch (_) {
+        return `${parsed.year}年${parsed.month}月${parsed.day}日`;
+      }
+    }
+
+    function renderDateCalendar(options = {}) {
+      if (!dateEdit) return;
+      const minDate = parseReservationDate(date.min);
+      const todayValue = minDate?.value || '';
+      const firstOfMonth = dateFromParts(dateEdit.viewYear, dateEdit.viewMonth, 1);
+      const gridStart = new Date(firstOfMonth.getTime());
+      gridStart.setUTCDate(1 - firstOfMonth.getUTCDay());
+      dateMonthLabel.textContent = `${dateEdit.viewYear}年${dateEdit.viewMonth}月`;
+      const currentMonthOrdinal = (dateEdit.viewYear * 12) + dateEdit.viewMonth;
+      const minimumMonthOrdinal = minDate ? (minDate.year * 12) + minDate.month : Number.NEGATIVE_INFINITY;
+      const previousDisabled = currentMonthOrdinal <= minimumMonthOrdinal;
+      datePrevButton.disabled = previousDisabled;
+      datePrevButton.setAttribute('aria-disabled', previousDisabled ? 'true' : 'false');
+      const cells = [];
+      for (let index = 0; index < 42; index += 1) {
+        const cellDate = new Date(gridStart.getTime());
+        cellDate.setUTCDate(gridStart.getUTCDate() + index);
+        const value = reservationDateValue(cellDate);
+        const parsed = parseReservationDate(value);
+        const outside = parsed.month !== dateEdit.viewMonth;
+        const disabled = Boolean(minDate && value < minDate.value);
+        const selected = value === dateEdit.draftValue;
+        const today = value === todayValue;
+        const classes = ['gc-date-day'];
+        if (outside) classes.push('is-outside');
+        if (selected) classes.push('is-selected');
+        if (today) classes.push('is-today');
+        cells.push(`<button class="${classes.join(' ')}" type="button" role="gridcell" data-date="${value}" aria-label="${dateAriaLabel(parsed)}" aria-selected="${selected ? 'true' : 'false'}" aria-disabled="${disabled ? 'true' : 'false'}" tabindex="${selected ? '0' : '-1'}"${disabled ? ' disabled' : ''}>${parsed.day}</button>`);
+      }
+      dateGrid.innerHTML = cells.join('');
+      dateConfirmButton.disabled = !reservationDateAllowed(dateEdit.draftValue, date.min);
+      if (dateStatus) dateStatus.textContent = `目前選擇 ${formatReservationDate(dateEdit.draftValue)}`;
+      if (options.focusValue) {
+        requestAnimationFrame(() => {
+          const target = dateGrid.querySelector(`[data-date="${options.focusValue}"]:not([disabled])`) || dateGrid.querySelector('.gc-date-day:not([disabled])');
+          try { target?.focus({ preventScroll: true }); }
+          catch (_) { try { target?.focus(); } catch (_) {} }
+        });
+      }
+    }
+
+    function selectDateDraft(nextValue, options = {}) {
+      const parsed = parseReservationDate(nextValue);
+      if (!dateEdit || !parsed || !reservationDateAllowed(parsed.value, date.min)) return;
+      dateEdit.draftValue = parsed.value;
+      dateEdit.viewYear = parsed.year;
+      dateEdit.viewMonth = parsed.month;
+      renderDateCalendar({ focusValue: options.focus === false ? '' : parsed.value });
+    }
+
+    function finishDateClose(restorePrevious, options = {}) {
+      if (dateOverlay.classList.contains('hidden')) return;
+      const previousConfirmed = dateEdit?.previousConfirmed === true;
+      const previousValue = dateEdit?.previousValue || '';
+      const focusWasInsidePicker = dateOverlay.contains(document.activeElement);
+      setDatePickerOpen(false);
+      stopDateViewportTracking();
+      delete date.dataset.gcPickerOpen;
+      if (restorePrevious) {
+        date.value = previousValue;
+        if (previousConfirmed && reservationDateAllowed(previousValue, date.min)) {
+          date.dataset.gcConfirmed = '1';
+          date.dataset.gcConfirmedValue = previousValue;
+        } else {
+          delete date.dataset.gcConfirmed;
+          delete date.dataset.gcConfirmedValue;
+        }
+      }
+      syncDatePresentation();
+      dateEdit = null;
+      unlockViewport();
+      emitScheduleState();
+      if (options.restoreFocus === false) {
+        if (focusWasInsidePicker) try { document.activeElement?.blur(); } catch (_) {}
+        return;
+      }
+      if (document.getElementById('scheduleFields')?.classList.contains('hidden')) return;
+      try { dateShell.focus({ preventScroll: true }); }
+      catch (_) { try { dateShell.focus(); } catch (_) {} }
+    }
+
+    function openDatePicker() {
+      if (!dateOverlay.classList.contains('hidden') || !overlay.classList.contains('hidden')) return;
+      setDateMinimum();
+      const current = parseReservationDate(date.value);
+      const minimum = parseReservationDate(date.min);
+      const initial = current && reservationDateAllowed(current.value, date.min) ? current : minimum;
+      if (!initial) return;
+      dateEdit = {
+        previousValue: date.value,
+        previousConfirmed: date.dataset.gcConfirmed === '1' && date.dataset.gcConfirmedValue === date.value,
+        draftValue: initial.value,
+        viewYear: initial.year,
+        viewMonth: initial.month
+      };
+      date.dataset.gcPickerOpen = '1';
+      delete date.dataset.gcConfirmed;
+      delete date.dataset.gcConfirmedValue;
+      clearFieldValidation('date');
+      lockViewport();
+      setDatePickerOpen(true);
+      startDateViewportTracking();
+      renderDateCalendar({ focusValue: initial.value });
+      emitScheduleState();
+    }
+
+    function confirmDate() {
+      if (!dateEdit || !reservationDateAllowed(dateEdit.draftValue, date.min)) return;
+      const nextValue = dateEdit.draftValue;
+      date.value = nextValue;
+      date.dataset.gcConfirmed = '1';
+      date.dataset.gcConfirmedValue = nextValue;
+      delete date.dataset.gcPickerOpen;
+      clearFieldValidation('date');
+      syncDatePresentation();
+      finishDateClose(false);
+      date.dispatchEvent(new Event('input', { bubbles: true }));
+      date.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function changeDateMonth(delta) {
+      if (!dateEdit) return;
+      const target = new Date(Date.UTC(dateEdit.viewYear, dateEdit.viewMonth - 1 + delta, 1, 12));
+      const minimum = parseReservationDate(date.min);
+      if (minimum && target < dateFromParts(minimum.year, minimum.month, 1)) return;
+      dateEdit.viewYear = target.getUTCFullYear();
+      dateEdit.viewMonth = target.getUTCMonth() + 1;
+      renderDateCalendar();
     }
 
     function syncPickerViewport() {
@@ -3575,7 +3825,7 @@
     }
 
     function openPicker() {
-      if (!overlay.classList.contains('hidden')) return;
+      if (!overlay.classList.contains('hidden') || !dateOverlay.classList.contains('hidden')) return;
       scrollTimers.forEach(timer => clearTimeout(timer));
       scrollTimers.clear();
       const parsed = parseReservationTime(time.value);
@@ -3623,11 +3873,13 @@
       time.value = '';
       delete date.dataset.gcConfirmed;
       delete date.dataset.gcConfirmedValue;
+      delete date.dataset.gcPickerOpen;
       delete time.dataset.gcConfirmed;
       delete time.dataset.gcConfirmedValue;
       delete time.dataset.gcPickerOpen;
       syncDatePresentation();
       syncTriggerPresentation();
+      if (!dateOverlay.classList.contains('hidden')) finishDateClose(false, { restoreFocus: options.restoreFocus !== false });
       if (!overlay.classList.contains('hidden')) {
         finishClose(false, { restoreFocus: options.restoreFocus !== false });
       }
@@ -3638,6 +3890,56 @@
     bindWheel(minuteWheel);
     syncDatePresentation();
     syncTriggerPresentation();
+    dateShell.addEventListener('click', openDatePicker);
+    datePrevButton.addEventListener('click', () => changeDateMonth(-1));
+    dateNextButton.addEventListener('click', () => changeDateMonth(1));
+    dateCancelButton.addEventListener('click', () => finishDateClose(true));
+    dateConfirmButton.addEventListener('click', confirmDate);
+    dateGrid.addEventListener('click', event => {
+      const day = event.target.closest('.gc-date-day[data-date]');
+      if (!day || day.disabled || day.getAttribute('aria-disabled') === 'true') return;
+      selectDateDraft(day.dataset.date);
+    });
+    dateGrid.addEventListener('keydown', event => {
+      const day = event.target.closest('.gc-date-day[data-date]');
+      if (!day || !dateEdit) return;
+      let nextValue = day.dataset.date;
+      const parsed = parseReservationDate(nextValue);
+      if (event.key === 'ArrowLeft') nextValue = shiftedDateValue(nextValue, -1);
+      else if (event.key === 'ArrowRight') nextValue = shiftedDateValue(nextValue, 1);
+      else if (event.key === 'ArrowUp') nextValue = shiftedDateValue(nextValue, -7);
+      else if (event.key === 'ArrowDown') nextValue = shiftedDateValue(nextValue, 7);
+      else if (event.key === 'Home') nextValue = shiftedDateValue(nextValue, -parsed.date.getUTCDay());
+      else if (event.key === 'End') nextValue = shiftedDateValue(nextValue, 6 - parsed.date.getUTCDay());
+      else if (event.key === 'PageUp') nextValue = shiftedMonthValue(nextValue, -1);
+      else if (event.key === 'PageDown') nextValue = shiftedMonthValue(nextValue, 1);
+      else return;
+      event.preventDefault();
+      if (reservationDateAllowed(nextValue, date.min)) selectDateDraft(nextValue);
+    });
+    dateOverlay.addEventListener('click', event => { if (event.target === dateOverlay) finishDateClose(true); });
+    dateOverlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finishDateClose(true);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const controls = [...dateCard.querySelectorAll('button:not([disabled]):not([tabindex="-1"])')].filter(control => control.offsetParent !== null);
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!controls.includes(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
     trigger.addEventListener('click', openPicker);
     cancelButton.addEventListener('click', () => finishClose(true));
     confirmButton.addEventListener('click', confirmTime);
@@ -3666,30 +3968,19 @@
       }
     });
 
-    // Native iOS date controls expose neither an "opened" state nor a Cancel event.
-    // Keep an unchanged committed value valid, invalidate as soon as the value itself
-    // changes, and restore it if WebKit reports the old value again after Cancel.
-    date.addEventListener('input', () => {
+    // Canonical YYYY-MM-DD stays in the hidden native input for validation, LINE output.
+    const syncCanonicalDate = () => {
       syncDatePresentation();
-      if (date.value && date.validity.valid && date.value === date.dataset.gcConfirmedValue) {
+      if (reservationDateAllowed(date.value, date.min) && date.dataset.gcPickerOpen !== '1' && date.value === date.dataset.gcConfirmedValue) {
         date.dataset.gcConfirmed = '1';
       } else {
         delete date.dataset.gcConfirmed;
+        if (date.dataset.gcPickerOpen !== '1') delete date.dataset.gcConfirmedValue;
       }
       emitScheduleState();
-    }, { passive: true });
-    date.addEventListener('change', () => {
-      syncDatePresentation();
-      if (date.value && date.validity.valid) {
-        date.dataset.gcConfirmed = '1';
-        date.dataset.gcConfirmedValue = date.value;
-        clearFieldValidation('date');
-      } else {
-        delete date.dataset.gcConfirmed;
-        delete date.dataset.gcConfirmedValue;
-      }
-      emitScheduleState();
-    }, { passive: true });
+    };
+    date.addEventListener('input', syncCanonicalDate, { passive: true });
+    date.addEventListener('change', syncCanonicalDate, { passive: true });
 
     const resetPersistedSchedule = event => {
       if (!event.persisted) return;
@@ -3701,7 +3992,7 @@
     window.addEventListener('pagehide', resetPersistedSchedule, { passive: true });
     window.addEventListener('pageshow', resetPersistedSchedule, { passive: true });
 
-    return { reset: resetSchedule, close: () => finishClose(false) };
+    return { reset: resetSchedule, close: () => { finishDateClose(false); finishClose(false); } };
   }
 
   function clearFieldValidation(id) {
@@ -3709,7 +4000,7 @@
     const visualControl = id === 'date'
       ? document.getElementById('dateShell')
       : id === 'time' ? document.getElementById('timeTrigger') : input;
-    const accessibleControl = id === 'time' ? visualControl : input;
+    const accessibleControl = id === 'date' || id === 'time' ? visualControl : input;
     const error = document.getElementById(`${id}Error`);
     if (visualControl) {
       visualControl.classList.remove('invalid');
@@ -3756,7 +4047,7 @@
     const visualControl = id === 'date'
       ? document.getElementById('dateShell')
       : id === 'time' ? document.getElementById('timeTrigger') : input;
-    const accessibleControl = id === 'time' ? visualControl : input;
+    const accessibleControl = id === 'date' || id === 'time' ? visualControl : input;
     const error = document.getElementById(`${id}Error`);
     if (visualControl) {
       visualControl.classList.add('invalid');
@@ -3785,7 +4076,7 @@
     if (!field) return;
     requestAnimationFrame(() => {
       field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const target = field.querySelector('.gc-time-trigger:not([disabled]), input:not([type="hidden"]):not([type="radio"]), select, textarea, input[type="radio"]');
+      const target = field.querySelector('.gc-date-shell:not([disabled]), .gc-time-trigger:not([disabled]), input:not([type="hidden"]):not([type="radio"]), select, textarea, input[type="radio"]');
       setTimeout(() => {
         try { target?.focus({ preventScroll: true }); }
         catch (_) { try { target?.focus(); } catch (_) {} }
@@ -4025,7 +4316,7 @@
       }
       const dateControl = document.getElementById('date');
       const timeControl = document.getElementById('time');
-      const dateConfirmed = Boolean(dateControl?.value && dateControl.validity.valid && dateControl.dataset.gcConfirmed === '1' && dateControl.dataset.gcConfirmedValue === dateControl.value);
+      const dateConfirmed = Boolean(dateControl?.value && reservationDateAllowed(dateControl.value, dateControl.min) && dateControl.dataset.gcConfirmed === '1' && dateControl.dataset.gcConfirmedValue === dateControl.value && dateControl.dataset.gcPickerOpen !== '1');
       const timeConfirmed = Boolean(parseReservationTime(timeControl?.value) && timeControl.dataset.gcConfirmed === '1' && timeControl.dataset.gcConfirmedValue === timeControl.value && timeControl.dataset.gcPickerOpen !== '1');
       if (serviceType === 'reserve' && !dateConfirmed) {
         showFieldError('date', cfg['錯誤_日期']);
@@ -4338,6 +4629,7 @@
     document.body.style.width = '';
     document.body.style.height = '';
     document.body.style.overflow = '';
+    document.getElementById('gcDatePickerOverlay')?.remove();
     document.getElementById('gcTimePickerOverlay')?.remove();
     window.scrollTo(0, 0);
   }

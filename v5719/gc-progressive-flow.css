@@ -1137,3 +1137,160 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 @media(prefers-reduced-motion:reduce){
   .gc-driver-card .gc-secondary-box>summary::after{transition:none!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z9X_SHARED_FROSTED_DATE_TIME_PICKERS
+   Date and time use the same centred, frosted modal shell.  The canonical
+   YYYY-MM-DD field stays hidden so LINE output and validation remain stable. */
+.gc-date-picker-overlay{
+  /* Outer geometry, dimming and blur are inherited from gc-time-picker-overlay. */
+  isolation:isolate!important;
+}
+.gc-ride-card .gc-date-shell{
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  cursor:pointer!important;
+}
+.gc-ride-card .gc-date-shell:focus-visible{
+  outline:2px solid #4b8fbc!important;
+  outline-offset:2px!important;
+}
+.gc-ride-card .gc-date-native{
+  display:none!important;
+}
+.gc-date-picker-panel{
+  box-sizing:border-box!important;
+  padding:10px 14px 12px!important;
+}
+.gc-date-month-bar{
+  display:grid!important;
+  grid-template-columns:44px minmax(0,1fr) 44px!important;
+  align-items:center!important;
+  gap:6px!important;
+  margin-bottom:4px!important;
+}
+.gc-date-month-label{
+  color:#153e5c!important;
+  font-size:16px!important;
+  line-height:1.35!important;
+  font-weight:720!important;
+  text-align:center!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.gc-date-month-nav{
+  position:relative!important;
+  box-sizing:border-box!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:transparent!important;
+  color:#1673d1!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+}
+.gc-date-month-nav::before{
+  content:''!important;
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:9px!important;
+  height:9px!important;
+  border-left:2.5px solid currentColor!important;
+  border-bottom:2.5px solid currentColor!important;
+  transform:translate(-34%,-50%) rotate(45deg)!important;
+}
+.gc-date-month-nav.gc-date-next::before{
+  transform:translate(-66%,-50%) rotate(225deg)!important;
+}
+.gc-date-month-nav:active{background:#f0f6fa!important}
+.gc-date-month-nav:focus-visible{
+  outline:2px solid #4b8fbc!important;
+  outline-offset:-3px!important;
+}
+.gc-date-month-nav:disabled{
+  color:#c3cdd4!important;
+  cursor:default!important;
+  opacity:.66!important;
+}
+.gc-date-weekdays{
+  display:grid!important;
+  grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  align-items:center!important;
+  min-height:30px!important;
+  color:#7c8d99!important;
+  font-size:11px!important;
+  line-height:1.2!important;
+  font-weight:650!important;
+  text-align:center!important;
+}
+.gc-date-grid{
+  display:grid!important;
+  grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  align-items:center!important;
+  min-height:276px!important;
+  gap:2px!important;
+}
+.gc-date-day{
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  min-width:0!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:transparent!important;
+  color:#183a51!important;
+  font-size:15px!important;
+  line-height:1!important;
+  font-weight:620!important;
+  font-variant-numeric:tabular-nums!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+}
+.gc-date-day.is-outside{color:#9eabb4!important}
+.gc-date-day.is-today:not(.is-selected){
+  box-shadow:inset 0 0 0 1.5px #9bc2db!important;
+}
+.gc-date-day.is-selected{
+  background:#1673d1!important;
+  color:#fff!important;
+  font-weight:750!important;
+  box-shadow:0 4px 12px rgba(22,115,209,.22)!important;
+}
+.gc-date-day:disabled,
+.gc-date-day[aria-disabled="true"]{
+  color:#c8d0d6!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  cursor:default!important;
+}
+.gc-date-day:focus-visible{
+  position:relative!important;
+  z-index:2!important;
+  outline:2px solid #4b8fbc!important;
+  outline-offset:-2px!important;
+}
+@media(max-width:350px){
+  .gc-date-picker-panel{padding-inline:8px!important}
+  .gc-date-month-bar{gap:0!important}
+  .gc-date-grid{gap:0!important}
+  .gc-date-day{font-size:14px!important}
+}
+@media(max-height:650px){
+  .gc-date-picker-panel{padding-top:6px!important;padding-bottom:7px!important}
+  .gc-date-weekdays{min-height:24px!important}
+  .gc-date-grid{min-height:240px!important}
+  .gc-date-day{height:38px!important;min-height:38px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .gc-date-month-nav,.gc-date-day{transition:none!important}
+}
