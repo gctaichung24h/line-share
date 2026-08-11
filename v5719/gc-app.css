@@ -5688,3 +5688,168 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 .confirm-row-warning>strong{
   color:#6b5218!important;
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z9Z_COMPLETE_ADMIN_GUIDANCE
+   Final optical pass: equal shortcut capsules, truly symmetric reservation controls,
+   one advisory fare card, and balanced expanded fare-help spacing. */
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row>*:not(.hidden){
+  flex:0 0 var(--gc-shortcut-pill-width)!important;
+  width:var(--gc-shortcut-pill-width)!important;
+  min-width:0!important;
+  max-width:none!important;
+}
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row{
+  --gc-shortcut-pill-width:clamp(80px,calc((100vw - 80px)/3),97px);
+  justify-content:center!important;
+  max-width:300px!important;
+  margin-inline:auto!important;
+}
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row>.recent-address-control:not(.hidden){
+  flex:0 0 var(--gc-shortcut-pill-width)!important;
+  width:var(--gc-shortcut-pill-width)!important;
+}
+.gc-ride-card .gc-destination-address>.gc-address-utility-row>.recent-address-control:not(.hidden){
+  flex:0 0 clamp(80px,calc((100vw - 80px)/3),97px)!important;
+  width:clamp(80px,calc((100vw - 80px)/3),97px)!important;
+}
+.gc-ride-card .gc-destination-address>.gc-address-utility-row .recent-toggle{
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:32px!important;
+  min-height:32px!important;
+  padding-inline:clamp(3px,1vw,6px)!important;
+  border-radius:999px!important;
+  font-size:clamp(9.7px,2.75vw,11.4px)!important;
+  line-height:1!important;
+  letter-spacing:-.02em!important;
+}
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row .location-btn,
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row>#gcFavoriteToggle,
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row .recent-toggle{
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:none!important;
+  height:32px!important;
+  min-height:32px!important;
+  padding-inline:clamp(3px,1vw,6px)!important;
+  border-radius:999px!important;
+  font-size:clamp(9.7px,2.75vw,11.4px)!important;
+  line-height:1!important;
+  letter-spacing:-.02em!important;
+}
+.gc-ride-card .recent-count:empty{display:none!important}
+.gc-ride-card .recent-clock{margin-right:2px!important;font-size:1em!important}
+.gc-ride-card .recent-title{font-size:1em!important;letter-spacing:inherit!important}
+.gc-ride-card .recent-chevron{margin-left:2px!important;font-size:.9em!important}
+
+.gc-ride-card .schedule-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  align-items:stretch!important;
+}
+.gc-ride-card .gc-date-shell,
+.gc-ride-card .gc-time-trigger{
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:52px!important;
+  min-height:52px!important;
+  padding:0 10px!important;
+  font-family:inherit!important;
+  font-size:14px!important;
+  font-weight:600!important;
+  line-height:1.25!important;
+  text-align:center!important;
+}
+.gc-ride-card .gc-date-display{
+  width:100%!important;
+  line-height:1.25!important;
+  text-align:center!important;
+}
+
+.confirm-row-note{
+  box-sizing:border-box!important;
+  margin:-3px 2px 3px!important;
+  padding:0 8px!important;
+  color:#718594!important;
+  font-size:11.8px!important;
+  line-height:1.45!important;
+  font-weight:600!important;
+  text-align:left!important;
+}
+.confirm-row-note.confirm-row-warning{
+  margin:0!important;
+  padding:9px 10px!important;
+  border:1px solid #e6cf8f!important;
+  border-radius:11px!important;
+  color:#6b5218!important;
+  background:#fff9e8!important;
+}
+
+.gc-fare-card .gc-fare-admin-guidance{
+  box-sizing:border-box!important;
+  width:100%!important;
+  margin:10px 0 11px!important;
+  padding:10px 11px 10px 13px!important;
+  border:1px solid #ead59a!important;
+  border-left:4px solid #d2a52d!important;
+  border-radius:12px!important;
+  background:#fff9e9!important;
+  color:#67521e!important;
+  box-shadow:0 2px 7px rgba(91,68,16,.04)!important;
+}
+.gc-fare-card .gc-fare-admin-guidance.hidden{display:none!important}
+.gc-fare-card .gc-fare-admin-guidance>strong{
+  display:block!important;
+  margin:0!important;
+  color:#654d13!important;
+  font-size:13.2px!important;
+  line-height:1.4!important;
+  font-weight:760!important;
+}
+.gc-fare-card .gc-fare-admin-guidance>p,
+.gc-fare-card .gc-fare-admin-item>p{
+  margin:4px 0 0!important;
+  color:#725d2a!important;
+  font-size:12.2px!important;
+  line-height:1.5!important;
+  font-weight:590!important;
+}
+.gc-fare-admin-items{display:grid!important;gap:9px!important;margin-top:7px!important}
+.gc-fare-admin-item{min-width:0!important}
+.gc-fare-admin-options{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+  margin-top:7px!important;
+}
+.gc-fare-admin-options>button{
+  flex:1 1 92px!important;
+  min-width:0!important;
+  min-height:44px!important;
+  padding:8px 11px!important;
+  border:1px solid #d8bb69!important;
+  border-radius:10px!important;
+  background:#fffef9!important;
+  color:#5d4918!important;
+  box-shadow:none!important;
+  font-size:12.5px!important;
+  line-height:1.2!important;
+  font-weight:720!important;
+}
+
+.gc-fare-manual-details[open]>summary{margin-bottom:0!important}
+.gc-fare-manual-details[open]>.gc-fare-manual-inner{
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:9px 12px 12px!important;
+}
+.gc-fare-manual-details[open] .gc-fare-manual-warning{margin:0!important}
+.gc-fare-manual-details[open] .gc-fare-manual-form{margin:9px 0 0!important;padding:0!important}
+.gc-fare-manual-details[open] .gc-fare-manual-form .submit-btn{margin:0!important}
+
+@media(max-width:350px){
+  .gc-ride-card .schedule-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .gc-ride-card .gc-date-shell,.gc-ride-card .gc-time-trigger{padding-inline:5px!important;font-size:12.5px!important}
+}

@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9y';
+  const GC_BUILD_VERSION = 'master202608r10z9z';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -13,6 +13,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z9X_CUSTOM_FROSTED_DATE_MODAL
   // GC_MASTER_STABLE_2026_08R10Z9Y_COMPACT_UI_HIERARCHY
   // GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
+  // GC_MASTER_STABLE_2026_08R10Z9Z_COMPLETE_ADMIN_GUIDANCE
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -124,6 +125,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   const ADDRESS_SUGGEST_DEBOUNCE_MS = 320;
   const ADDRESS_SUGGEST_TIMEOUT_MS = 3000;
   const ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN = 95;
+  const ADDRESS_ADMIN_LOOKUP_TIMEOUT_MS = 10000;
   const ADDRESS_ADMIN_AMBIGUITY_SUBMIT_WAIT_MS = 1200;
   const ADDRESS_BIAS_LOCATION = '120.6736,24.1477';
   const ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT = '119.85,21.75,122.15,25.45';
@@ -157,6 +159,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
   const addressSuggestionCache = new Map();
   const addressAdminAmbiguityChecks = new Map();
+  const addressAdminAmbiguityResults = new Map();
   let addressAdminAmbiguityToken = 0;
   let pendingConfirmAction = null;
   let confirmationBusy = false;
@@ -1560,6 +1563,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       if (!candidate?.address || Number(candidate.score || 0) < ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN || !preciseTypes.has(candidate.type)) return;
       const core = dispatchDoorAddressCore(candidate.address);
       if (!core.county || !core.district || doorIdentityFromCore(core) !== queryDoor) return;
+      const providerRoad = normalizeAddress(candidate.attrs?.StName || '');
+      const providerHouse = normalizedDoorIdentityPart(candidate.attrs?.AddNum || '');
+      if (providerRoad && addressConfidenceKey(providerRoad) !== addressConfidenceKey(queryCore.road)) return;
+      if (providerHouse && providerHouse !== normalizedDoorIdentityPart(queryCore.house)) return;
       if (countyHint && core.county !== countyHint) return;
       if (districtHint && core.district !== districtHint) return;
       // With no county supplied, stay inside the product's existing central-service scope;
@@ -1588,6 +1595,108 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (labels.length < 2) return labels[0] || '';
     if (labels.length === 2) return `${labels[0]}或${labels[1]}`;
     return `${labels.slice(0, -1).join('、')}或${labels[labels.length - 1]}`;
+  }
+
+  async function fetchAdminDoorCandidates(query, maxLocations = 20) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    // This is a non-blocking background lookup. Give the public geocoder enough time to
+    // return cross-district matches without extending the independent 1.2s submit budget.
+    const timeoutId = setTimeout(() => controller?.abort(), ADDRESS_ADMIN_LOOKUP_TIMEOUT_MS);
+    try {
+      const params = new URLSearchParams({
+        f: 'json',
+        SingleLine: query,
+        sourceCountry: 'TWN',
+        countryCode: 'TWN',
+        langCode: 'zh-TW',
+        preferredLabelValues: 'localCity',
+        outFields: ARCGIS_RESOLVE_OUT_FIELDS,
+        maxLocations: String(Math.max(1, Math.min(50, Number(maxLocations || 20)))),
+        searchExtent: ADDRESS_TAICHUNG_EXTENT,
+        category: 'Address',
+        matchOutOfRange: 'false'
+      });
+      // This lookup intentionally has no location bias. It answers a different question from
+      // autocomplete: whether the exact road + door exists in more than one service district.
+      const response = await fetch(`https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?${params.toString()}`, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', signal: controller?.signal
+      });
+      if (!response.ok) return { ok: false, candidates: [] };
+      const data = await response.json();
+      const candidates = (Array.isArray(data?.candidates) ? data.candidates : [])
+        .map(candidate => resolvedCandidateFromArcgis(candidate, query))
+        .filter(Boolean);
+      return { ok: true, candidates };
+    } catch (_) {
+      return { ok: false, candidates: [] };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  function discoveredAdminDistricts(query, candidates) {
+    const queryCore = dispatchDoorAddressCore(query);
+    const roadKey = addressConfidenceKey(queryCore.road);
+    if (!roadKey) return [];
+    const seen = new Set();
+    const districts = [];
+    (Array.isArray(candidates) ? candidates : []).forEach(candidate => {
+      const core = dispatchDoorAddressCore(candidate?.address || '');
+      if (core.county !== '台中市' || !core.district || addressConfidenceKey(core.road) !== roadKey || seen.has(core.district)) return;
+      seen.add(core.district);
+      districts.push(core.district);
+    });
+    return districts.slice(0, 6);
+  }
+
+  async function lookupAddressAdminGuidance(query) {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    const queryKey = addressConfidenceKey(normalized);
+    if (!queryKey || !isDoorAddressMissingAdmin(normalized)) {
+      return { state: 'none', queryKey, query: normalized, options: [] };
+    }
+
+    const cached = addressAdminAmbiguityResults.get(queryKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
+
+    const exact = await fetchAdminDoorCandidates(normalized, 20);
+    if (!exact.ok) return { state: 'soft', queryKey, query: normalized, options: [], networkUnavailable: true };
+    let candidates = exact.candidates;
+    let options = adminAmbiguityOptions(normalized, candidates);
+    let lookupComplete = true;
+
+    // ArcGIS occasionally collapses same-road results. Discover only the districts in which the
+    // same road exists, then verify the exact door in those few districts. This avoids a noisy
+    // 29-district sweep while still catching real cross-district duplicates such as 公園路188號.
+    if (options.length < 2) {
+      const core = dispatchDoorAddressCore(normalized);
+      const roadSearch = await fetchAdminDoorCandidates(`台中市${core.road}`, 50);
+      if (!roadSearch.ok) lookupComplete = false;
+      const districts = roadSearch.ok ? discoveredAdminDistricts(normalized, roadSearch.candidates) : [];
+      if (districts.length >= 2) {
+        const verifiedSets = await Promise.all(districts.map(district => fetchAdminDoorCandidates(`台中市${district}${core.detail}`, 1)));
+        if (verifiedSets.some(result => !result.ok)) lookupComplete = false;
+        candidates = candidates.concat(verifiedSets.filter(result => result.ok).flatMap(result => result.candidates));
+        options = adminAmbiguityOptions(normalized, candidates);
+      }
+    }
+
+    const result = options.length >= 2
+      ? { state: 'strong', queryKey, query: normalized, options, networkUnavailable: !lookupComplete }
+      : { state: 'soft', queryKey, query: normalized, options: [], networkUnavailable: !lookupComplete };
+    if (addressAdminAmbiguityResults.size >= 40) {
+      const firstKey = addressAdminAmbiguityResults.keys().next().value;
+      if (firstKey) addressAdminAmbiguityResults.delete(firstKey);
+    }
+    // Never cache a partial network result. A later blur/submit should be allowed to retry
+    // immediately instead of treating a transient provider failure as evidence of uniqueness.
+    if (lookupComplete) {
+      addressAdminAmbiguityResults.set(queryKey, {
+        result,
+        expiresAt: Date.now() + (result.state === 'strong' ? 5 * 60 * 1000 : 30 * 1000)
+      });
+    }
+    return result;
   }
 
   function pickupStatusElement(input) {
@@ -1653,11 +1762,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const existing = addressAdminAmbiguityChecks.get(queryKey);
     if (existing) return existing;
 
-    const promise = resolveTypedAddress(normalized)
-      .then(candidates => {
-        const options = adminAmbiguityOptions(normalized, candidates);
-        return options.length >= 2 ? { queryKey, query: normalized, options } : null;
-      })
+    const promise = lookupAddressAdminGuidance(normalized)
+      .then(result => result.state === 'strong' ? result : null)
       .catch(() => null);
     addressAdminAmbiguityChecks.set(queryKey, promise);
     const release = () => {
@@ -1750,6 +1856,29 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }
+
+  function applyAddressAdminOption(inputOrId, evidence, optionIndex, source = 'admin-choice') {
+    const input = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
+    const option = evidence?.options?.[Number(optionIndex)];
+    if (!input || !option || evidence.queryKey !== addressConfidenceKey(input.value)) return false;
+    const core = dispatchDoorAddressCore(input.value);
+    if (!core.detail || !doorIdentityFromCore(core)) return false;
+    const selected = smartNormalizeTaiwanAddress(`${option.county}${option.district}${core.detail}`);
+    if (!selected) return false;
+    if (input.id === 'pickup' && attachedLocation) clearAttachedLocation(false);
+    input._gcCancelSmartSuggestions?.();
+    input.dataset.gcSkipSuggestOnce = '1';
+    input.value = selected;
+    markAddressVerified(input, source, selected);
+    if (input.id === 'pickup') clearPickupAdminReminder(input);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  window.GC_addressNeedsAdmin = isDoorAddressMissingAdmin;
+  window.GC_getAddressAdminGuidance = lookupAddressAdminGuidance;
+  window.GC_applyAddressAdminOption = applyAddressAdminOption;
 
   function isResolvedCandidateDispatchReady(query, resolved, options = {}) {
     if (!resolved || resolved.score < 80 || !resolved.address) return false;
@@ -2885,7 +3014,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         return;
       }
       control.classList.remove('hidden');
-      if (count) count.textContent = `(${addresses.length})`;
+      // R10Z9Z: the picker still stores and displays up to five records, but the compact
+      // trigger no longer advertises a changing number that makes the three-button row uneven.
+      if (count) count.textContent = '';
     });
     if (!addresses.length) {
       if (recentManagementOpen) closeRecentAddressSheet();
@@ -3357,8 +3488,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     titleElement.textContent = title;
     summary.innerHTML = rows
       .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
-      .map(row => `
-        <div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}${row.warning ? ' confirm-row-warning' : ''}">
+      .map(row => row.note
+        ? `<div class="confirm-row-note${row.warning ? ' confirm-row-warning' : ''}">${escapeHtml(row.value)}</div>`
+        : `<div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}${row.warning ? ' confirm-row-warning' : ''}">
           <span>${escapeHtml(row.label)}</span>
           <strong>${escapeHtml(row.value)}</strong>
         </div>`).join('');
@@ -4635,6 +4767,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const adminWarningValue = pickupAdminAmbiguity
         ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
         : '';
+      const adminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickup)
+        ? 'ⓘ 尚未填寫行政區，建議返回補充'
+        : '';
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
@@ -4686,6 +4821,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         ] : []),
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
+        ...(adminSoftReminder ? [{ label: '', value: adminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
@@ -6059,6 +6195,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_ROUTE_RESOLUTION
   // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_HANDOFF_SANITIZER
+  // GC_MASTER_STABLE_2026_08R10Z9Z_FARE_ADMIN_GUIDANCE_HANDOFF
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
@@ -6183,7 +6320,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   }
 
   function setAddressValueSilently(input, value) {
-    const cleaned = cleanMapAddress(value);
+    const cleaned = trim(value);
     if (!input || !cleaned) return false;
     input.value = cleaned;
     // app-v5719.js 的智慧地址監聽器會讀這個一次性旗標；
@@ -6194,6 +6331,93 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     input.dispatchEvent(new Event('change', { bubbles: true }));
     hideLocalSuggestionBox(input.id);
     return true;
+  }
+
+  let fareAdminGuidanceToken = 0;
+  let fareAdminGuidanceTimer = 0;
+  function fareAdminTargetLabel(id) {
+    return id === 'destination' ? '下車' : '上車';
+  }
+
+  function fareAdminAreaText(options) {
+    return (Array.isArray(options) ? options : []).map(option => option?.label).filter(Boolean).join('／');
+  }
+
+  function renderFareAdminGuidance(results = []) {
+    const slot = qs('gcFareAdminGuidance');
+    if (!slot) return;
+    const active = results.filter(result => result && result.state !== 'none');
+    if (!active.length) {
+      slot.className = 'gc-fare-admin-guidance hidden';
+      slot.dataset.state = 'none';
+      slot.innerHTML = '';
+      return;
+    }
+
+    const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
+    slot.className = 'gc-fare-admin-guidance';
+    slot.dataset.state = strong.length ? 'strong' : 'soft';
+    if (!strong.length) {
+      slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
+        <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
+      return;
+    }
+
+    slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
+      <div class="gc-fare-admin-items">
+        ${strong.map(result => {
+          const input = qs(result.targetId);
+          const visible = trim(input?.value);
+          const areas = fareAdminAreaText(result.options);
+          return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
+            <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
+            <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
+              ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
+            </div>
+          </section>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function refreshFareAdminGuidance() {
+    clearTimeout(fareAdminGuidanceTimer);
+    const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
+    const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
+      ? input => window.GC_addressNeedsAdmin(input.value)
+      : () => false;
+    const token = ++fareAdminGuidanceToken;
+    const pending = inputs.filter(needsAdmin).map(input => ({
+      state: 'soft', targetId: input.id, query: trim(input.value), options: []
+    }));
+    renderFareAdminGuidance(pending);
+    if (!pending.length || typeof window.GC_getAddressAdminGuidance !== 'function') return Promise.resolve(pending);
+
+    return Promise.all(pending.map(async initial => {
+      try {
+        const result = await window.GC_getAddressAdminGuidance(initial.query);
+        return { ...result, targetId: initial.targetId };
+      } catch (_) {
+        return initial;
+      }
+    })).then(results => {
+      if (token !== fareAdminGuidanceToken) return results;
+      const stillCurrent = results.every(result => trim(qs(result.targetId)?.value) === result.query);
+      if (!stillCurrent) return results;
+      renderFareAdminGuidance(results);
+      return results;
+    });
+  }
+
+  function queueFareAdminGuidance(delay = 380) {
+    clearTimeout(fareAdminGuidanceTimer);
+    const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
+    const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
+      ? input => window.GC_addressNeedsAdmin(input.value)
+      : () => false;
+    renderFareAdminGuidance(inputs.filter(needsAdmin).map(input => ({
+      state: 'soft', targetId: input.id, query: trim(input.value), options: []
+    })));
+    fareAdminGuidanceTimer = setTimeout(refreshFareAdminGuidance, Math.max(0, delay));
   }
 
   function restoreDraft() {
@@ -6284,6 +6508,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       showRouteAddressGuidance('map', missingPickup, missingDestination);
       return;
     }
+    // Advisory only: update the shared card, but never wait for or block route opening.
+    refreshFareAdminGuidance();
 
     const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
     if (verify) {
@@ -6342,10 +6568,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function toCall() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
-    const pickup = cleanMapAddress(pickupInput?.value);
-    const destination = cleanMapAddress(destinationInput?.value);
-    if (pickupInput && pickup && trim(pickupInput.value) !== pickup) setAddressValueSilently(pickupInput, pickup);
-    if (destinationInput && destination && trim(destinationInput.value) !== destination) setAddressValueSilently(destinationInput, destination);
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();
@@ -6394,6 +6618,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         <i aria-hidden="true">｜</i>
         <span><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b> → ${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
       </div>
+      <div class="gc-fare-admin-guidance hidden" id="gcFareAdminGuidance" data-state="none" aria-live="polite"></div>
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);
     const routeFields = qs('gcFareRouteFields');
@@ -6497,13 +6722,32 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     qs('gcFareMapBtn')?.addEventListener('click', openMaps);
     qs('gcFareMapsAgain')?.addEventListener('click', openMaps);
     qs('gcFareCallBtn')?.addEventListener('click', toCall);
+    qs('gcFareAdminGuidance')?.addEventListener('click', event => {
+      const button = event.target.closest('button[data-target][data-admin-option]');
+      if (!button || typeof window.GC_getAddressAdminGuidance !== 'function' || typeof window.GC_applyAddressAdminOption !== 'function') return;
+      const targetId = button.dataset.target;
+      const input = qs(targetId);
+      const visible = trim(input?.value);
+      window.GC_getAddressAdminGuidance(visible).then(evidence => {
+        if (trim(input?.value) !== visible || evidence.state !== 'strong') return;
+        if (window.GC_applyAddressAdminOption(input, evidence, button.dataset.adminOption, 'fare-admin-choice')) {
+          setFieldError(targetId, '');
+          saveDraft();
+          refreshFareAdminGuidance();
+        }
+      }).catch(() => {});
+    });
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
         saveDraft();
         if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
         if (input === destination && trim(destination.value)) setFieldError('destination', '');
+        if (input === pickup || input === destination) queueFareAdminGuidance();
       });
-      input.addEventListener('change', saveDraft);
+      input.addEventListener('change', () => {
+        saveDraft();
+        if (input === pickup || input === destination) refreshFareAdminGuidance();
+      });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
       qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
@@ -6512,6 +6756,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     clearLegacyFareStorage();
     currentFareFlow(true);
     restoreDraft();
+    refreshFareAdminGuidance();
     refreshFareAction();
     return true;
   }

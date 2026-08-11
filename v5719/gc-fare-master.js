@@ -10,6 +10,7 @@
   // GC_MASTER_STABLE_2026_08R10Y_TYPED_ADDRESS_ROUTE_RESOLUTION
   // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_HANDOFF_SANITIZER
+  // GC_MASTER_STABLE_2026_08R10Z9Z_FARE_ADMIN_GUIDANCE_HANDOFF
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
@@ -134,7 +135,7 @@
   }
 
   function setAddressValueSilently(input, value) {
-    const cleaned = cleanMapAddress(value);
+    const cleaned = trim(value);
     if (!input || !cleaned) return false;
     input.value = cleaned;
     // app-v5719.js 的智慧地址監聽器會讀這個一次性旗標；
@@ -145,6 +146,93 @@
     input.dispatchEvent(new Event('change', { bubbles: true }));
     hideLocalSuggestionBox(input.id);
     return true;
+  }
+
+  let fareAdminGuidanceToken = 0;
+  let fareAdminGuidanceTimer = 0;
+  function fareAdminTargetLabel(id) {
+    return id === 'destination' ? '下車' : '上車';
+  }
+
+  function fareAdminAreaText(options) {
+    return (Array.isArray(options) ? options : []).map(option => option?.label).filter(Boolean).join('／');
+  }
+
+  function renderFareAdminGuidance(results = []) {
+    const slot = qs('gcFareAdminGuidance');
+    if (!slot) return;
+    const active = results.filter(result => result && result.state !== 'none');
+    if (!active.length) {
+      slot.className = 'gc-fare-admin-guidance hidden';
+      slot.dataset.state = 'none';
+      slot.innerHTML = '';
+      return;
+    }
+
+    const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
+    slot.className = 'gc-fare-admin-guidance';
+    slot.dataset.state = strong.length ? 'strong' : 'soft';
+    if (!strong.length) {
+      slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
+        <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
+      return;
+    }
+
+    slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
+      <div class="gc-fare-admin-items">
+        ${strong.map(result => {
+          const input = qs(result.targetId);
+          const visible = trim(input?.value);
+          const areas = fareAdminAreaText(result.options);
+          return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
+            <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
+            <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
+              ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
+            </div>
+          </section>`;
+        }).join('')}
+      </div>`;
+  }
+
+  function refreshFareAdminGuidance() {
+    clearTimeout(fareAdminGuidanceTimer);
+    const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
+    const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
+      ? input => window.GC_addressNeedsAdmin(input.value)
+      : () => false;
+    const token = ++fareAdminGuidanceToken;
+    const pending = inputs.filter(needsAdmin).map(input => ({
+      state: 'soft', targetId: input.id, query: trim(input.value), options: []
+    }));
+    renderFareAdminGuidance(pending);
+    if (!pending.length || typeof window.GC_getAddressAdminGuidance !== 'function') return Promise.resolve(pending);
+
+    return Promise.all(pending.map(async initial => {
+      try {
+        const result = await window.GC_getAddressAdminGuidance(initial.query);
+        return { ...result, targetId: initial.targetId };
+      } catch (_) {
+        return initial;
+      }
+    })).then(results => {
+      if (token !== fareAdminGuidanceToken) return results;
+      const stillCurrent = results.every(result => trim(qs(result.targetId)?.value) === result.query);
+      if (!stillCurrent) return results;
+      renderFareAdminGuidance(results);
+      return results;
+    });
+  }
+
+  function queueFareAdminGuidance(delay = 380) {
+    clearTimeout(fareAdminGuidanceTimer);
+    const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
+    const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
+      ? input => window.GC_addressNeedsAdmin(input.value)
+      : () => false;
+    renderFareAdminGuidance(inputs.filter(needsAdmin).map(input => ({
+      state: 'soft', targetId: input.id, query: trim(input.value), options: []
+    })));
+    fareAdminGuidanceTimer = setTimeout(refreshFareAdminGuidance, Math.max(0, delay));
   }
 
   function restoreDraft() {
@@ -235,6 +323,8 @@
       showRouteAddressGuidance('map', missingPickup, missingDestination);
       return;
     }
+    // Advisory only: update the shared card, but never wait for or block route opening.
+    refreshFareAdminGuidance();
 
     const verify = typeof window.GC_verifyAddressField === 'function' ? window.GC_verifyAddressField : null;
     if (verify) {
@@ -293,10 +383,8 @@
   function toCall() {
     const pickupInput = qs('pickup');
     const destinationInput = qs('destination');
-    const pickup = cleanMapAddress(pickupInput?.value);
-    const destination = cleanMapAddress(destinationInput?.value);
-    if (pickupInput && pickup && trim(pickupInput.value) !== pickup) setAddressValueSilently(pickupInput, pickup);
-    if (destinationInput && destination && trim(destinationInput.value) !== destination) setAddressValueSilently(destinationInput, destination);
+    const pickup = trim(pickupInput?.value);
+    const destination = trim(destinationInput?.value);
     setFieldError('pickup', '');
     setFieldError('destination', '');
     saveDraft();
@@ -345,6 +433,7 @@
         <i aria-hidden="true">｜</i>
         <span><b>${escapeHtml(cfg()['乘車偏好_快標題'] || '趕時間')}</b> → ${escapeHtml(cfg()['路線快速_快內容'] || '看時間較短')}</span>
       </div>
+      <div class="gc-fare-admin-guidance hidden" id="gcFareAdminGuidance" data-state="none" aria-live="polite"></div>
       <button class="gc-fare-map-btn" id="gcFareMapBtn" type="button">${escapeHtml(cfg()['路線按鈕'] || '開啟 Google 地圖')}</button>`;
     calc.parentNode.insertBefore(routeStep, calc);
     const routeFields = qs('gcFareRouteFields');
@@ -448,13 +537,32 @@
     qs('gcFareMapBtn')?.addEventListener('click', openMaps);
     qs('gcFareMapsAgain')?.addEventListener('click', openMaps);
     qs('gcFareCallBtn')?.addEventListener('click', toCall);
+    qs('gcFareAdminGuidance')?.addEventListener('click', event => {
+      const button = event.target.closest('button[data-target][data-admin-option]');
+      if (!button || typeof window.GC_getAddressAdminGuidance !== 'function' || typeof window.GC_applyAddressAdminOption !== 'function') return;
+      const targetId = button.dataset.target;
+      const input = qs(targetId);
+      const visible = trim(input?.value);
+      window.GC_getAddressAdminGuidance(visible).then(evidence => {
+        if (trim(input?.value) !== visible || evidence.state !== 'strong') return;
+        if (window.GC_applyAddressAdminOption(input, evidence, button.dataset.adminOption, 'fare-admin-choice')) {
+          setFieldError(targetId, '');
+          saveDraft();
+          refreshFareAdminGuidance();
+        }
+      }).catch(() => {});
+    });
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
         saveDraft();
         if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
         if (input === destination && trim(destination.value)) setFieldError('destination', '');
+        if (input === pickup || input === destination) queueFareAdminGuidance();
       });
-      input.addEventListener('change', saveDraft);
+      input.addEventListener('change', () => {
+        saveDraft();
+        if (input === pickup || input === destination) refreshFareAdminGuidance();
+      });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
       qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
@@ -463,6 +571,7 @@
     clearLegacyFareStorage();
     currentFareFlow(true);
     restoreDraft();
+    refreshFareAdminGuidance();
     refreshFareAction();
     return true;
   }
