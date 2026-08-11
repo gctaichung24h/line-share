@@ -1709,3 +1709,20 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 .gc-fare-manual-details[open]>summary .gc-fare-manual-label{
   transform:translateY(3px)!important;
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z11_SHORTCUT_FOOTER_PROPORTION
+   Scope lock: pickup shortcut-group proportion and footer rhythm only. */
+.gc-ride-card .gc-pickup-address{
+  padding-bottom:9px!important;
+}
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row{
+  --gc-shortcut-pill-width:clamp(80px,calc((100vw - 105px)/3),90px);
+  max-width:280px!important;
+  margin-top:8px!important;
+}
+.gc-ride-card .gc-pickup-address>.location-status:not(:empty){
+  margin-top:5px!important;
+}
+.gc-ride-card .gc-pickup-address>.location-status.is-address-admin-strong{
+  margin-top:6px!important;
+}
