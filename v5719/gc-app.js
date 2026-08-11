@@ -1,8 +1,8 @@
-window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時叫車表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約叫車表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時代駕表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約代駕表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"無法完成上方試算時可使用｜繁忙時可能先提供試算資訊","人工協助展開標題":"","人工協助補充":"繁忙時段可能先提供試算資訊供您參考。","人工協助警示標題":"無法完成上方試算？","人工協助警示說明":"可直接送出估價需求，由小編協助估算。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【車資估價需求】","訊息分隔線":"──────────","訊息提醒":"💬 想先了解此行程車資，請協助提供估價資訊。","訊息提醒2":"將依當下狀況回覆；繁忙時可能先提供試算資訊供參考。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"✅ 估價需求已送出","成功內容1":"需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。","成功內容2":"本次僅為估價需求，尚未成立叫車或預約訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
+window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"即時叫車資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n收到車牌資訊後，須於 6 分鐘內在 LINE 聊天室告知；逾時取消將收取 NT$100 空趟費。","成功標題_預約":"預約叫車資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n收到車牌資訊後，須於預約時間前 20 分鐘在 LINE 聊天室告知；逾時取消將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"即時代駕資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n收到代駕司機資訊後，須於 6 分鐘內在 LINE 聊天室告知；逾時取消將收取 NT$100 空趟費。","成功標題_預約":"預約代駕資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n收到代駕司機資訊後，須於預約時間前 20 分鐘在 LINE 聊天室告知；逾時取消將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"已嘗試試算仍無法完成時，可請小編協助","人工協助展開標題":"","人工協助補充":"送出後由小編於 LINE 聊天室協助估價。","人工協助警示標題":"已嘗試試算仍無法完成？","人工協助警示說明":"可直接送出估價需求，由小編協助估算。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【人工估價協助｜已嘗試試算】","訊息分隔線":"","訊息提醒":"⚠️ 我已嘗試使用車資試算，但目前無法完成。","訊息提醒2":"請小編直接協助提供估價；若繁忙，可先回覆初步估算金額供我參考。\\n麻煩不用再次提供試算操作說明，謝謝。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"✅ 估價需求已送出","成功內容1":"估價需求已送至 LINE 聊天室，請等候小編直接回覆估價。","成功內容2":"本次僅為估價需求，尚未成立叫車或預約訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z13';
+  const GC_BUILD_VERSION = 'master202608r10z14';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -3910,7 +3910,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const formattedDate = reservationDateAllowed(date.value, date.min) ? formatReservationDate(date.value) : '';
       dateDisplay.textContent = formattedDate || '請選擇日期';
       dateShell.classList.toggle('is-empty', !formattedDate);
-      dateShell.style.setProperty('color', formattedDate ? '#183a51' : '#a7b3bd', 'important');
       dateShell.setAttribute(
         'aria-label',
         formattedDate ? `用車日期 ${formattedDate}，按下可重新選擇` : '選擇用車日期'
@@ -3921,6 +3920,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const confirmedTime = parseReservationTime(time.value) ? time.value : '';
       display.textContent = confirmedTime || '請選擇時間';
       trigger.classList.toggle('is-empty', !confirmedTime);
+      trigger.classList.toggle('is-waiting', !reservationDateAllowed(date.value, date.min));
       trigger.setAttribute(
         'aria-label',
         confirmedTime ? `用車時間 ${confirmedTime}，按下可重新選擇` : '選擇用車時間'
@@ -4396,6 +4396,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     // Canonical YYYY-MM-DD stays in the hidden native input for validation, LINE output.
     const syncCanonicalDate = () => {
       syncDatePresentation();
+      syncTriggerPresentation();
       if (reservationDateAllowed(date.value, date.min) && date.dataset.gcPickerOpen !== '1' && date.value === date.dataset.gcConfirmedValue) {
         date.dataset.gcConfirmed = '1';
       } else {
@@ -4915,7 +4916,24 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const longDistance = document.getElementById('fareLongDistance');
     if (!kmInput || !minuteInput || !result || !label || !price || !basis || !note1 || !note2 || !longDistance) return;
 
-    const reset = () => {
+    const calculatorInputs = [kmInput, minuteInput];
+    const clearPreservedEditSpace = () => {
+      result.classList.remove('gc-preserve-edit-space');
+      result.style.removeProperty('--gc-fare-preserved-height');
+    };
+    const preserveEditSpace = () => {
+      if (!calculatorInputs.includes(document.activeElement)) return;
+      if (result.classList.contains('gc-preserve-edit-space')) return;
+      const height = result.getBoundingClientRect().height;
+      if (height > 0) {
+        result.style.setProperty('--gc-fare-preserved-height', `${height}px`);
+        result.classList.add('gc-preserve-edit-space');
+      }
+    };
+
+    const reset = (options = {}) => {
+      if (options.preserve === true) preserveEditSpace();
+      else if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
       result.classList.add('is-waiting');
       result.classList.remove('is-invalid', 'is-ready');
       label.textContent = cfg['計算器等待'] || '填完兩格，立即顯示預估車資';
@@ -4930,10 +4948,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const kmText = kmInput.value.trim();
       const minuteText = minuteInput.value.trim();
       if (!kmText || !minuteText) {
-        reset();
+        reset({ preserve: true });
         return;
       }
 
+      clearPreservedEditSpace();
       const estimate = calculateFareEstimate(kmText, minuteText, cfg);
       if (!estimate || estimate.invalid) {
         result.classList.remove('is-waiting', 'is-ready');
@@ -4963,6 +4982,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     minuteInput.addEventListener('input', update);
     kmInput.addEventListener('change', update);
     minuteInput.addEventListener('change', update);
+    calculatorInputs.forEach(input => input.addEventListener('blur', () => {
+      requestAnimationFrame(() => {
+        if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
+      });
+    }));
     reset();
   }
 
@@ -5022,10 +5046,14 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // GC_MASTER_STABLE_2026_08R10R_FARE_CHAT_EXPECTATION_COPY
       // Customer-visible LINE message reads as the passenger's request, not an internal command.
       // It encourages assistance while explicitly leaving room for canned trial-estimate information when busy.
-      const lines = [cfg['訊息標題']];
-      if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      if (cfg['訊息提醒']) lines.push(cfg['訊息提醒']);
-      if (cfg['訊息提醒2']) lines.push(cfg['訊息提醒2']);
+      const lines = [cfg['訊息標題'], ''];
+      const appendConfiguredLines = text => String(text || '')
+        .split(/\\n/)
+        .filter(Boolean)
+        .forEach(line => lines.push(line));
+      appendConfiguredLines(cfg['訊息提醒']);
+      appendConfiguredLines(cfg['訊息提醒2']);
+      lines.push('');
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -5096,13 +5124,21 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const useReservation = reservation === true && Boolean(cfg['成功標題_預約']);
     const title = useReservation ? cfg['成功標題_預約'] : cfg['成功標題'];
     app.classList.add('gc-success-mode');
+    const lineHtml = successLines(cfg, useReservation).map(line => {
+      const text = String(line);
+      const parts = text.split(/\\n/);
+      if (parts[0] === '取消請主動告知小編') {
+        return `<aside class="gc-cancellation-notice" role="note"><strong>${escapeHtml(parts[0])}</strong><span>${parts.slice(1).map(escapeHtml).join('<br>')}</span></aside>`;
+      }
+      return `<p>${escapeHtml(text).replace(/\\n/g, '<br>')}</p>`;
+    }).join('');
     app.innerHTML = `
       <main class="gc-success-screen">
         <section class="success-card">
           <div class="success-icon">✓</div>
           <h1>${escapeHtml(title)}</h1>
           <div class="success-lines">
-            ${successLines(cfg, useReservation).map(line => `<p>${escapeHtml(line).replace(/\\n/g, '<br>')}</p>`).join('')}
+            ${lineHtml}
           </div>
           <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
         </section>
@@ -6127,7 +6163,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const row = document.createElement('div');
       row.className = 'confirm-row gc-confirm-extra-total';
       row.dataset.gcV7Extra = '1';
-      row.innerHTML = `<span>除車資外，另加收費用</span><strong>NT$${extraTotal}</strong>`;
+      row.innerHTML = `<span>車資外另加費用</span><strong>NT$${extraTotal}</strong>`;
       summary.appendChild(row);
     }
   }
@@ -6710,9 +6746,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       }
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '無法完成上方試算？';
+      const warningTitle = cfg()['人工協助警示標題'] || '已嘗試試算仍無法完成？';
       const warningBusy = cfg()['人工協助警示說明'] || '可直接送出估價需求，由小編協助估算。';
-      const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
+      const warningAssist = cfg()['人工協助補充'] || '送出後由小編於 LINE 聊天室協助估價。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
@@ -6825,7 +6861,14 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       safeLocalRemove(HANDOFF_KEY);
       return true;
     }
-    const pickupApplied = !trim(pickup.value) && trim(handoff.pickup) ? setAddressValueSilently(pickup, handoff.pickup) : false;
+    const hasPickupHandoff = !trim(pickup.value) && Boolean(trim(handoff.pickup));
+    // The passenger explicitly accepted this route on the fare page.  Mark the
+    // pickup step as committed before its input events fire so the progressive
+    // call flow reveals the carried destination immediately.  Verification is
+    // still preserved independently below; an unresolved admin-area reminder
+    // therefore remains advisory and is never bypassed.
+    if (hasPickupHandoff) pickup.dataset.gcFlowCommitted = '1';
+    const pickupApplied = hasPickupHandoff ? setAddressValueSilently(pickup, handoff.pickup) : false;
     const destinationApplied = !trim(destination.value) && trim(handoff.destination) ? setAddressValueSilently(destination, handoff.destination) : false;
     if (pickupApplied && handoff.pickupVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('pickup', 'fare-handoff');
     if (destinationApplied && handoff.destinationVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('destination', 'fare-handoff');

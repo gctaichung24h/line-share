@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z13';
+  const GC_BUILD_VERSION = 'master202608r10z14';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -3908,7 +3908,6 @@
       const formattedDate = reservationDateAllowed(date.value, date.min) ? formatReservationDate(date.value) : '';
       dateDisplay.textContent = formattedDate || '請選擇日期';
       dateShell.classList.toggle('is-empty', !formattedDate);
-      dateShell.style.setProperty('color', formattedDate ? '#183a51' : '#a7b3bd', 'important');
       dateShell.setAttribute(
         'aria-label',
         formattedDate ? `用車日期 ${formattedDate}，按下可重新選擇` : '選擇用車日期'
@@ -3919,6 +3918,7 @@
       const confirmedTime = parseReservationTime(time.value) ? time.value : '';
       display.textContent = confirmedTime || '請選擇時間';
       trigger.classList.toggle('is-empty', !confirmedTime);
+      trigger.classList.toggle('is-waiting', !reservationDateAllowed(date.value, date.min));
       trigger.setAttribute(
         'aria-label',
         confirmedTime ? `用車時間 ${confirmedTime}，按下可重新選擇` : '選擇用車時間'
@@ -4394,6 +4394,7 @@
     // Canonical YYYY-MM-DD stays in the hidden native input for validation, LINE output.
     const syncCanonicalDate = () => {
       syncDatePresentation();
+      syncTriggerPresentation();
       if (reservationDateAllowed(date.value, date.min) && date.dataset.gcPickerOpen !== '1' && date.value === date.dataset.gcConfirmedValue) {
         date.dataset.gcConfirmed = '1';
       } else {
@@ -4913,7 +4914,24 @@
     const longDistance = document.getElementById('fareLongDistance');
     if (!kmInput || !minuteInput || !result || !label || !price || !basis || !note1 || !note2 || !longDistance) return;
 
-    const reset = () => {
+    const calculatorInputs = [kmInput, minuteInput];
+    const clearPreservedEditSpace = () => {
+      result.classList.remove('gc-preserve-edit-space');
+      result.style.removeProperty('--gc-fare-preserved-height');
+    };
+    const preserveEditSpace = () => {
+      if (!calculatorInputs.includes(document.activeElement)) return;
+      if (result.classList.contains('gc-preserve-edit-space')) return;
+      const height = result.getBoundingClientRect().height;
+      if (height > 0) {
+        result.style.setProperty('--gc-fare-preserved-height', `${height}px`);
+        result.classList.add('gc-preserve-edit-space');
+      }
+    };
+
+    const reset = (options = {}) => {
+      if (options.preserve === true) preserveEditSpace();
+      else if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
       result.classList.add('is-waiting');
       result.classList.remove('is-invalid', 'is-ready');
       label.textContent = cfg['計算器等待'] || '填完兩格，立即顯示預估車資';
@@ -4928,10 +4946,11 @@
       const kmText = kmInput.value.trim();
       const minuteText = minuteInput.value.trim();
       if (!kmText || !minuteText) {
-        reset();
+        reset({ preserve: true });
         return;
       }
 
+      clearPreservedEditSpace();
       const estimate = calculateFareEstimate(kmText, minuteText, cfg);
       if (!estimate || estimate.invalid) {
         result.classList.remove('is-waiting', 'is-ready');
@@ -4961,6 +4980,11 @@
     minuteInput.addEventListener('input', update);
     kmInput.addEventListener('change', update);
     minuteInput.addEventListener('change', update);
+    calculatorInputs.forEach(input => input.addEventListener('blur', () => {
+      requestAnimationFrame(() => {
+        if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
+      });
+    }));
     reset();
   }
 
@@ -5020,10 +5044,14 @@
       // GC_MASTER_STABLE_2026_08R10R_FARE_CHAT_EXPECTATION_COPY
       // Customer-visible LINE message reads as the passenger's request, not an internal command.
       // It encourages assistance while explicitly leaving room for canned trial-estimate information when busy.
-      const lines = [cfg['訊息標題']];
-      if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
-      if (cfg['訊息提醒']) lines.push(cfg['訊息提醒']);
-      if (cfg['訊息提醒2']) lines.push(cfg['訊息提醒2']);
+      const lines = [cfg['訊息標題'], ''];
+      const appendConfiguredLines = text => String(text || '')
+        .split(/\\n/)
+        .filter(Boolean)
+        .forEach(line => lines.push(line));
+      appendConfiguredLines(cfg['訊息提醒']);
+      appendConfiguredLines(cfg['訊息提醒2']);
+      lines.push('');
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
 
@@ -5094,13 +5122,21 @@
     const useReservation = reservation === true && Boolean(cfg['成功標題_預約']);
     const title = useReservation ? cfg['成功標題_預約'] : cfg['成功標題'];
     app.classList.add('gc-success-mode');
+    const lineHtml = successLines(cfg, useReservation).map(line => {
+      const text = String(line);
+      const parts = text.split(/\\n/);
+      if (parts[0] === '取消請主動告知小編') {
+        return `<aside class="gc-cancellation-notice" role="note"><strong>${escapeHtml(parts[0])}</strong><span>${parts.slice(1).map(escapeHtml).join('<br>')}</span></aside>`;
+      }
+      return `<p>${escapeHtml(text).replace(/\\n/g, '<br>')}</p>`;
+    }).join('');
     app.innerHTML = `
       <main class="gc-success-screen">
         <section class="success-card">
           <div class="success-icon">✓</div>
           <h1>${escapeHtml(title)}</h1>
           <div class="success-lines">
-            ${successLines(cfg, useReservation).map(line => `<p>${escapeHtml(line).replace(/\\n/g, '<br>')}</p>`).join('')}
+            ${lineHtml}
           </div>
           <button type="button" class="back-btn" id="closeBtn">${escapeHtml(cfg['返回按鈕'])}</button>
         </section>

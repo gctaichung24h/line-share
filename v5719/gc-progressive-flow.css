@@ -1856,3 +1856,89 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   -webkit-text-size-adjust:100%!important;
   text-size-adjust:100%!important;
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z14_HANDOFF_AND_OPERATIONS_POLISH
+   Scope lock: reservation cue hierarchy, address-shortcut text metrics,
+   the vehicle explainer lead, calculator edit-space stability and the
+   post-submit cancellation notice. No business rules or base geometry. */
+.gc-ride-card .gc-date-shell.is-empty,
+.gc-ride-card .gc-time-trigger.is-empty{
+  color:#5f7585!important;
+}
+.gc-ride-card .gc-time-trigger.is-empty.is-waiting{
+  color:#a7b3bd!important;
+}
+.gc-ride-card .gc-date-shell,
+.gc-ride-card .gc-time-trigger{
+  transition-property:border-color,box-shadow,background-color!important;
+}
+
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row .location-btn,
+.gc-ride-card .gc-pickup-address>.gc-address-utility-row>#gcFavoriteToggle,
+.gc-ride-card .gc-address-utility-row .recent-toggle{
+  -webkit-text-size-adjust:100%!important;
+  text-size-adjust:100%!important;
+}
+.gc-ride-card .gc-address-utility-row .recent-clock,
+.gc-ride-card .gc-address-utility-row .recent-title{
+  font-size:inherit!important;
+}
+
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead{
+  grid-template-columns:max-content minmax(0,1fr)!important;
+  align-items:center!important;
+  column-gap:8px!important;
+}
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead strong,
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead span{
+  min-width:0!important;
+  white-space:nowrap!important;
+}
+@media(max-width:340px){
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead{
+    grid-template-columns:max-content minmax(0,1fr)!important;
+    column-gap:6px!important;
+    padding-inline:8px!important;
+  }
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead strong{
+    font-size:13px!important;
+  }
+  .gc-call-needs-box[open] .gc-needs-group--vehicle .gc-vehicle-info-lead span{
+    font-size:10.5px!important;
+  }
+}
+
+.gc-fare-card .gc-fare-calc-result.is-waiting.gc-preserve-edit-space{
+  display:block!important;
+  box-sizing:border-box!important;
+  min-height:var(--gc-fare-preserved-height)!important;
+  height:var(--gc-fare-preserved-height)!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
+.gc-success-screen .gc-cancellation-notice{
+  display:block!important;
+  margin:14px 0 0!important;
+  padding:12px 13px 12px 15px!important;
+  border:1px solid #e7d49d!important;
+  border-left:4px solid #c7a23b!important;
+  border-radius:13px!important;
+  background:#fff9e9!important;
+  color:#5d4b22!important;
+  line-height:1.55!important;
+}
+.gc-success-screen .gc-cancellation-notice strong,
+.gc-success-screen .gc-cancellation-notice span{
+  display:block!important;
+}
+.gc-success-screen .gc-cancellation-notice strong{
+  margin-bottom:4px!important;
+  color:#4e3a12!important;
+  font-size:15px!important;
+  font-weight:780!important;
+}
+.gc-success-screen .gc-cancellation-notice span{
+  font-size:13.5px!important;
+  font-weight:620!important;
+}

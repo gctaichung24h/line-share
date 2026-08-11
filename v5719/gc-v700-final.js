@@ -490,7 +490,7 @@
       const row = document.createElement('div');
       row.className = 'confirm-row gc-confirm-extra-total';
       row.dataset.gcV7Extra = '1';
-      row.innerHTML = `<span>除車資外，另加收費用</span><strong>NT$${extraTotal}</strong>`;
+      row.innerHTML = `<span>車資外另加費用</span><strong>NT$${extraTotal}</strong>`;
       summary.appendChild(row);
     }
   }

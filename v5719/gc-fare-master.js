@@ -473,9 +473,9 @@
       }
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '無法完成上方試算？';
+      const warningTitle = cfg()['人工協助警示標題'] || '已嘗試試算仍無法完成？';
       const warningBusy = cfg()['人工協助警示說明'] || '可直接送出估價需求，由小編協助估算。';
-      const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
+      const warningAssist = cfg()['人工協助補充'] || '送出後由小編於 LINE 聊天室協助估價。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
       extra.className = 'gc-fare-manual-extra hidden';
@@ -588,7 +588,14 @@
       safeLocalRemove(HANDOFF_KEY);
       return true;
     }
-    const pickupApplied = !trim(pickup.value) && trim(handoff.pickup) ? setAddressValueSilently(pickup, handoff.pickup) : false;
+    const hasPickupHandoff = !trim(pickup.value) && Boolean(trim(handoff.pickup));
+    // The passenger explicitly accepted this route on the fare page.  Mark the
+    // pickup step as committed before its input events fire so the progressive
+    // call flow reveals the carried destination immediately.  Verification is
+    // still preserved independently below; an unresolved admin-area reminder
+    // therefore remains advisory and is never bypassed.
+    if (hasPickupHandoff) pickup.dataset.gcFlowCommitted = '1';
+    const pickupApplied = hasPickupHandoff ? setAddressValueSilently(pickup, handoff.pickup) : false;
     const destinationApplied = !trim(destination.value) && trim(handoff.destination) ? setAddressValueSilently(destination, handoff.destination) : false;
     if (pickupApplied && handoff.pickupVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('pickup', 'fare-handoff');
     if (destinationApplied && handoff.destinationVerified && typeof window.GC_markAddressVerified === 'function') window.GC_markAddressVerified('destination', 'fare-handoff');
