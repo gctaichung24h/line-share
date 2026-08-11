@@ -372,13 +372,20 @@
       summary.innerHTML = `<strong class="gc-fare-manual-label"><span aria-hidden="true">ⓘ</span>${escapeHtml(manualTitle)}</strong>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
-      const panelTitle = document.createElement('strong');
-      panelTitle.className = 'gc-manual-panel-title';
-      panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
+      // GC_MASTER_STABLE_2026_08R10Z9Y_FARE_HELP_DEDUPLICATED
+      // The closed summary already names this section. Only render an additional
+      // expanded heading when copy explicitly supplies one, avoiding three repeated
+      // variants of「估價協助」before the actionable explanation.
+      const panelTitleText = String(cfg()['人工協助展開標題'] ?? '').trim();
+      const panelTitle = panelTitleText ? document.createElement('strong') : null;
+      if (panelTitle) {
+        panelTitle.className = 'gc-manual-panel-title';
+        panelTitle.textContent = panelTitleText;
+      }
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
-      const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '無法完成上方試算？';
+      const warningBusy = cfg()['人工協助警示說明'] || '可直接送出估價需求，由小編協助估算。';
       const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
@@ -388,7 +395,7 @@
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
       details.appendChild(inner);
-      inner.appendChild(panelTitle);
+      if (panelTitle) inner.appendChild(panelTitle);
       inner.appendChild(warning);
       inner.appendChild(extra);
       inner.appendChild(form);

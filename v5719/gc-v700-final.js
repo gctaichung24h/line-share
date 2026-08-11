@@ -365,7 +365,20 @@
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '指定車型・5人以上・寵物・行李';
+      // GC_MASTER_STABLE_2026_08R10Z9Y_NEEDS_SUMMARY_HIERARCHY
+      // Keep every important category visible while the fields are collapsed, but
+      // separate the label from its examples so narrow phones do not read it as one
+      // dense, equally weighted sentence.
+      const summaryCopy = document.createElement('span');
+      summaryCopy.className = 'gc-needs-summary-copy';
+      const summaryTitle = document.createElement('span');
+      summaryTitle.className = 'gc-needs-summary-title';
+      summaryTitle.textContent = '其他需求';
+      const summaryMeta = document.createElement('span');
+      summaryMeta.className = 'gc-needs-summary-meta';
+      summaryMeta.textContent = '車型・5人以上・寵物・行李';
+      summaryCopy.append(summaryTitle, summaryMeta);
+      summary.replaceChildren(summaryCopy);
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {

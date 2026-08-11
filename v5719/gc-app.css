@@ -5517,3 +5517,174 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 @media(prefers-reduced-motion:reduce){
   .gc-date-month-nav,.gc-date-day{transition:none!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z9Y_COMPACT_RECENT_CONFIRM_NEEDS
+   Scope lock: ride-mode shortcut width, location review action, and the call-only
+   needs-summary hierarchy. No form field, fare, address, or dispatch behavior changes. */
+
+/* The recent shortcut stays content-sized in every call/driver state. Tight optical
+   spacing removes unused capsule width without truncating its icon, count, or chevron. */
+.gc-ride-card .recent-toggle{
+  width:max-content!important;
+  max-width:100%!important;
+  padding-inline:3px!important;
+  column-gap:0!important;
+  letter-spacing:-.025em!important;
+}
+.gc-ride-card .recent-clock{
+  margin-right:2px!important;
+  font-size:10.5px!important;
+}
+.gc-ride-card .recent-title{
+  font-size:10.6px!important;
+  letter-spacing:-.025em!important;
+}
+.gc-ride-card .recent-count,
+.gc-ride-card .recent-chevron{
+  font-size:9.7px!important;
+  letter-spacing:-.025em!important;
+}
+
+/* iPhone 13-class widths have enough room for the same inline confirmation used by
+   larger phones. Only very narrow viewports stack it, and even there the action stays
+   compact and right-aligned rather than stretching across the card. */
+.location-review{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:9px!important;
+  row-gap:8px!important;
+}
+.location-confirm-btn{
+  justify-self:end!important;
+  align-self:center!important;
+  width:auto!important;
+  min-width:104px!important;
+  max-width:100%!important;
+  min-height:44px!important;
+  padding:8px 11px!important;
+  font-size:12.4px!important;
+  line-height:1.25!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+}
+@media(max-width:359px){
+  .location-review{
+    grid-template-columns:minmax(0,1fr)!important;
+    align-items:start!important;
+  }
+  .location-confirm-btn{
+    justify-self:end!important;
+    align-self:center!important;
+    width:auto!important;
+    min-width:104px!important;
+    white-space:nowrap!important;
+  }
+}
+
+/* Closed and open headers both keep the same two visible information levels; only
+   the actual optional fields participate in the details disclosure. */
+.gc-call-needs-box>summary{
+  min-height:52px!important;
+  padding:7px 43px 7px 13px!important;
+  white-space:normal!important;
+}
+.gc-call-needs-box>summary .gc-needs-summary-copy{
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:1px!important;
+}
+.gc-call-needs-box>summary .gc-needs-summary-title{
+  color:#274a64!important;
+  font-size:14px!important;
+  line-height:1.25!important;
+  font-weight:720!important;
+  letter-spacing:0!important;
+}
+.gc-call-needs-box>summary .gc-needs-summary-meta{
+  max-width:100%!important;
+  color:#748895!important;
+  font-size:11.5px!important;
+  line-height:1.3!important;
+  font-weight:560!important;
+  letter-spacing:0!important;
+  white-space:nowrap!important;
+}
+
+/* Expectation-setting is the key message in manual fare help. It remains a
+   separate second line and receives slightly stronger contrast than body copy. */
+.gc-fare-manual-warning small{
+  display:block!important;
+  color:#695324!important;
+  font-weight:720!important;
+}
+
+/* GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
+   Pickup/driver-location owns one status slot: quiet local advice, a stronger
+   provider-confirmed ambiguity state, or the existing location success/error. */
+.gc-ride-card .gc-pickup-address>.location-status.is-address-admin-soft{
+  display:block!important;
+  margin:6px 2px 0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#6d8291!important;
+  font-size:11.8px!important;
+  line-height:1.45!important;
+  font-weight:600!important;
+}
+.gc-ride-card .gc-pickup-address>.location-status.is-address-admin-strong{
+  box-sizing:border-box!important;
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:7px 0 0!important;
+  padding:9px 10px!important;
+  border:1px solid #ead59a!important;
+  border-radius:11px!important;
+  background:#fff9e9!important;
+  color:#6d5419!important;
+  font-size:12px!important;
+  line-height:1.45!important;
+}
+.gc-ride-card .gc-pickup-address>.location-status.is-address-admin-strong>strong{
+  display:block!important;
+  color:#684f17!important;
+  font-weight:720!important;
+}
+.gc-address-admin-options{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:6px!important;
+  width:100%!important;
+  margin-top:7px!important;
+}
+.gc-address-admin-options>button{
+  flex:1 1 82px!important;
+  min-width:0!important;
+  min-height:40px!important;
+  padding:7px 9px!important;
+  border:1px solid #d9bd6f!important;
+  border-radius:9px!important;
+  background:#fffdf6!important;
+  color:#5d4919!important;
+  box-shadow:none!important;
+  font-size:12.2px!important;
+  line-height:1.2!important;
+  font-weight:700!important;
+  white-space:nowrap!important;
+}
+.gc-address-admin-options>button:active{
+  background:#f8edc9!important;
+}
+.confirm-row-warning{
+  border-color:#e6cf8f!important;
+  background:#fff9e8!important;
+}
+.confirm-row-warning>span,
+.confirm-row-warning>strong{
+  color:#6b5218!important;
+}

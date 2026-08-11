@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9x';
+  const GC_BUILD_VERSION = 'master202608r10z9y';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -9,6 +9,8 @@
   // GC_MASTER_STABLE_2026_08R10Z9L_MANUAL_ADDRESS_AND_CONFIRMED_SCHEDULE
   // GC_MASTER_STABLE_2026_08R10Z9W_TRUE_IPHONE_FLOW_AND_MOTHER_VISUAL_LOCK
   // GC_MASTER_STABLE_2026_08R10Z9X_CUSTOM_FROSTED_DATE_MODAL
+  // GC_MASTER_STABLE_2026_08R10Z9Y_COMPACT_UI_HIERARCHY
+  // GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -119,6 +121,8 @@
   const LOCATION_REVERSE_GEOCODE_TIMEOUT_MS = 3500;
   const ADDRESS_SUGGEST_DEBOUNCE_MS = 320;
   const ADDRESS_SUGGEST_TIMEOUT_MS = 3000;
+  const ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN = 95;
+  const ADDRESS_ADMIN_AMBIGUITY_SUBMIT_WAIT_MS = 1200;
   const ADDRESS_BIAS_LOCATION = '120.6736,24.1477';
   const ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT = '119.85,21.75,122.15,25.45';
   const ADDRESS_PRIMARY_REGIONS = [
@@ -150,6 +154,8 @@
   ];
   const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
   const addressSuggestionCache = new Map();
+  const addressAdminAmbiguityChecks = new Map();
+  let addressAdminAmbiguityToken = 0;
   let pendingConfirmAction = null;
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
@@ -1519,6 +1525,230 @@
     return null;
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
+  // A missing administrative area is advisory, never a validation gate. The quiet first
+  // level is local and immediate; the stronger second level appears only when ArcGIS returns
+  // two or more high-confidence exact door matches in distinct central-service areas.
+  function normalizedDoorIdentityPart(value) {
+    return String(value || '')
+      .replace(/[\uFF10-\uFF19]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0))
+      .replace(/-/g, '之')
+      .trim();
+  }
+
+  function doorIdentityFromCore(core) {
+    if (!core?.road || !core?.house) return '';
+    return `${addressConfidenceKey(core.road)}|${normalizedDoorIdentityPart(core.house)}`;
+  }
+
+  function adminAmbiguityOptions(query, candidates) {
+    const queryCore = dispatchDoorAddressCore(query);
+    if (!doorIdentityFromCore(queryCore) || (queryCore.county && queryCore.district)) return [];
+
+    const queryParts = splitTaiwanSuggestionAddress(query);
+    const countyHint = explicitTaiwanCountyFromQuery(query) || queryCore.county || '';
+    const districtHint = queryParts.district || queryCore.district || '';
+    const queryDoor = doorIdentityFromCore(queryCore);
+    const centralCounties = new Set(ADDRESS_PRIMARY_REGIONS.map(region => region.name));
+    const preciseTypes = new Set(['PointAddress', 'PointAddressInt', 'StreetAddress', 'Subaddress']);
+    const seen = new Set();
+    const options = [];
+
+    (Array.isArray(candidates) ? candidates : []).forEach(candidate => {
+      if (!candidate?.address || Number(candidate.score || 0) < ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN || !preciseTypes.has(candidate.type)) return;
+      const core = dispatchDoorAddressCore(candidate.address);
+      if (!core.county || !core.district || doorIdentityFromCore(core) !== queryDoor) return;
+      if (countyHint && core.county !== countyHint) return;
+      if (districtHint && core.district !== districtHint) return;
+      // With no county supplied, stay inside the product's existing central-service scope;
+      // equally named doors elsewhere in Taiwan must not create a noisy local warning.
+      if (!countyHint && !centralCounties.has(core.county)) return;
+      const key = `${core.county}|${core.district}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push({ county: core.county, district: core.district, admin: `${core.county}${core.district}` });
+    });
+
+    if (options.length < 2) return [];
+    const districtCounts = options.reduce((counts, option) => {
+      counts.set(option.district, (counts.get(option.district) || 0) + 1);
+      return counts;
+    }, new Map());
+    return options.slice(0, 3).map(option => ({
+      ...option,
+      label: districtCounts.get(option.district) > 1 ? option.admin : option.district
+    }));
+  }
+
+  function adminAreaText(options, separator = 'word') {
+    const labels = (Array.isArray(options) ? options : []).map(option => option.label).filter(Boolean);
+    if (separator === 'line') return labels.join('／');
+    if (labels.length < 2) return labels[0] || '';
+    if (labels.length === 2) return `${labels[0]}或${labels[1]}`;
+    return `${labels.slice(0, -1).join('、')}或${labels[labels.length - 1]}`;
+  }
+
+  function pickupStatusElement(input) {
+    return input?.id === 'pickup' ? document.getElementById('locationStatus') : null;
+  }
+
+  function clearPickupAdminReminder(input) {
+    const status = pickupStatusElement(input);
+    input._gcAdminAmbiguity = null;
+    if (!status || status.dataset.gcStatusOwner !== 'admin-ambiguity') return;
+    status.textContent = '';
+    status.className = 'location-status';
+    delete status.dataset.gcStatusOwner;
+  }
+
+  function pickupAdminReminderEligible(input, query = input?.value || '') {
+    if (!input || input.id !== 'pickup') return false;
+    // A live GPS pin owns the single status slot. Once the rider deliberately
+    // replaces it with text and the stale pin is no longer sent, the typed
+    // address may receive the same non-blocking administrative-area guidance.
+    const activeLocation = Boolean(attachedLocation && attachedLocation.sendMap !== false);
+    if (activeLocation) return false;
+    return isDoorAddressMissingAdmin(query);
+  }
+
+  function renderPickupAdminReminder(input, evidence = null) {
+    const status = pickupStatusElement(input);
+    const query = smartNormalizeTaiwanAddress(input?.value || '');
+    if (!status || !pickupAdminReminderEligible(input, query)) {
+      clearPickupAdminReminder(input);
+      return;
+    }
+
+    // A stale location error/success is replaced when the rider has moved on to typed text.
+    // Live GPS and confirmed-location states are protected by attachedLocation above.
+    if (status.dataset.gcStatusOwner === 'location') {
+      status.textContent = '';
+      status.className = 'location-status';
+    }
+    status.dataset.gcStatusOwner = 'admin-ambiguity';
+    const queryKey = addressConfidenceKey(query);
+    const usableEvidence = evidence?.queryKey === queryKey && evidence.options?.length >= 2 ? evidence : null;
+    input._gcAdminAmbiguity = usableEvidence;
+
+    if (!usableEvidence) {
+      status.className = 'location-status is-address-admin-soft';
+      status.textContent = 'ⓘ 建議補上行政區，避免同名路段派錯車';
+      return;
+    }
+
+    const areaText = adminAreaText(usableEvidence.options);
+    status.className = 'location-status is-address-admin-strong';
+    status.innerHTML = `<strong>此門牌可能位於${escapeHtml(areaText)}，請確認上車地區。</strong>
+      <span class="gc-address-admin-options" role="group" aria-label="選擇上車行政區">
+        ${usableEvidence.options.map((option, index) => `<button type="button" data-admin-option="${index}" aria-label="選擇${escapeHtml(option.admin)}">${escapeHtml(option.label)}</button>`).join('')}
+      </span>`;
+  }
+
+  function lookupPickupAdminAmbiguity(query) {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    const queryKey = addressConfidenceKey(normalized);
+    if (!queryKey || !isDoorAddressMissingAdmin(normalized)) return Promise.resolve(null);
+    const existing = addressAdminAmbiguityChecks.get(queryKey);
+    if (existing) return existing;
+
+    const promise = resolveTypedAddress(normalized)
+      .then(candidates => {
+        const options = adminAmbiguityOptions(normalized, candidates);
+        return options.length >= 2 ? { queryKey, query: normalized, options } : null;
+      })
+      .catch(() => null);
+    addressAdminAmbiguityChecks.set(queryKey, promise);
+    const release = () => {
+      if (addressAdminAmbiguityChecks.get(queryKey) === promise) addressAdminAmbiguityChecks.delete(queryKey);
+    };
+    promise.then(release, release);
+    return promise;
+  }
+
+  function startPickupAdminAmbiguityLookup(input, query = input?.value || '') {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    if (!pickupAdminReminderEligible(input, normalized)) {
+      clearPickupAdminReminder(input);
+      return Promise.resolve(null);
+    }
+
+    const queryKey = addressConfidenceKey(normalized);
+    const token = String(++addressAdminAmbiguityToken);
+    input.dataset.gcAdminAmbiguityToken = token;
+    const promise = lookupPickupAdminAmbiguity(normalized);
+    input._gcAdminAmbiguityPromise = promise;
+    input._gcAdminAmbiguityPromiseKey = queryKey;
+    promise.then(evidence => {
+      const currentKey = addressConfidenceKey(input.value);
+      if (input.dataset.gcAdminAmbiguityToken !== token || currentKey !== queryKey || !pickupAdminReminderEligible(input, input.value)) return;
+      renderPickupAdminReminder(input, evidence);
+    });
+    return promise;
+  }
+
+  function queuePickupAdminAmbiguity(input, delay = ADDRESS_SUGGEST_DEBOUNCE_MS) {
+    if (!input || input.id !== 'pickup') return;
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    input.dataset.gcAdminAmbiguityToken = String(++addressAdminAmbiguityToken);
+    input._gcAdminAmbiguityPromise = null;
+    input._gcAdminAmbiguityPromiseKey = '';
+    const status = pickupStatusElement(input);
+    if (!attachedLocation && status?.dataset.gcStatusOwner === 'location') {
+      status.textContent = '';
+      status.className = 'location-status';
+      delete status.dataset.gcStatusOwner;
+    }
+    renderPickupAdminReminder(input);
+    if (!pickupAdminReminderEligible(input, input.value)) return;
+    input._gcAdminAmbiguityTimer = setTimeout(() => startPickupAdminAmbiguityLookup(input), Math.max(0, delay));
+  }
+
+  async function pickupAdminAmbiguityForSubmit(input) {
+    if (!input || input.id !== 'pickup') return null;
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    const query = smartNormalizeTaiwanAddress(input.value);
+    const queryKey = addressConfidenceKey(query);
+    renderPickupAdminReminder(input, input._gcAdminAmbiguity);
+    if (!pickupAdminReminderEligible(input, query)) return null;
+    if (input._gcAdminAmbiguity?.queryKey === queryKey) return input._gcAdminAmbiguity;
+
+    const pending = input._gcAdminAmbiguityPromiseKey === queryKey && input._gcAdminAmbiguityPromise
+      ? input._gcAdminAmbiguityPromise
+      : startPickupAdminAmbiguityLookup(input, query);
+    const timedOut = Symbol('admin-ambiguity-timeout');
+    let timeoutId = 0;
+    const result = await Promise.race([
+      pending,
+      new Promise(resolve => { timeoutId = setTimeout(() => resolve(timedOut), ADDRESS_ADMIN_AMBIGUITY_SUBMIT_WAIT_MS); })
+    ]);
+    clearTimeout(timeoutId);
+    if (addressConfidenceKey(input.value) !== queryKey || !pickupAdminReminderEligible(input, input.value)) return null;
+    if (result !== timedOut) renderPickupAdminReminder(input, result);
+    return input._gcAdminAmbiguity?.queryKey === queryKey ? input._gcAdminAmbiguity : null;
+  }
+
+  function applyPickupAdminOption(input, optionIndex) {
+    const evidence = input?._gcAdminAmbiguity;
+    const option = evidence?.options?.[Number(optionIndex)];
+    if (!input || !option || evidence.queryKey !== addressConfidenceKey(input.value)) return;
+    const core = dispatchDoorAddressCore(input.value);
+    if (!core.detail || doorIdentityFromCore(core) === '') return;
+    const selected = smartNormalizeTaiwanAddress(`${option.county}${option.district}${core.detail}`);
+    if (!selected) return;
+
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    input.dataset.gcAdminAmbiguityToken = String(++addressAdminAmbiguityToken);
+    input._gcCancelSmartSuggestions?.();
+    input.value = selected;
+    input.dataset.gcSkipSuggestOnce = '1';
+    markAddressVerified(input, 'ambiguity-region-choice', selected);
+    clearPickupAdminReminder(input);
+    input.classList.remove('invalid', 'gc-address-needs-choice');
+    document.getElementById('pickupError')?.classList.remove('show');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   function isResolvedCandidateDispatchReady(query, resolved, options = {}) {
     if (!resolved || resolved.score < 80 || !resolved.address) return false;
     const type = resolved.type;
@@ -1768,9 +1998,23 @@
       };
       input._gcCancelSmartSuggestions = cancelSmartSuggestionSession;
 
+      const adminStatus = pickupStatusElement(input);
+      if (adminStatus && adminStatus.dataset.gcAdminOptionsBound !== '1') {
+        adminStatus.dataset.gcAdminOptionsBound = '1';
+        adminStatus.addEventListener('click', event => {
+          const option = event.target.closest('[data-admin-option]');
+          if (!option || !adminStatus.contains(option)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          applyPickupAdminOption(input, option.dataset.adminOption);
+        });
+      }
+
       input.addEventListener('input', () => {
         clearTimeout(timer);
-        if (input.dataset.gcSkipSuggestOnce === '1') {
+        const skipSuggestOnce = input.dataset.gcSkipSuggestOnce === '1';
+        queuePickupAdminAmbiguity(input, skipSuggestOnce ? 0 : ADDRESS_SUGGEST_DEBOUNCE_MS);
+        if (skipSuggestOnce) {
           delete input.dataset.gcSkipSuggestOnce;
           cancelSmartSuggestionSession();
           return;
@@ -1826,6 +2070,7 @@
         // This is format sanitation only (postal prefix / comma / whitespace / floor), not geocoder replacement.
         setTimeout(() => {
           normalizeAddressInput(id);
+          queuePickupAdminAmbiguity(input, 0);
           hideAddressSuggestions(id);
         }, 180);
       });
@@ -2233,6 +2478,7 @@
     if (status) {
       status.textContent = '';
       status.className = 'location-status';
+      delete status.dataset.gcStatusOwner;
     }
     const button = document.getElementById('locationBtn');
     if (button) {
@@ -2246,6 +2492,7 @@
     if (!status) return;
     status.textContent = message || '';
     status.className = `location-status${state ? ` is-${state}` : ''}`;
+    status.dataset.gcStatusOwner = 'location';
   }
 
   function updateLocationVisibility() {
@@ -3109,7 +3356,7 @@
     summary.innerHTML = rows
       .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
       .map(row => `
-        <div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}">
+        <div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}${row.warning ? ' confirm-row-warning' : ''}">
           <span>${escapeHtml(row.label)}</span>
           <strong>${escapeHtml(row.value)}</strong>
         </div>`).join('');
@@ -4364,6 +4611,29 @@
         }
       }
 
+      // Best-effort only: the address remains sendable whether ArcGIS returns two matches,
+      // one match, no match, or times out. A short bounded wait lets an in-flight typing check
+      // reach the confirmation/LINE warning without turning provider availability into a gate.
+      let pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+      const postAmbiguityPickup = value('pickup');
+      const postAmbiguityDestination = value('destination');
+      if (postAmbiguityPickup !== pickup || postAmbiguityDestination !== destination) {
+        pickup = postAmbiguityPickup;
+        destination = postAmbiguityDestination;
+        let postAmbiguityValid = Boolean(pickup && pickup !== LOCATION_MARKER);
+        if (postAmbiguityValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
+        if (postAmbiguityValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
+        if (!postAmbiguityValid) {
+          focusFirstValidationError();
+          return;
+        }
+        pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+      }
+      const adminWarningLabel = mode === 'driver' ? '代駕行政區' : '上車行政區';
+      const adminWarningValue = pickupAdminAmbiguity
+        ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
+        : '';
+
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
@@ -4373,6 +4643,7 @@
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
+      if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
@@ -4412,6 +4683,7 @@
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
+        ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])

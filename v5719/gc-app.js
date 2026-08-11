@@ -1,8 +1,8 @@
-window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時叫車表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約叫車表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時代駕表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約代駕表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"無法完成上方試算時可使用｜繁忙時可能先提供試算資訊","人工協助展開標題":"估價協助","人工協助補充":"繁忙時段可能先提供試算資訊供您參考。","人工協助警示標題":"估價協助說明","人工協助警示說明":"若無法完成上方試算，可送出估價需求。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【車資估價需求】","訊息分隔線":"──────────","訊息提醒":"💬 想先了解此行程車資，請協助提供估價資訊。","訊息提醒2":"將依當下狀況回覆；繁忙時可能先提供試算資訊供參考。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"✅ 估價需求已送出","成功內容1":"需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。","成功內容2":"本次僅為估價需求，尚未成立叫車或預約訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
+window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時叫車表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到車輛資訊後，如需取消，\\n請於司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約叫車表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到車輛資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"✅ 即時代駕表單已成功送出","成功內容1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容2":"【即時單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於代駕司機出發後 6 分鐘內告知，\\n避免產生 NT$100 空趟費。","成功標題_預約":"✅ 預約代駕表單已成功送出","成功內容_預約1":"請保持 LINE 通知開啟，\\n耐心等候小編回覆 🙏","成功內容_預約2":"【預約單取消規則】\\n收到代駕司機資訊後，如需取消，\\n請於預約時間前 20 分鐘告知，\\n避免產生 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"無法完成上方試算時可使用｜繁忙時可能先提供試算資訊","人工協助展開標題":"","人工協助補充":"繁忙時段可能先提供試算資訊供您參考。","人工協助警示標題":"無法完成上方試算？","人工協助警示說明":"可直接送出估價需求，由小編協助估算。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【車資估價需求】","訊息分隔線":"──────────","訊息提醒":"💬 想先了解此行程車資，請協助提供估價資訊。","訊息提醒2":"將依當下狀況回覆；繁忙時可能先提供試算資訊供參考。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"✅ 估價需求已送出","成功內容1":"需求已送至 LINE 聊天室；繁忙時段可能先提供試算資訊供您參考。","成功內容2":"本次僅為估價需求，尚未成立叫車或預約訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z9x';
+  const GC_BUILD_VERSION = 'master202608r10z9y';
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -11,6 +11,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z9L_MANUAL_ADDRESS_AND_CONFIRMED_SCHEDULE
   // GC_MASTER_STABLE_2026_08R10Z9W_TRUE_IPHONE_FLOW_AND_MOTHER_VISUAL_LOCK
   // GC_MASTER_STABLE_2026_08R10Z9X_CUSTOM_FROSTED_DATE_MODAL
+  // GC_MASTER_STABLE_2026_08R10Z9Y_COMPACT_UI_HIERARCHY
+  // GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
   // Enterprise POI discovery, progressive first-screen UX, responsive polish and parallel LIFF boot.
   // GC_R10Z2_FARE_RETURN_SCROLL_STABLE: fare return scroll is owned by browser history; no result auto-centering.
   // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
@@ -121,6 +123,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   const LOCATION_REVERSE_GEOCODE_TIMEOUT_MS = 3500;
   const ADDRESS_SUGGEST_DEBOUNCE_MS = 320;
   const ADDRESS_SUGGEST_TIMEOUT_MS = 3000;
+  const ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN = 95;
+  const ADDRESS_ADMIN_AMBIGUITY_SUBMIT_WAIT_MS = 1200;
   const ADDRESS_BIAS_LOCATION = '120.6736,24.1477';
   const ADDRESS_TAIWAN_MAIN_ISLAND_EXTENT = '119.85,21.75,122.15,25.45';
   const ADDRESS_PRIMARY_REGIONS = [
@@ -152,6 +156,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   ];
   const ADDRESS_SUGGEST_CACHE_LIMIT = 40;
   const addressSuggestionCache = new Map();
+  const addressAdminAmbiguityChecks = new Map();
+  let addressAdminAmbiguityToken = 0;
   let pendingConfirmAction = null;
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
@@ -1521,6 +1527,230 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return null;
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z9Y_SOFT_ADMIN_AMBIGUITY
+  // A missing administrative area is advisory, never a validation gate. The quiet first
+  // level is local and immediate; the stronger second level appears only when ArcGIS returns
+  // two or more high-confidence exact door matches in distinct central-service areas.
+  function normalizedDoorIdentityPart(value) {
+    return String(value || '')
+      .replace(/[\uFF10-\uFF19]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0))
+      .replace(/-/g, '之')
+      .trim();
+  }
+
+  function doorIdentityFromCore(core) {
+    if (!core?.road || !core?.house) return '';
+    return `${addressConfidenceKey(core.road)}|${normalizedDoorIdentityPart(core.house)}`;
+  }
+
+  function adminAmbiguityOptions(query, candidates) {
+    const queryCore = dispatchDoorAddressCore(query);
+    if (!doorIdentityFromCore(queryCore) || (queryCore.county && queryCore.district)) return [];
+
+    const queryParts = splitTaiwanSuggestionAddress(query);
+    const countyHint = explicitTaiwanCountyFromQuery(query) || queryCore.county || '';
+    const districtHint = queryParts.district || queryCore.district || '';
+    const queryDoor = doorIdentityFromCore(queryCore);
+    const centralCounties = new Set(ADDRESS_PRIMARY_REGIONS.map(region => region.name));
+    const preciseTypes = new Set(['PointAddress', 'PointAddressInt', 'StreetAddress', 'Subaddress']);
+    const seen = new Set();
+    const options = [];
+
+    (Array.isArray(candidates) ? candidates : []).forEach(candidate => {
+      if (!candidate?.address || Number(candidate.score || 0) < ADDRESS_ADMIN_AMBIGUITY_SCORE_MIN || !preciseTypes.has(candidate.type)) return;
+      const core = dispatchDoorAddressCore(candidate.address);
+      if (!core.county || !core.district || doorIdentityFromCore(core) !== queryDoor) return;
+      if (countyHint && core.county !== countyHint) return;
+      if (districtHint && core.district !== districtHint) return;
+      // With no county supplied, stay inside the product's existing central-service scope;
+      // equally named doors elsewhere in Taiwan must not create a noisy local warning.
+      if (!countyHint && !centralCounties.has(core.county)) return;
+      const key = `${core.county}|${core.district}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      options.push({ county: core.county, district: core.district, admin: `${core.county}${core.district}` });
+    });
+
+    if (options.length < 2) return [];
+    const districtCounts = options.reduce((counts, option) => {
+      counts.set(option.district, (counts.get(option.district) || 0) + 1);
+      return counts;
+    }, new Map());
+    return options.slice(0, 3).map(option => ({
+      ...option,
+      label: districtCounts.get(option.district) > 1 ? option.admin : option.district
+    }));
+  }
+
+  function adminAreaText(options, separator = 'word') {
+    const labels = (Array.isArray(options) ? options : []).map(option => option.label).filter(Boolean);
+    if (separator === 'line') return labels.join('／');
+    if (labels.length < 2) return labels[0] || '';
+    if (labels.length === 2) return `${labels[0]}或${labels[1]}`;
+    return `${labels.slice(0, -1).join('、')}或${labels[labels.length - 1]}`;
+  }
+
+  function pickupStatusElement(input) {
+    return input?.id === 'pickup' ? document.getElementById('locationStatus') : null;
+  }
+
+  function clearPickupAdminReminder(input) {
+    const status = pickupStatusElement(input);
+    input._gcAdminAmbiguity = null;
+    if (!status || status.dataset.gcStatusOwner !== 'admin-ambiguity') return;
+    status.textContent = '';
+    status.className = 'location-status';
+    delete status.dataset.gcStatusOwner;
+  }
+
+  function pickupAdminReminderEligible(input, query = input?.value || '') {
+    if (!input || input.id !== 'pickup') return false;
+    // A live GPS pin owns the single status slot. Once the rider deliberately
+    // replaces it with text and the stale pin is no longer sent, the typed
+    // address may receive the same non-blocking administrative-area guidance.
+    const activeLocation = Boolean(attachedLocation && attachedLocation.sendMap !== false);
+    if (activeLocation) return false;
+    return isDoorAddressMissingAdmin(query);
+  }
+
+  function renderPickupAdminReminder(input, evidence = null) {
+    const status = pickupStatusElement(input);
+    const query = smartNormalizeTaiwanAddress(input?.value || '');
+    if (!status || !pickupAdminReminderEligible(input, query)) {
+      clearPickupAdminReminder(input);
+      return;
+    }
+
+    // A stale location error/success is replaced when the rider has moved on to typed text.
+    // Live GPS and confirmed-location states are protected by attachedLocation above.
+    if (status.dataset.gcStatusOwner === 'location') {
+      status.textContent = '';
+      status.className = 'location-status';
+    }
+    status.dataset.gcStatusOwner = 'admin-ambiguity';
+    const queryKey = addressConfidenceKey(query);
+    const usableEvidence = evidence?.queryKey === queryKey && evidence.options?.length >= 2 ? evidence : null;
+    input._gcAdminAmbiguity = usableEvidence;
+
+    if (!usableEvidence) {
+      status.className = 'location-status is-address-admin-soft';
+      status.textContent = 'ⓘ 建議補上行政區，避免同名路段派錯車';
+      return;
+    }
+
+    const areaText = adminAreaText(usableEvidence.options);
+    status.className = 'location-status is-address-admin-strong';
+    status.innerHTML = `<strong>此門牌可能位於${escapeHtml(areaText)}，請確認上車地區。</strong>
+      <span class="gc-address-admin-options" role="group" aria-label="選擇上車行政區">
+        ${usableEvidence.options.map((option, index) => `<button type="button" data-admin-option="${index}" aria-label="選擇${escapeHtml(option.admin)}">${escapeHtml(option.label)}</button>`).join('')}
+      </span>`;
+  }
+
+  function lookupPickupAdminAmbiguity(query) {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    const queryKey = addressConfidenceKey(normalized);
+    if (!queryKey || !isDoorAddressMissingAdmin(normalized)) return Promise.resolve(null);
+    const existing = addressAdminAmbiguityChecks.get(queryKey);
+    if (existing) return existing;
+
+    const promise = resolveTypedAddress(normalized)
+      .then(candidates => {
+        const options = adminAmbiguityOptions(normalized, candidates);
+        return options.length >= 2 ? { queryKey, query: normalized, options } : null;
+      })
+      .catch(() => null);
+    addressAdminAmbiguityChecks.set(queryKey, promise);
+    const release = () => {
+      if (addressAdminAmbiguityChecks.get(queryKey) === promise) addressAdminAmbiguityChecks.delete(queryKey);
+    };
+    promise.then(release, release);
+    return promise;
+  }
+
+  function startPickupAdminAmbiguityLookup(input, query = input?.value || '') {
+    const normalized = smartNormalizeTaiwanAddress(query);
+    if (!pickupAdminReminderEligible(input, normalized)) {
+      clearPickupAdminReminder(input);
+      return Promise.resolve(null);
+    }
+
+    const queryKey = addressConfidenceKey(normalized);
+    const token = String(++addressAdminAmbiguityToken);
+    input.dataset.gcAdminAmbiguityToken = token;
+    const promise = lookupPickupAdminAmbiguity(normalized);
+    input._gcAdminAmbiguityPromise = promise;
+    input._gcAdminAmbiguityPromiseKey = queryKey;
+    promise.then(evidence => {
+      const currentKey = addressConfidenceKey(input.value);
+      if (input.dataset.gcAdminAmbiguityToken !== token || currentKey !== queryKey || !pickupAdminReminderEligible(input, input.value)) return;
+      renderPickupAdminReminder(input, evidence);
+    });
+    return promise;
+  }
+
+  function queuePickupAdminAmbiguity(input, delay = ADDRESS_SUGGEST_DEBOUNCE_MS) {
+    if (!input || input.id !== 'pickup') return;
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    input.dataset.gcAdminAmbiguityToken = String(++addressAdminAmbiguityToken);
+    input._gcAdminAmbiguityPromise = null;
+    input._gcAdminAmbiguityPromiseKey = '';
+    const status = pickupStatusElement(input);
+    if (!attachedLocation && status?.dataset.gcStatusOwner === 'location') {
+      status.textContent = '';
+      status.className = 'location-status';
+      delete status.dataset.gcStatusOwner;
+    }
+    renderPickupAdminReminder(input);
+    if (!pickupAdminReminderEligible(input, input.value)) return;
+    input._gcAdminAmbiguityTimer = setTimeout(() => startPickupAdminAmbiguityLookup(input), Math.max(0, delay));
+  }
+
+  async function pickupAdminAmbiguityForSubmit(input) {
+    if (!input || input.id !== 'pickup') return null;
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    const query = smartNormalizeTaiwanAddress(input.value);
+    const queryKey = addressConfidenceKey(query);
+    renderPickupAdminReminder(input, input._gcAdminAmbiguity);
+    if (!pickupAdminReminderEligible(input, query)) return null;
+    if (input._gcAdminAmbiguity?.queryKey === queryKey) return input._gcAdminAmbiguity;
+
+    const pending = input._gcAdminAmbiguityPromiseKey === queryKey && input._gcAdminAmbiguityPromise
+      ? input._gcAdminAmbiguityPromise
+      : startPickupAdminAmbiguityLookup(input, query);
+    const timedOut = Symbol('admin-ambiguity-timeout');
+    let timeoutId = 0;
+    const result = await Promise.race([
+      pending,
+      new Promise(resolve => { timeoutId = setTimeout(() => resolve(timedOut), ADDRESS_ADMIN_AMBIGUITY_SUBMIT_WAIT_MS); })
+    ]);
+    clearTimeout(timeoutId);
+    if (addressConfidenceKey(input.value) !== queryKey || !pickupAdminReminderEligible(input, input.value)) return null;
+    if (result !== timedOut) renderPickupAdminReminder(input, result);
+    return input._gcAdminAmbiguity?.queryKey === queryKey ? input._gcAdminAmbiguity : null;
+  }
+
+  function applyPickupAdminOption(input, optionIndex) {
+    const evidence = input?._gcAdminAmbiguity;
+    const option = evidence?.options?.[Number(optionIndex)];
+    if (!input || !option || evidence.queryKey !== addressConfidenceKey(input.value)) return;
+    const core = dispatchDoorAddressCore(input.value);
+    if (!core.detail || doorIdentityFromCore(core) === '') return;
+    const selected = smartNormalizeTaiwanAddress(`${option.county}${option.district}${core.detail}`);
+    if (!selected) return;
+
+    clearTimeout(input._gcAdminAmbiguityTimer);
+    input.dataset.gcAdminAmbiguityToken = String(++addressAdminAmbiguityToken);
+    input._gcCancelSmartSuggestions?.();
+    input.value = selected;
+    input.dataset.gcSkipSuggestOnce = '1';
+    markAddressVerified(input, 'ambiguity-region-choice', selected);
+    clearPickupAdminReminder(input);
+    input.classList.remove('invalid', 'gc-address-needs-choice');
+    document.getElementById('pickupError')?.classList.remove('show');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   function isResolvedCandidateDispatchReady(query, resolved, options = {}) {
     if (!resolved || resolved.score < 80 || !resolved.address) return false;
     const type = resolved.type;
@@ -1770,9 +2000,23 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       };
       input._gcCancelSmartSuggestions = cancelSmartSuggestionSession;
 
+      const adminStatus = pickupStatusElement(input);
+      if (adminStatus && adminStatus.dataset.gcAdminOptionsBound !== '1') {
+        adminStatus.dataset.gcAdminOptionsBound = '1';
+        adminStatus.addEventListener('click', event => {
+          const option = event.target.closest('[data-admin-option]');
+          if (!option || !adminStatus.contains(option)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          applyPickupAdminOption(input, option.dataset.adminOption);
+        });
+      }
+
       input.addEventListener('input', () => {
         clearTimeout(timer);
-        if (input.dataset.gcSkipSuggestOnce === '1') {
+        const skipSuggestOnce = input.dataset.gcSkipSuggestOnce === '1';
+        queuePickupAdminAmbiguity(input, skipSuggestOnce ? 0 : ADDRESS_SUGGEST_DEBOUNCE_MS);
+        if (skipSuggestOnce) {
           delete input.dataset.gcSkipSuggestOnce;
           cancelSmartSuggestionSession();
           return;
@@ -1828,6 +2072,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         // This is format sanitation only (postal prefix / comma / whitespace / floor), not geocoder replacement.
         setTimeout(() => {
           normalizeAddressInput(id);
+          queuePickupAdminAmbiguity(input, 0);
           hideAddressSuggestions(id);
         }, 180);
       });
@@ -2235,6 +2480,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (status) {
       status.textContent = '';
       status.className = 'location-status';
+      delete status.dataset.gcStatusOwner;
     }
     const button = document.getElementById('locationBtn');
     if (button) {
@@ -2248,6 +2494,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!status) return;
     status.textContent = message || '';
     status.className = `location-status${state ? ` is-${state}` : ''}`;
+    status.dataset.gcStatusOwner = 'location';
   }
 
   function updateLocationVisibility() {
@@ -3111,7 +3358,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     summary.innerHTML = rows
       .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
       .map(row => `
-        <div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}">
+        <div class="confirm-row${row.emphasis ? ' confirm-row-emphasis' : ''}${row.warning ? ' confirm-row-warning' : ''}">
           <span>${escapeHtml(row.label)}</span>
           <strong>${escapeHtml(row.value)}</strong>
         </div>`).join('');
@@ -4366,6 +4613,29 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         }
       }
 
+      // Best-effort only: the address remains sendable whether ArcGIS returns two matches,
+      // one match, no match, or times out. A short bounded wait lets an in-flight typing check
+      // reach the confirmation/LINE warning without turning provider availability into a gate.
+      let pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+      const postAmbiguityPickup = value('pickup');
+      const postAmbiguityDestination = value('destination');
+      if (postAmbiguityPickup !== pickup || postAmbiguityDestination !== destination) {
+        pickup = postAmbiguityPickup;
+        destination = postAmbiguityDestination;
+        let postAmbiguityValid = Boolean(pickup && pickup !== LOCATION_MARKER);
+        if (postAmbiguityValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
+        if (postAmbiguityValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
+        if (!postAmbiguityValid) {
+          focusFirstValidationError();
+          return;
+        }
+        pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+      }
+      const adminWarningLabel = mode === 'driver' ? '代駕行政區' : '上車行政區';
+      const adminWarningValue = pickupAdminAmbiguity
+        ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
+        : '';
+
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
@@ -4375,6 +4645,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       appendLine(lines, cfg['訊息欄位_上車'], pickup);
+      if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], destination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
@@ -4414,6 +4685,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
+        ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
@@ -5550,7 +5822,20 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const content = details.querySelector('.optional-content');
     if (summary) {
       const disclosureTrigger = summary.querySelector('.gc-small-disclosure-trigger');
-      summary.textContent = '指定車型・5人以上・寵物・行李';
+      // GC_MASTER_STABLE_2026_08R10Z9Y_NEEDS_SUMMARY_HIERARCHY
+      // Keep every important category visible while the fields are collapsed, but
+      // separate the label from its examples so narrow phones do not read it as one
+      // dense, equally weighted sentence.
+      const summaryCopy = document.createElement('span');
+      summaryCopy.className = 'gc-needs-summary-copy';
+      const summaryTitle = document.createElement('span');
+      summaryTitle.className = 'gc-needs-summary-title';
+      summaryTitle.textContent = '其他需求';
+      const summaryMeta = document.createElement('span');
+      summaryMeta.className = 'gc-needs-summary-meta';
+      summaryMeta.textContent = '車型・5人以上・寵物・行李';
+      summaryCopy.append(summaryTitle, summaryMeta);
+      summary.replaceChildren(summaryCopy);
       if (disclosureTrigger) summary.appendChild(disclosureTrigger);
     }
     if (baggage) {
@@ -6136,13 +6421,20 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       summary.innerHTML = `<strong class="gc-fare-manual-label"><span aria-hidden="true">ⓘ</span>${escapeHtml(manualTitle)}</strong>`;
       const inner = document.createElement('div');
       inner.className = 'gc-fare-manual-inner';
-      const panelTitle = document.createElement('strong');
-      panelTitle.className = 'gc-manual-panel-title';
-      panelTitle.textContent = cfg()['人工協助展開標題'] || '估價協助';
+      // GC_MASTER_STABLE_2026_08R10Z9Y_FARE_HELP_DEDUPLICATED
+      // The closed summary already names this section. Only render an additional
+      // expanded heading when copy explicitly supplies one, avoiding three repeated
+      // variants of「估價協助」before the actionable explanation.
+      const panelTitleText = String(cfg()['人工協助展開標題'] ?? '').trim();
+      const panelTitle = panelTitleText ? document.createElement('strong') : null;
+      if (panelTitle) {
+        panelTitle.className = 'gc-manual-panel-title';
+        panelTitle.textContent = panelTitleText;
+      }
       const warning = document.createElement('div');
       warning.className = 'gc-fare-manual-warning';
-      const warningTitle = cfg()['人工協助警示標題'] || '估價協助說明';
-      const warningBusy = cfg()['人工協助警示說明'] || '若無法完成上方試算，可送出估價需求。';
+      const warningTitle = cfg()['人工協助警示標題'] || '無法完成上方試算？';
+      const warningBusy = cfg()['人工協助警示說明'] || '可直接送出估價需求，由小編協助估算。';
       const warningAssist = cfg()['人工協助補充'] || '繁忙時段可能先提供試算資訊供您參考。';
       warning.innerHTML = `<strong>${escapeHtml(warningTitle)}</strong><p>${escapeHtml(warningBusy)}</p><small>${escapeHtml(warningAssist)}</small>`;
       const extra = document.createElement('div');
@@ -6152,7 +6444,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       manual.parentNode.insertBefore(details, manual);
       details.appendChild(summary);
       details.appendChild(inner);
-      inner.appendChild(panelTitle);
+      if (panelTitle) inner.appendChild(panelTitle);
       inner.appendChild(warning);
       inner.appendChild(extra);
       inner.appendChild(form);
