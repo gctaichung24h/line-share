@@ -6167,22 +6167,14 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 }
 
 /* GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
-   Scope lock: only the explicitly approved unit-divider cleanup, empty date/time hint typography and estimate-success emphasis.
-   Outer calculator focus remains on the wrapper; no inner divider is shown. */
+   Scope lock: only the explicitly approved unit divider and estimate-success emphasis.
+   Outer calculator focus remains on the wrapper; the inner divider stays neutral. */
 .gc-fare-card .gc-fare-calc-input-wrap>b{
   align-self:stretch!important;
   display:flex!important;
   align-items:center!important;
   border-left:0!important;
-  box-shadow:none!important;
-}
-.gc-ride-card .gc-date-shell.is-empty,
-.gc-ride-card .gc-time-trigger.is-empty{
-  color:var(--gc-premium-muted)!important;
-  font-family:inherit!important;
-  font-size:16px!important;
-  font-weight:450!important;
-  line-height:1.45!important;
+  box-shadow:inset 1px 0 0 #cbd9e3!important;
 }
 .gc-fare-card .gc-fare-calc-input:focus,
 .gc-fare-card .gc-fare-calc-input:focus-visible{
@@ -6208,4 +6200,27 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   display:block!important;
   color:inherit!important;
   font:inherit!important;
+}
+
+/* GC_MASTER_STABLE_2026_08R10Z14F3_FOCUS_UNIT_AND_RESERVATION_HINTS
+   Scope lock: only the focus-time unit seam and the empty date/time hint typography
+   on call/driver reservation forms. Unfocused unit styling, selected values, geometry
+   and all existing interaction flow remain unchanged. */
+.gc-fare-card .gc-fare-calc-input-wrap:focus-within>b{
+  box-shadow:none!important;
+}
+.gc-call-card .gc-date-shell.is-empty,
+.gc-call-card .gc-time-trigger.is-empty,
+.gc-driver-card .gc-date-shell.is-empty,
+.gc-driver-card .gc-time-trigger.is-empty{
+  color:var(--gc-premium-muted)!important;
+  font-family:inherit!important;
+  font-size:16px!important;
+  font-weight:450!important;
+  line-height:normal!important;
+  opacity:1!important;
+}
+.gc-call-card .gc-time-trigger.is-empty.is-waiting,
+.gc-driver-card .gc-time-trigger.is-empty.is-waiting{
+  color:var(--gc-premium-muted)!important;
 }
