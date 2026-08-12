@@ -1,7 +1,11 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f';
+  const GC_BUILD_VERSION = 'master202608r10z14f8';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
+  // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
+  // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
+  // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
+  // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
   // Named-scope patch only: shortcut alignment, empty schedule hint tone, fare unit divider, and approved success-page copy.
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
@@ -544,6 +548,109 @@
     if (looksLikeHouseNumber) text += '號';
     return text;
   }
+
+  // GC_R10Z14F6_REVIEWED_DISPATCH_ADDRESS_COPY
+  // Only the call confirmation / outgoing text copy is normalized. The original input
+  // remains the source of truth for validation, map coordinates, navigation and storage.
+  const GC_DISPATCH_REGION_COUNTY = Object.freeze({
+    TPE: '台北市', NWT: '新北市', TAO: '桃園市', TXG: '台中市', TNN: '台南市', KHH: '高雄市',
+    KEE: '基隆市', HSZ: '新竹市', CYI: '嘉義市', HSQ: '新竹縣', MIA: '苗栗縣', CHA: '彰化縣',
+    NAN: '南投縣', YUN: '雲林縣', CYQ: '嘉義縣', PIF: '屏東縣', ILA: '宜蘭縣', HUA: '花蓮縣',
+    TTT: '台東縣', PEN: '澎湖縣', KIN: '金門縣', LIE: '連江縣'
+  });
+
+  function dispatchCountyFromPostal(value) {
+    const digits = String(value || '').replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xFEE0));
+    const code = Number(digits.slice(0, 3));
+    if (!Number.isFinite(code)) return '';
+    if (code >= 209 && code <= 212) return '連江縣';
+    if (code >= 100 && code <= 116) return '台北市';
+    if (code >= 200 && code <= 206) return '基隆市';
+    if (code >= 207 && code <= 253) return '新北市';
+    if (code >= 260 && code <= 272) return '宜蘭縣';
+    if (code === 300) return '新竹市';
+    if (code >= 302 && code <= 315) return '新竹縣';
+    if (code >= 320 && code <= 338) return '桃園市';
+    if (code >= 350 && code <= 369) return '苗栗縣';
+    if (code >= 400 && code <= 439) return '台中市';
+    if (code >= 500 && code <= 530) return '彰化縣';
+    if (code >= 540 && code <= 558) return '南投縣';
+    if (code === 600) return '嘉義市';
+    if (code >= 602 && code <= 625) return '嘉義縣';
+    if (code >= 630 && code <= 655) return '雲林縣';
+    if (code >= 700 && code <= 745) return '台南市';
+    if (code >= 800 && code <= 852) return '高雄市';
+    if (code >= 880 && code <= 885) return '澎湖縣';
+    if (code >= 890 && code <= 896) return '金門縣';
+    if (code >= 900 && code <= 947) return '屏東縣';
+    if (code >= 950 && code <= 966) return '台東縣';
+    if (code >= 970 && code <= 983) return '花蓮縣';
+    return '';
+  }
+
+  function normalizeDispatchAddressForReview(address) {
+    const original = normalizeAddress(address);
+    if (!original || /^(?:undefined|null)$/i.test(original) || original.includes('�')) return '';
+    try {
+      let text = typeof window.GC_traditionalizeDispatchAddress === 'function'
+        ? window.GC_traditionalizeDispatchAddress(original)
+        : original;
+      text = normalizeAddress(text).replace(/　/g, ' ').replace(/臺/g, '台').trim();
+      if (!text || /^(?:undefined|null)$/i.test(text) || text.includes('�')) return original;
+
+      let inferredCounty = canonicalTaiwanCounty(text);
+      let postal = '';
+      const postalMatch = text.match(/^([0-9０-９]{3,6})(?=\s|[,，、-]|[A-Za-z])/);
+      if (postalMatch) {
+        postal = postalMatch[1];
+        text = text.slice(postalMatch[0].length).replace(/^[\s,，、-]+/, '');
+      }
+
+      let regionCode = '';
+      const regionMatch = text.match(/^([A-Za-z]{2,4})(?=\s|[,，、-]|[\u3400-\u9fff])/);
+      if (regionMatch) {
+        const candidateCode = regionMatch[1].toUpperCase();
+        if (GC_DISPATCH_REGION_COUNTY[candidateCode]) {
+          regionCode = candidateCode;
+          text = text.slice(regionMatch[0].length).replace(/^[\s,，、-]+/, '');
+        }
+      }
+
+      text = text.replace(/^[\s,，、-]+/, '').replace(/[，,、]+\s*/g, ' ').trim();
+      if (!text) return original;
+      if (!inferredCounty) inferredCounty = canonicalTaiwanCounty(text)
+        || GC_DISPATCH_REGION_COUNTY[regionCode]
+        || dispatchCountyFromPostal(postal);
+      if (inferredCounty && !canonicalTaiwanCounty(text)) text = `${inferredCounty}${text}`;
+
+      // Normalize the street/door core while preserving an appended POI/store name exactly
+      // enough for human recognition (including spaces between English words).
+      const doorWithSuffix = text.match(/^(.*?(?:大道|路|街|道|巷|弄)[^,，、]{0,80}?[0-9０-９]+(?:[-之][0-9０-９]+)?號(?:之[0-9０-９]+)?)([\s\S]*)$/);
+      const core = doorWithSuffix ? doorWithSuffix[1] : text;
+      const rawSuffix = doorWithSuffix ? doorWithSuffix[2] : '';
+      const keepSuffixSeparator = /^[\s　,，、-]+/.test(rawSuffix);
+      const suffix = normalizeAddress(rawSuffix.replace(/^[\s　,，、-]+/, '')).trim();
+
+      let normalizedCore = '';
+      try {
+        normalizedCore = window.GC_ADDRESS_GUARD?.canonicalTaiwanAddress?.(core) || '';
+      } catch (_) {}
+      normalizedCore = normalizedCore || smartNormalizeTaiwanAddress(core);
+      normalizedCore = normalizeAddress(normalizedCore).replace(/臺/g, '台').trim();
+      if (TAIWAN_ADMIN_START.test(normalizedCore)) normalizedCore = normalizedCore.replace(/[，,、\s]+/g, '');
+      ADDRESS_TAIWAN_COUNTIES.forEach(county => {
+        while (normalizedCore.startsWith(county + county)) normalizedCore = normalizedCore.slice(county.length);
+      });
+
+      const normalized = `${normalizedCore}${suffix ? `${keepSuffixSeparator ? ' ' : ''}${suffix}` : ''}`.trim();
+      if (!normalized || /(?:undefined|null|�)/i.test(normalized) || !/[\u3400-\u9fffA-Za-z]/.test(normalized)) return original;
+      return normalized;
+    } catch (_) {
+      return original;
+    }
+  }
+
+  window.GC_normalizeDispatchAddressForReview = normalizeDispatchAddressForReview;
 
   // GC_MASTER_STABLE_2026_08R4_LOCATION_ADDRESS_CLEAN
   // Reverse-geocoder output uses the same dispatch-safe cleanup as every other address source.
@@ -2352,7 +2459,7 @@
     const pickup = smartNormalizeTaiwanAddress(item.pickup);
     const destination = smartNormalizeTaiwanAddress(item.destination);
     const name = String(item.name || '').trim().slice(0, 30);
-    if (!pickup || !destination || pickup === LOCATION_MARKER) return null;
+    if (!pickup || pickup === LOCATION_MARKER) return null;
     return { name: name || '常用行程', pickup, destination };
   }
 
@@ -2458,7 +2565,7 @@
         <div class="favorite-row">
           <button class="favorite-use" type="button" data-index="${index}">
             <strong>${escapeHtml(trip.name)}</strong>
-            <span>${escapeHtml(trip.pickup)} → ${escapeHtml(trip.destination)}</span>
+            <span>${escapeHtml(trip.destination ? `${trip.pickup} → ${trip.destination}` : trip.pickup)}</span>
           </button>
           <button class="favorite-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
         </div>`).join('');
@@ -2495,8 +2602,8 @@
   async function openFavoriteSaveModal() {
     const pickup = value('pickup');
     const destination = value('destination');
-    if (!pickup || !destination) {
-      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
+    if (!pickup) {
+      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫上車地址。', 'error');
       return;
     }
     if (pickup === LOCATION_MARKER) {
@@ -2504,9 +2611,9 @@
       return;
     }
     const pickupReady = await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' });
-    const destinationReady = pickupReady ? await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }) : false;
+    const destinationReady = !destination || (pickupReady && await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }));
     if (!pickupReady || !destinationReady) {
-      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
+      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫上車地址。', 'error');
       document.querySelector('#gcFavoriteSheet .gc-sheet-close')?.click();
       focusFirstValidationError();
       return;
@@ -2538,7 +2645,7 @@
     const route = document.getElementById('favoriteSaveRoute');
     if (!overlay || !input || !route) return;
     input.value = nextFavoriteDefaultName(trips);
-    route.textContent = `${pickup} → ${destination}`;
+    route.textContent = destination ? `${pickup} → ${destination}` : pickup;
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;
     overlay.classList.remove('hidden');
@@ -2558,7 +2665,7 @@
       const destination = normalizeAddress(overlay.dataset.destination);
       const input = document.getElementById('favoriteNameInput');
       const name = String(input?.value || '').trim() || nextFavoriteDefaultName();
-      if (!pickup || !destination) return;
+      if (!pickup) return;
       const trips = loadFavoriteTrips();
       const routeKey = `${addressConfidenceKey(pickup)}→${addressConfidenceKey(destination)}`;
       if (trips.some(trip => `${addressConfidenceKey(trip.pickup)}→${addressConfidenceKey(trip.destination)}` === routeKey)) {
@@ -2594,19 +2701,21 @@
           if (isLocallyDispatchReady(trip.pickup)) markAddressVerified(pickupInput, 'favorite');
           else clearAddressVerified(pickupInput);
         }
-        if (destinationInput) {
+        const hasSavedDestination = Boolean(trip.destination);
+        if (destinationInput && hasSavedDestination) {
           destinationInput._gcCancelSmartSuggestions?.();
           destinationInput.dataset.gcSkipSuggestOnce = '1';
           destinationInput.value = trip.destination;
           if (isLocallyDispatchReady(trip.destination)) markAddressVerified(destinationInput, 'favorite');
           else clearAddressVerified(destinationInput);
         }
-        ['pickup', 'destination'].forEach(id => {
+        const appliedAddressIds = hasSavedDestination ? ['pickup', 'destination'] : ['pickup'];
+        appliedAddressIds.forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
           document.getElementById(`${id}Error`)?.classList.remove('show');
         });
         pickupInput?.dispatchEvent(new Event('input', { bubbles: true }));
-        destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
+        if (hasSavedDestination) destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
         box.open = false;
         setFavoriteStatus('', '');
         return;
@@ -3448,7 +3557,7 @@
       <div class="confirm-overlay hidden" id="confirmOverlay">
         <section class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
           <h2 id="confirmTitle"></h2>
-          <p class="confirm-intro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
+          <p class="confirm-intro" id="confirmIntro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
           <div class="confirm-summary" id="confirmSummary"></div>
           <div class="confirm-actions">
             <button class="confirm-back" id="confirmBackBtn" type="button">${escapeHtml(COMMON['確認返回按鈕'] || '返回修改')}</button>
@@ -3515,21 +3624,52 @@
     confirmationBusy = false;
   }
 
-  function openConfirmation(title, rows, action) {
+  function openConfirmation(title, rows, action, options = {}) {
     const overlay = document.getElementById('confirmOverlay');
     const titleElement = document.getElementById('confirmTitle');
+    const introElement = document.getElementById('confirmIntro');
     const summary = document.getElementById('confirmSummary');
+    const introPrimary = String(options.introPrimary || '').trim();
+    const introSecondary = String(options.introSecondary || '').trim();
+    const hasCustomIntro = Boolean(introPrimary || introSecondary);
+    const defaultIntro = COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。';
     if (!overlay || !titleElement || !summary) {
       const fallbackText = rows
         .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
         .map(row => `${row.label}：${row.value}`)
         .join('\n');
-      if (window.confirm(`${title}\n\n${fallbackText}\n\n確定送出嗎？`)) {
+      const fallbackIntro = hasCustomIntro
+        ? [introPrimary, introSecondary].filter(Boolean).join('\n')
+        : defaultIntro;
+      const fallbackPrompt = hasCustomIntro
+        ? `${title}\n\n${fallbackIntro}\n\n${fallbackText}\n\n確定送出嗎？`
+        : `${title}\n\n${fallbackText}\n\n確定送出嗎？`;
+      if (window.confirm(fallbackPrompt)) {
         Promise.resolve(action()).catch(error => showGlobalError(error?.message || COMMON['傳送失敗文字']));
       }
       return;
     }
     titleElement.textContent = title;
+    if (introElement) {
+      introElement.classList.toggle('gc-call-review-intro', hasCustomIntro);
+      introElement.replaceChildren();
+      if (hasCustomIntro) {
+        if (introPrimary) {
+          const primary = document.createElement('span');
+          primary.className = 'confirm-intro-primary';
+          primary.textContent = introPrimary;
+          introElement.append(primary);
+        }
+        if (introSecondary) {
+          const secondary = document.createElement('span');
+          secondary.className = 'confirm-intro-secondary';
+          secondary.textContent = introSecondary;
+          introElement.append(secondary);
+        }
+      } else {
+        introElement.textContent = defaultIntro;
+      }
+    }
     summary.innerHTML = rows
       .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
       .map(row => row.note
@@ -4812,21 +4952,18 @@
       const adminWarningValue = pickupAdminAmbiguity
         ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
         : '';
-      const adminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickup)
+      const reviewedPickup = mode === 'call' ? normalizeDispatchAddressForReview(pickup) : pickup;
+      const reviewedDestination = mode === 'call' ? normalizeDispatchAddressForReview(destination) : destination;
+      // GC_R10Z14F7_CONFIRM_REVIEWED_ADMIN_RECHECK
+      // The form-page hint still evaluates the passenger's visible raw input. The confirmation
+      // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
+      const pickupAdminReminderSource = mode === 'call' ? reviewedPickup : pickup;
+      const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
-
-      const normalizeCallDisplay = address => {
-        if (mode !== 'call') return address;
-        try {
-          const normalized = window.GC_normalizeCallDisplayAddress?.(address);
-          return normalized || address;
-        } catch (_) {
-          return address;
-        }
-      };
-      const pickupDisplay = normalizeCallDisplay(pickup);
-      const destinationDisplay = normalizeCallDisplay(destination);
+      const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingAdmin(reviewedDestination)
+        ? 'ⓘ 尚未填寫行政區，建議返回補充'
+        : '';
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
@@ -4836,9 +4973,9 @@
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
-      appendLine(lines, cfg['訊息欄位_上車'], pickupDisplay);
+      appendLine(lines, cfg['訊息欄位_上車'], reviewedPickup);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
-      appendLine(lines, cfg['訊息欄位_下車'], destinationDisplay);
+      appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
       if (mode === 'driver') {
@@ -4876,10 +5013,11 @@
           { label: cfg['訊息欄位_日期'], value: value('date') },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
-        { label: cfg['訊息欄位_上車'], value: pickupDisplay, emphasis: true },
+        { label: cfg['訊息欄位_上車'], value: reviewedPickup, emphasis: true },
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
-        ...(adminSoftReminder ? [{ label: '', value: adminSoftReminder, note: true }] : []),
-        { label: cfg['訊息欄位_下車'], value: destinationDisplay || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
+        { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        ...(destinationAdminSoftReminder ? [{ label: '', value: destinationAdminSoftReminder, note: true }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
@@ -4912,7 +5050,10 @@
           setSending(false, cfg);
           throw error;
         }
-      });
+      }, mode === 'call' ? {
+        introPrimary: '請再次確認上、下車地點是否正確。',
+        introSecondary: '確認無誤後再送出。'
+      } : {});
     });
   }
 

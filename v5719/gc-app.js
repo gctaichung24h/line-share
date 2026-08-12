@@ -1,9 +1,13 @@
-window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫完整上下車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"即時叫車資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「即時單」收到車牌資訊後，請於 6 分鐘內告知；超過 6 分鐘取消，將收取 NT$100 空趟費。","成功標題_預約":"預約叫車資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「預約單」收到車牌資訊後，最晚請於預約時間 20 分鐘前告知；距預約時間不足 20 分鐘取消，將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"即時代駕資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「即時單」收到代駕司機資訊後，請於 6 分鐘內告知；超過 6 分鐘取消，將收取 NT$100 空趟費。","成功標題_預約":"預約代駕資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「預約單」收到代駕司機資訊後，最晚請於預約時間 20 分鐘前告知；距預約時間不足 20 分鐘取消，將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"已嘗試試算仍無法完成時，可請小編協助","人工協助展開標題":"","人工協助補充":"送出後由小編於 LINE 聊天室協助估價。","人工協助警示標題":"已嘗試試算仍無法完成？","人工協助警示說明":"可直接送出估價需求，由小編協助估算。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【人工估價協助｜已嘗試試算】","訊息分隔線":"","訊息提醒":"⚠️ 我已嘗試使用車資試算，但目前無法完成。","訊息提醒2":"請小編直接協助提供估價；若繁忙，可先回覆初步估算金額供我參考。\\n麻煩不用再次提供試算操作說明，謝謝。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"估價需求已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆預估車資；如遇繁忙時段，請耐心等候。","成功內容2":"本次僅為估價需求，尚未成立即時叫車或預約叫車訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
+window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱":"GC 台中白牌車隊 24H","初始化文字":"正在開啟服務…","非LINE開啟提醒":"請從 GC 官方 LINE 聊天室的圖文選單開啟此表格。","傳送中文字":"傳送中…","傳送失敗文字":"訊息尚未送出，請確認網路後重新送出。","預覽模式提醒":"目前為電腦預覽模式，不會真的傳送到 LINE。","缺少傳送權限提醒":"此 LIFF 尚未啟用傳送訊息權限，請聯繫管理員檢查 chat_message.write 設定。","訊息欄位符號":"•","最近地址標題":"最近地址","最近地址按鈕":"最近地址","最近地址刪除":"刪除","最近地址清除全部":"清除全部","最近地址清除確認":"確定要清除全部最近地址嗎？","確認提醒":"請確認上、下車地點與資料是否正確。","確認返回按鈕":"返回修改","確認送出按鈕":"確認送出","確認標題_叫車":"請確認叫車資料","確認標題_代駕":"請確認代駕資料","確認標題_估價":"請確認估價資料","選填未填寫":"未填寫（選填）","常用行程標題":"常用行程","常用行程儲存":"儲存目前行程","常用行程儲存標題":"儲存常用行程","常用行程名稱標題":"行程名稱","常用行程名稱提示":"例如：住家 → 公司","常用行程空白":"尚未儲存常用行程。","常用行程已滿按鈕":"已達 5 組上限","常用行程需地址":"請先填寫上車地址。","常用行程定位限制":"目前定位無法直接儲存，請改填完整地址。","常用行程已滿":"最多可儲存 5 組，請先刪除一組。","常用行程儲存成功":"常用行程已儲存。","常用行程重複":"此行程已儲存於常用行程。","常用行程清除確認":"確定要清除全部常用行程嗎？","定位按鈕":"📍 使用目前位置","定位重新取得":"📍 重新取得位置","定位取得中":"正在取得定位…","定位權限提醒":"請允許手機存取目前位置。","定位成功":"定位已取得，請確認上車地址。","定位不支援":"此裝置不支援定位，請直接輸入地址。","定位拒絕":"定位權限未開啟，請改輸入完整地址。","定位失敗":"無法取得目前位置，請改輸入完整地址。","重複送出提醒":"相同資料剛剛已送出，請稍候小編回覆。"},"call":{"頁面標題":"即時／預約叫車","頁面說明":"填寫必要資料後即可快速送出。","即時選項":"即時叫車","預約選項":"預約叫車","日期標題":"用車日期","時間標題":"用車時間","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"資訊越完整，通常越有助於快速媒合","人數標題":"5人以上請選人數","人數提示":"1～4人免選，5人以上請選擇","更多資訊標題":"其他需求","行李標題":"行李數量","行李提示":"例如：1個30吋、1個26吋","需求標題":"寵物同行","需求提示":"請選擇無、有籠或無籠","備註標題":"備註資訊","備註提示":"其他需要小編或司機留意的資訊","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認叫車資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🚕 我要【叫車】","訊息標題_預約":"🚕 我要【預約叫車】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"上車地址","訊息欄位_下車":"下車地址","訊息欄位_人數":"搭乘人數","訊息欄位_行李":"行李數量","訊息欄位_需求":"乘車需求","訊息欄位_備註":"備註資訊","成功標題":"即時叫車資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「即時單」收到車牌資訊後，請於 6 分鐘內告知；超過 6 分鐘取消，將收取 NT$100 空趟費。","成功標題_預約":"預約叫車資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到車牌資訊後，才代表車輛媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「預約單」收到車牌資訊後，最晚請於預約時間 20 分鐘前告知；距預約時間不足 20 分鐘取消，將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"driver":{"頁面標題":"酒後代駕","頁面說明":"填寫代駕地址與服務類型後即可快速送出。","即時選項":"即時代駕","預約選項":"預約代駕","日期標題":"用車日期","時間標題":"用車時間","上車標題":"代駕地址","上車提示":"請輸入車輛目前位置或明確地標","下車標題":"送達地點","下車提示":"資訊越完整，通常越有助於快速媒合","更多資訊標題":"備註資訊","車輛資訊標題":"車輛資訊","車輛資訊提示":"例如：黑色 Toyota、自排、車牌 ABC-1234","停車位置標題":"車輛停放位置","停車位置提示":"例如：地下 B2、店門口、路邊停車格","備註標題":"備註資訊","備註提示":"例如：車型、車牌、停放位置，或其他需留意事項","表格提醒1":"","表格提醒2":"","送出按鈕":"下一步：確認代駕資料","錯誤_用車方式":"請選擇服務類型。","錯誤_日期":"請填寫資料。","錯誤_時間":"請填寫資料。","錯誤_上車地址":"請填寫資料。","訊息標題_即時":"🍺 我要【代駕】","訊息標題_預約":"🍺 我要【預約代駕】","訊息分隔線":"━─━─━─━─━─━─","訊息欄位_用車方式":"服務類型","訊息欄位_日期":"用車日期","訊息欄位_時間":"用車時間","訊息欄位_上車":"代駕地點","訊息欄位_下車":"送達地點","訊息欄位_車輛":"車輛資訊","訊息欄位_停車":"車輛停放位置","訊息欄位_備註":"備註資訊","成功標題":"即時代駕資料已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「即時單」收到代駕司機資訊後，請於 6 分鐘內告知；超過 6 分鐘取消，將收取 NT$100 空趟費。","成功標題_預約":"預約代駕資料已送出","成功內容_預約1":"請保持 LINE 通知開啟，小編將於聊天室回覆安排結果。\\n收到代駕司機資訊後，才代表代駕媒合完成。","成功內容_預約2":"取消請主動告知小編\\n如需取消，請務必回到 LINE 聊天室告知；關閉此頁不代表取消。\\n「預約單」收到代駕司機資訊後，最晚請於預約時間 20 分鐘前告知；距預約時間不足 20 分鐘取消，將收取 NT$100 空趟費。","返回按鈕":"返回 LINE 聊天室"},"fare":{"頁面標題":"車資試算","頁面引導標題":"","頁面說明":"查路線 → 填分鐘＋公里","路線步驟標題":"查 Google 路線","路線步驟說明":"","路線重點標題":"想省車資","路線重點說明1":"看公里數較少","路線範例1":"16 分｜10.2 km","路線範例2":"21 分｜7.9 km","路線返回提醒":"距離較長時，車資可能增加。","路線快速_快標題":"趕時間","路線快速_快內容":"看時間較短","路線教學按鈕":"怎麼看？","路線範例1標籤":"時間較短","路線範例2標籤":"距離較短","路線按鈕":"開啟 Google 地圖","已知數字捷徑":"","錯誤_情境缺資料":"請填寫資料。","錯誤_相同地址":"上下車地址不能相同，請確認目的地。","計算器標題":"回來填 2 個數字","計算器徽章":"","計算器說明":"照 Google 地圖顯示填入即可","計算器等待":"輸入後即時顯示","公里標題":"公里數","公里提示":"例如 7.9","時間標題":"預估時間","時間提示":"例如 21","結果標題":"預估車資","低消結果提示":"最低消費","結果依據標題":"本次試算","結果說明1":"","結果說明2":"預估與實際車資可能約有 ±NT${浮動} 元差異。","乘車提醒標題":"路線有偏好？上車直接告知司機即可","乘車提醒主句":"","乘車提醒補充1":"","乘車提醒補充2":"","乘車偏好_省標題":"省車資","乘車偏好_省內容":"較短距離","乘車偏好_快標題":"趕時間","乘車偏好_快內容":"較快路線","乘車偏好_補充":"實際車資依行駛路線、路況及等候時間為準。","叫車按鈕":"立即叫車","重新查看路線按鈕":"重新查看路線","費率標題":"▍中部地區費率","費率_全天同價文案":"24H同一費率｜無夜間加成","長途提示格式":"🚕 {公里}公里以上另有直收優惠價","人工協助標題":"ⓘ 其他估價協助","人工協助提示":"已嘗試試算仍無法完成時，可請小編協助","人工協助展開標題":"","人工協助補充":"送出後由小編於 LINE 聊天室協助估價。","人工協助警示標題":"已嘗試試算仍無法完成？","人工協助警示說明":"可直接送出估價需求，由小編協助估算。","自助上車標題":"上車地址","自助下車標題":"下車地址","上車標題":"上車地址","上車提示":"請輸入完整地址或明確地標","下車標題":"下車地址","下車提示":"請輸入完整地址或明確地標","送出按鈕":"送出估價需求","錯誤_上車地址":"請填寫資料。","錯誤_下車地址":"請填寫資料。","訊息標題":"🧾【人工估價協助｜已嘗試試算】","訊息分隔線":"","訊息提醒":"⚠️ 我已嘗試使用車資試算，但目前無法完成。","訊息提醒2":"請小編直接協助提供估價；若繁忙，可先回覆初步估算金額供我參考。\\n麻煩不用再次提供試算操作說明，謝謝。","訊息欄位_估價方式":"回覆管道","訊息內容_估價方式":"LINE 聊天室","訊息欄位_上車":"估價起點","訊息欄位_下車":"估價終點","訊息欄位_備註":"","成功標題":"估價需求已送出","成功內容1":"請保持 LINE 通知開啟，小編將於聊天室回覆預估車資；如遇繁忙時段，請耐心等候。","成功內容2":"本次僅為估價需求，尚未成立即時叫車或預約叫車訂單。","成功內容3":"","返回按鈕":"返回 LINE 聊天室","計價_起跳":"70","計價_每分鐘":"3","計價_每公里":"15","計價_加成起始公里":"21","計價_加成每公里":"10","計價_最低消費":"100","計價_預估浮動":"30","計價_長途門檻":"45","Google地圖路線網址":"https://www.google.com/maps/dir/?api=1"}};
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f';
+  const GC_BUILD_VERSION = 'master202608r10z14f8';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
+  // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
+  // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
+  // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
+  // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
   // Named-scope patch only: shortcut alignment, empty schedule hint tone, fare unit divider, and approved success-page copy.
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
@@ -546,6 +550,109 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (looksLikeHouseNumber) text += '號';
     return text;
   }
+
+  // GC_R10Z14F6_REVIEWED_DISPATCH_ADDRESS_COPY
+  // Only the call confirmation / outgoing text copy is normalized. The original input
+  // remains the source of truth for validation, map coordinates, navigation and storage.
+  const GC_DISPATCH_REGION_COUNTY = Object.freeze({
+    TPE: '台北市', NWT: '新北市', TAO: '桃園市', TXG: '台中市', TNN: '台南市', KHH: '高雄市',
+    KEE: '基隆市', HSZ: '新竹市', CYI: '嘉義市', HSQ: '新竹縣', MIA: '苗栗縣', CHA: '彰化縣',
+    NAN: '南投縣', YUN: '雲林縣', CYQ: '嘉義縣', PIF: '屏東縣', ILA: '宜蘭縣', HUA: '花蓮縣',
+    TTT: '台東縣', PEN: '澎湖縣', KIN: '金門縣', LIE: '連江縣'
+  });
+
+  function dispatchCountyFromPostal(value) {
+    const digits = String(value || '').replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xFEE0));
+    const code = Number(digits.slice(0, 3));
+    if (!Number.isFinite(code)) return '';
+    if (code >= 209 && code <= 212) return '連江縣';
+    if (code >= 100 && code <= 116) return '台北市';
+    if (code >= 200 && code <= 206) return '基隆市';
+    if (code >= 207 && code <= 253) return '新北市';
+    if (code >= 260 && code <= 272) return '宜蘭縣';
+    if (code === 300) return '新竹市';
+    if (code >= 302 && code <= 315) return '新竹縣';
+    if (code >= 320 && code <= 338) return '桃園市';
+    if (code >= 350 && code <= 369) return '苗栗縣';
+    if (code >= 400 && code <= 439) return '台中市';
+    if (code >= 500 && code <= 530) return '彰化縣';
+    if (code >= 540 && code <= 558) return '南投縣';
+    if (code === 600) return '嘉義市';
+    if (code >= 602 && code <= 625) return '嘉義縣';
+    if (code >= 630 && code <= 655) return '雲林縣';
+    if (code >= 700 && code <= 745) return '台南市';
+    if (code >= 800 && code <= 852) return '高雄市';
+    if (code >= 880 && code <= 885) return '澎湖縣';
+    if (code >= 890 && code <= 896) return '金門縣';
+    if (code >= 900 && code <= 947) return '屏東縣';
+    if (code >= 950 && code <= 966) return '台東縣';
+    if (code >= 970 && code <= 983) return '花蓮縣';
+    return '';
+  }
+
+  function normalizeDispatchAddressForReview(address) {
+    const original = normalizeAddress(address);
+    if (!original || /^(?:undefined|null)$/i.test(original) || original.includes('�')) return '';
+    try {
+      let text = typeof window.GC_traditionalizeDispatchAddress === 'function'
+        ? window.GC_traditionalizeDispatchAddress(original)
+        : original;
+      text = normalizeAddress(text).replace(/　/g, ' ').replace(/臺/g, '台').trim();
+      if (!text || /^(?:undefined|null)$/i.test(text) || text.includes('�')) return original;
+
+      let inferredCounty = canonicalTaiwanCounty(text);
+      let postal = '';
+      const postalMatch = text.match(/^([0-9０-９]{3,6})(?=\s|[,，、-]|[A-Za-z])/);
+      if (postalMatch) {
+        postal = postalMatch[1];
+        text = text.slice(postalMatch[0].length).replace(/^[\s,，、-]+/, '');
+      }
+
+      let regionCode = '';
+      const regionMatch = text.match(/^([A-Za-z]{2,4})(?=\s|[,，、-]|[\u3400-\u9fff])/);
+      if (regionMatch) {
+        const candidateCode = regionMatch[1].toUpperCase();
+        if (GC_DISPATCH_REGION_COUNTY[candidateCode]) {
+          regionCode = candidateCode;
+          text = text.slice(regionMatch[0].length).replace(/^[\s,，、-]+/, '');
+        }
+      }
+
+      text = text.replace(/^[\s,，、-]+/, '').replace(/[，,、]+\s*/g, ' ').trim();
+      if (!text) return original;
+      if (!inferredCounty) inferredCounty = canonicalTaiwanCounty(text)
+        || GC_DISPATCH_REGION_COUNTY[regionCode]
+        || dispatchCountyFromPostal(postal);
+      if (inferredCounty && !canonicalTaiwanCounty(text)) text = `${inferredCounty}${text}`;
+
+      // Normalize the street/door core while preserving an appended POI/store name exactly
+      // enough for human recognition (including spaces between English words).
+      const doorWithSuffix = text.match(/^(.*?(?:大道|路|街|道|巷|弄)[^,，、]{0,80}?[0-9０-９]+(?:[-之][0-9０-９]+)?號(?:之[0-9０-９]+)?)([\s\S]*)$/);
+      const core = doorWithSuffix ? doorWithSuffix[1] : text;
+      const rawSuffix = doorWithSuffix ? doorWithSuffix[2] : '';
+      const keepSuffixSeparator = /^[\s　,，、-]+/.test(rawSuffix);
+      const suffix = normalizeAddress(rawSuffix.replace(/^[\s　,，、-]+/, '')).trim();
+
+      let normalizedCore = '';
+      try {
+        normalizedCore = window.GC_ADDRESS_GUARD?.canonicalTaiwanAddress?.(core) || '';
+      } catch (_) {}
+      normalizedCore = normalizedCore || smartNormalizeTaiwanAddress(core);
+      normalizedCore = normalizeAddress(normalizedCore).replace(/臺/g, '台').trim();
+      if (TAIWAN_ADMIN_START.test(normalizedCore)) normalizedCore = normalizedCore.replace(/[，,、\s]+/g, '');
+      ADDRESS_TAIWAN_COUNTIES.forEach(county => {
+        while (normalizedCore.startsWith(county + county)) normalizedCore = normalizedCore.slice(county.length);
+      });
+
+      const normalized = `${normalizedCore}${suffix ? `${keepSuffixSeparator ? ' ' : ''}${suffix}` : ''}`.trim();
+      if (!normalized || /(?:undefined|null|�)/i.test(normalized) || !/[\u3400-\u9fffA-Za-z]/.test(normalized)) return original;
+      return normalized;
+    } catch (_) {
+      return original;
+    }
+  }
+
+  window.GC_normalizeDispatchAddressForReview = normalizeDispatchAddressForReview;
 
   // GC_MASTER_STABLE_2026_08R4_LOCATION_ADDRESS_CLEAN
   // Reverse-geocoder output uses the same dispatch-safe cleanup as every other address source.
@@ -2354,7 +2461,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const pickup = smartNormalizeTaiwanAddress(item.pickup);
     const destination = smartNormalizeTaiwanAddress(item.destination);
     const name = String(item.name || '').trim().slice(0, 30);
-    if (!pickup || !destination || pickup === LOCATION_MARKER) return null;
+    if (!pickup || pickup === LOCATION_MARKER) return null;
     return { name: name || '常用行程', pickup, destination };
   }
 
@@ -2460,7 +2567,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         <div class="favorite-row">
           <button class="favorite-use" type="button" data-index="${index}">
             <strong>${escapeHtml(trip.name)}</strong>
-            <span>${escapeHtml(trip.pickup)} → ${escapeHtml(trip.destination)}</span>
+            <span>${escapeHtml(trip.destination ? `${trip.pickup} → ${trip.destination}` : trip.pickup)}</span>
           </button>
           <button class="favorite-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
         </div>`).join('');
@@ -2497,8 +2604,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   async function openFavoriteSaveModal() {
     const pickup = value('pickup');
     const destination = value('destination');
-    if (!pickup || !destination) {
-      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
+    if (!pickup) {
+      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫上車地址。', 'error');
       return;
     }
     if (pickup === LOCATION_MARKER) {
@@ -2506,9 +2613,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       return;
     }
     const pickupReady = await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' });
-    const destinationReady = pickupReady ? await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }) : false;
+    const destinationReady = !destination || (pickupReady && await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }));
     if (!pickupReady || !destinationReady) {
-      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫完整上下車地址。', 'error');
+      setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫上車地址。', 'error');
       document.querySelector('#gcFavoriteSheet .gc-sheet-close')?.click();
       focusFirstValidationError();
       return;
@@ -2540,7 +2647,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const route = document.getElementById('favoriteSaveRoute');
     if (!overlay || !input || !route) return;
     input.value = nextFavoriteDefaultName(trips);
-    route.textContent = `${pickup} → ${destination}`;
+    route.textContent = destination ? `${pickup} → ${destination}` : pickup;
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;
     overlay.classList.remove('hidden');
@@ -2560,7 +2667,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const destination = normalizeAddress(overlay.dataset.destination);
       const input = document.getElementById('favoriteNameInput');
       const name = String(input?.value || '').trim() || nextFavoriteDefaultName();
-      if (!pickup || !destination) return;
+      if (!pickup) return;
       const trips = loadFavoriteTrips();
       const routeKey = `${addressConfidenceKey(pickup)}→${addressConfidenceKey(destination)}`;
       if (trips.some(trip => `${addressConfidenceKey(trip.pickup)}→${addressConfidenceKey(trip.destination)}` === routeKey)) {
@@ -2596,19 +2703,21 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           if (isLocallyDispatchReady(trip.pickup)) markAddressVerified(pickupInput, 'favorite');
           else clearAddressVerified(pickupInput);
         }
-        if (destinationInput) {
+        const hasSavedDestination = Boolean(trip.destination);
+        if (destinationInput && hasSavedDestination) {
           destinationInput._gcCancelSmartSuggestions?.();
           destinationInput.dataset.gcSkipSuggestOnce = '1';
           destinationInput.value = trip.destination;
           if (isLocallyDispatchReady(trip.destination)) markAddressVerified(destinationInput, 'favorite');
           else clearAddressVerified(destinationInput);
         }
-        ['pickup', 'destination'].forEach(id => {
+        const appliedAddressIds = hasSavedDestination ? ['pickup', 'destination'] : ['pickup'];
+        appliedAddressIds.forEach(id => {
           document.getElementById(id)?.classList.remove('invalid');
           document.getElementById(`${id}Error`)?.classList.remove('show');
         });
         pickupInput?.dispatchEvent(new Event('input', { bubbles: true }));
-        destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
+        if (hasSavedDestination) destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
         box.open = false;
         setFavoriteStatus('', '');
         return;
@@ -3450,7 +3559,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       <div class="confirm-overlay hidden" id="confirmOverlay">
         <section class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
           <h2 id="confirmTitle"></h2>
-          <p class="confirm-intro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
+          <p class="confirm-intro" id="confirmIntro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
           <div class="confirm-summary" id="confirmSummary"></div>
           <div class="confirm-actions">
             <button class="confirm-back" id="confirmBackBtn" type="button">${escapeHtml(COMMON['確認返回按鈕'] || '返回修改')}</button>
@@ -3517,21 +3626,52 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     confirmationBusy = false;
   }
 
-  function openConfirmation(title, rows, action) {
+  function openConfirmation(title, rows, action, options = {}) {
     const overlay = document.getElementById('confirmOverlay');
     const titleElement = document.getElementById('confirmTitle');
+    const introElement = document.getElementById('confirmIntro');
     const summary = document.getElementById('confirmSummary');
+    const introPrimary = String(options.introPrimary || '').trim();
+    const introSecondary = String(options.introSecondary || '').trim();
+    const hasCustomIntro = Boolean(introPrimary || introSecondary);
+    const defaultIntro = COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。';
     if (!overlay || !titleElement || !summary) {
       const fallbackText = rows
         .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
         .map(row => `${row.label}：${row.value}`)
         .join('\n');
-      if (window.confirm(`${title}\n\n${fallbackText}\n\n確定送出嗎？`)) {
+      const fallbackIntro = hasCustomIntro
+        ? [introPrimary, introSecondary].filter(Boolean).join('\n')
+        : defaultIntro;
+      const fallbackPrompt = hasCustomIntro
+        ? `${title}\n\n${fallbackIntro}\n\n${fallbackText}\n\n確定送出嗎？`
+        : `${title}\n\n${fallbackText}\n\n確定送出嗎？`;
+      if (window.confirm(fallbackPrompt)) {
         Promise.resolve(action()).catch(error => showGlobalError(error?.message || COMMON['傳送失敗文字']));
       }
       return;
     }
     titleElement.textContent = title;
+    if (introElement) {
+      introElement.classList.toggle('gc-call-review-intro', hasCustomIntro);
+      introElement.replaceChildren();
+      if (hasCustomIntro) {
+        if (introPrimary) {
+          const primary = document.createElement('span');
+          primary.className = 'confirm-intro-primary';
+          primary.textContent = introPrimary;
+          introElement.append(primary);
+        }
+        if (introSecondary) {
+          const secondary = document.createElement('span');
+          secondary.className = 'confirm-intro-secondary';
+          secondary.textContent = introSecondary;
+          introElement.append(secondary);
+        }
+      } else {
+        introElement.textContent = defaultIntro;
+      }
+    }
     summary.innerHTML = rows
       .filter(row => row && row.value !== undefined && row.value !== null && String(row.value).trim() !== '')
       .map(row => row.note
@@ -4814,21 +4954,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const adminWarningValue = pickupAdminAmbiguity
         ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
         : '';
-      const adminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickup)
+      const reviewedPickup = mode === 'call' ? normalizeDispatchAddressForReview(pickup) : pickup;
+      const reviewedDestination = mode === 'call' ? normalizeDispatchAddressForReview(destination) : destination;
+      // GC_R10Z14F7_CONFIRM_REVIEWED_ADMIN_RECHECK
+      // The form-page hint still evaluates the passenger's visible raw input. The confirmation
+      // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
+      const pickupAdminReminderSource = mode === 'call' ? reviewedPickup : pickup;
+      const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
-
-      const normalizeCallDisplay = address => {
-        if (mode !== 'call') return address;
-        try {
-          const normalized = window.GC_normalizeCallDisplayAddress?.(address);
-          return normalized || address;
-        } catch (_) {
-          return address;
-        }
-      };
-      const pickupDisplay = normalizeCallDisplay(pickup);
-      const destinationDisplay = normalizeCallDisplay(destination);
+      const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingAdmin(reviewedDestination)
+        ? 'ⓘ 尚未填寫行政區，建議返回補充'
+        : '';
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
@@ -4838,9 +4975,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
-      appendLine(lines, cfg['訊息欄位_上車'], pickupDisplay);
+      appendLine(lines, cfg['訊息欄位_上車'], reviewedPickup);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
-      appendLine(lines, cfg['訊息欄位_下車'], destinationDisplay);
+      appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
       if (mode === 'driver') {
@@ -4878,10 +5015,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           { label: cfg['訊息欄位_日期'], value: value('date') },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
-        { label: cfg['訊息欄位_上車'], value: pickupDisplay, emphasis: true },
+        { label: cfg['訊息欄位_上車'], value: reviewedPickup, emphasis: true },
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
-        ...(adminSoftReminder ? [{ label: '', value: adminSoftReminder, note: true }] : []),
-        { label: cfg['訊息欄位_下車'], value: destinationDisplay || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
+        { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        ...(destinationAdminSoftReminder ? [{ label: '', value: destinationAdminSoftReminder, note: true }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
@@ -4914,7 +5052,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           setSending(false, cfg);
           throw error;
         }
-      });
+      }, mode === 'call' ? {
+        introPrimary: '請再次確認上、下車地點是否正確。',
+        introSecondary: '確認無誤後再送出。'
+      } : {});
     });
   }
 
@@ -5634,7 +5775,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             if (!item || typeof item !== 'object') return null;
             const pickup = sanitizeStoredValue(item.pickup);
             const destination = sanitizeStoredValue(item.destination);
-            if (!pickup || !destination) return null;
+            if (!pickup) return null;
             return { ...item, pickup, destination };
           }).filter(Boolean);
           if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
@@ -6185,9 +6326,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     }
   }
 
-  // GC_R10Z14F6_CALL_CONFIRM_AND_LINE_ADDRESS_DISPLAY_ONLY
-  // Only the call confirmation/LINE display copy is normalized. Form fields, provider data,
-  // coordinates, route calculation, navigation and recent-address storage remain untouched.
+  // GC_R10Z14F6_CONFIRM_ADDRESS_TRADITIONALIZATION
+  // The approved Simplified-to-Taiwan-Traditional converter is exposed to the
+  // confirmation workflow. Form fields, provider data, coordinates, route calculation
+  // and navigation remain untouched; the reviewed display copy is sent to LINE unchanged.
   // One-to-one data is derived from OpenCC STCharacters (Apache-2.0); Taiwan address
   // ambiguities such as 台／后／里 are deliberately not force-converted.
   const gcLineAddressS2TFrom = "㐷㐽㑇㑈㑔㑩㓆㓥㓰㔉㖊㖞㘎㚯㛀㛟㛠㛣㛤㛿㟆㟜㟥㡎㤘㤽㥪㧏㧐㧑㧟㧰㨫㭎㭏㭣㭤㭴㱩㱮㲿㳔㳕㳠㳡㳢㳽㴋㶉㶶㶽㺍㻅㻏㻘䀥䁖䂵䃅䅉䅟䅪䇲䉤䌶䌷䌸䌹䌺䌻䌼䌽䌾䌿䍀䍁䍠䎬䏝䑽䓓䓕䓖䓨䗖䘛䘞䙊䙌䙓䜣䜤䜥䜧䜩䝙䞌䞍䞎䞐䟢䢀䢁䢂䥺䥽䥾䥿䦀䦁䦂䦃䦅䦆䦶䦷䩄䭪䯃䯄䯅䲝䲞䲟䲠䲡䲢䲣䴓䴔䴕䴖䴗䴘䴙䶮与专业丛东丝丢两严丧临为丽举么义乌乐乔习乡书买乱争亏亚产亩亲亵亸亿仅从仓仪们众优会伛伞伟传伡伣伤伥伦伧伪伫体佥侠侣侥侦侧侨侩侪侬侭俣俦俨俩俪俫俭债倾偬偻偾偿傤傥傧储傩儿兑兖兰关兴兹养兽冁内冈册写军农冯决况冻净凉减凑凛凤凫凭凯击凿刍刘则刚创删刬刭刹刽刾刿剀剂剐剑剥剧劝办务劢动励劲劳势勚匀匦匮区医华协单卖卢卧卫却卺厅厉压厌厍厐厕厢厣厦厨厩厮县叁叆叇双变叙叠号叽吓吕吗吨听启吴呐呒呓呕呖呗员呙呛呜咏咙咛咝咤响哑哒哓哔哕哙哜哝哟唛唝唠唡唢唤啧啬啭啯啰啴啸喷喽喾嗫嗳嘘嘤嘱噜嚣园囱围囵国图圆圣圹场坏块坚坜坞坟坠垄垅垆垒垦垩垫垭垯垱垲垴埘埚堑堕塆墙壮声壳壶壸处备够头夺奁奂奋奖奥妆妇妈妩妪妫姗姹娄娅娆娇娈娱娲婳婴婵婶媪媭嫒嫔嫱嬷孙学孪宝实宠审宪宫宽宾寝对寻导寿将尔尘尧尴层屃屉届属屡屦屿岁岂岖岗岘岚岛岭岽岿峃峄峡峣峤峥峦峰崂崃崄崭嵘嵚嵝巅巩巯币帅师帏帐帜带帧帮帱帻帼幂庄庆床庐庑库应庙庞废庼廪开异弃弑张弪弯弹强归彟彦彨彻徕忆忏忧忾怀态怂怃怄怅怆怜总怼怿恋恒恳恸恹恺恻恼恽悦悫悬悭悮悯惊惧惨惩惫惬惭惮惯愠愤愦慑慭懑懒懔戆戋戏戗战戬戯户扑执扩扪扫扬扰抚抛抟抠抡抢护报担拟拢拣拥拦拧拨择挚挛挜挝挞挟挠挡挢挣挤挥挦捝捞损捡换捣掳掴掷掸掺掼揽揾揿搀搁搂搄搅携摄摅摇摈摊撄撑撵撷撸撺擜擞攒敌敚敛敩数斋斓斩断无旧时旷旸昙昵昼昽显晋晒晓晔晕晖暂暅暧机杀杂权条来杨杩构枞枢枣枥枧枨枫枭柠柽栀栅标栈栉栊栋栌栎栏树栖样栾桠桡桢档桤桥桦桧桨桩桪梦梼梾梿检棁棂椁椝椟椠椢椤椫椭椮楼榄榅榇榈榉榝槚槛槟槠横樯樱橥橱橹橼檩欢欤欧歼殁殇残殒殓殚殡殴毂毕毙毡毵毶氇气氢氩氲汉汤汹沄沟没沣沤沥沦沧沨沩沪泞泪泶泷泸泺泻泼泽泾洁洒洼浃浅浆浇浈浉浊测浍济浏浐浑浒浓浔浕涚涛涝涞涟涠涡涢涣涤润涧涨涩渊渌渍渎渐渑渔渖渗温湾湿溁溃溅溆溇滗滚滞滠满滢滤滥滦滨滩滪潆潇潋潍潜潴澛澜濑濒灏灭灯灵灶灾灿炀炉炖炜炝点炽烁烂烃烛烦烧烨烩烫烬热焕焖焘煴爱爷牍牦牵牺犊状犷犸犹狈狝狞独狭狮狯狰狱狲猃猎猕猡猪猫猬献獭玑玙玚玛玮环现玱玺珐珑珰珲琎琏琐琼瑶瑷瑸璎瓒瓮瓯电画畅畴疖疗疟疠疡疬疭疮疯疱疴痈痉痒痖痨痪痫痴瘅瘆瘗瘘瘪瘫瘾瘿癞癣癫皑皱皲盏盐监盖盗盘眍眦眬睁睐睑瞆瞒瞩矫矶矾矿砀码砖砗砚砜砺砻砾础硁硕硖硗硙硚硵碍碛碜碱礼祃祎祢祯祷祸禀禄禅离秃秆秘积称秽秾稆税稣稳穑穞穷窃窍窎窑窜窝窥窦窭竖竞笃笋笔笕笺笼笾筚筛筜筝筹筼筿简箓箦箧箨箩箪箫篑篓篮篯篱簖籁籴类籼粜粝粤粪粮粽糁糇糍紧絷緼縆纟纠纡红纣纥约级纨纩纪纫纬纭纮纯纰纱纲纳纴纵纶纷纸纹纺纻纼纽纾线绀绁绂练组绅细织终绉绊绋绌绍绎经绐绑绒结绔绕绖绗绘给绚绛络绝绞统绠绡绢绣绤绥绦继绨绩绪绫绬续绮绯绰绲绳维绵绶绸绹绺绻综绽绾绿缀缁缂缃缄缅缆缇缈缉缊缋缌缍缎缏缐缑缒缓缔缕编缗缘缙缚缛缜缝缞缟缠缡缢缣缤缥缦缧缨缩缪缫缬缭缮缯缰缱缲缳缴缵罂网罗罚罢罴羁羟羡群翘翙翚耢耧耸耻聂聋职聍联聩聪肃肠肤肮肴肾肿胀胁胆胧胨胪胫胶脉脍脐脑脓脔脚脱脶脸腘腭腻腼腽腾膑臜舆舣舰舱舻艰艺节芈芗芜芦苁苇苈苋苌苍苎苧茎茏茑茔茕茧荆荙荚荛荜荝荞荟荠荣荤荥荦荧荨荩荪荬荭荮莅莱莲莳莴莶莸莹莺莼萚萝萤营萦萧萨葱蒀蒇蒉蒋蒌蒏蓝蓟蓠蓣蓥蓦蔂蔷蔹蔺蔼蕰蕲蕴薮藓藴蘖虏虑虚虬虮虱虽虾虿蚀蚁蚂蚃蚕蚬蛊蛎蛏蛮蛰蛱蛲蛳蛴蜕蜗蝇蝈蝉蝼蝾螀螨蟏衅衔补衬衮袄袆袜袭袯装裆裈裢裣裤褛褴襕见观觃规觅视觇览觉觊觋觌觍觎觏觐觑觞触觯訚詟誉誊讠计订讣认讥讦讧讨让讪讫讬训议讯记讱讲讳讴讵讶讷许讹论讻讼讽设访诀诂诃评诅识诇诈诉诊诋诌词诎诏诐译诒诓诔试诖诗诘诙诚诛诜话诞诟诠诡询诣诤该详诧诨诩诪诫诬语诮误诰诱诲诳说诵诶请诸诹诺读诼诽课诿谀谁谂调谄谅谆谇谈谉谊谋谌谍谎谏谐谑谒谓谔谕谖谗谘谙谚谛谜谝谞谟谠谡谢谣谤谦谧谨谩谪谫谬谭谮谯谰谱谲谳谴谵谶豮贝贞负贠贡财责贤败账货质贩贪贫贬购贮贯贰贱贲贳贴贵贶贷贸费贺贻贼贽贾贿赀赁赂赃资赅赆赇赈赉赊赋赌赍赎赏赐赑赒赓赔赕赖赗赘赙赚赛赜赟赠赡赢赣赪赵赶趋趱趸跃跄跞践跶跷跸跹跻踌踪踬踯蹑蹒蹰蹿躏躜躯輼车轧轨轩轪轫转轭轮软轰轱轲轳轴轵轶轷轸轹轺轻轼载轾轿辀辁辂较辄辅辆辇辈辉辊辋辌辍辎辏辐辑辒输辔辕辖辗辘辙辚辞辩辫边辽达迁过迈运还这进远违连迟迩迳选逊递逦逻遗遥邓邝邬邮邹邺邻郏郐郑郓郦郧郸酂酝酦酱酽酾酿醖释銮錾钅钆钇钉钊钋钌钍钎钏钐钑钒钓钔钕钖钗钘钙钚钛钜钝钞钠钡钢钣钤钦钧钨钩钪钬钭钮钯钰钱钲钳钴钵钶钷钸钹钺钼钽钾钿铀铁铂铃铄铅铆铇铈铉铊铋铌铍铎铏铐铑铒铓铔铕铖铗铘铙铚铛铜铝铞铟铠铡铢铣铤铥铦铧铨铩铪铫铬铭铮铯铰铱铳铴铵银铷铸铹铺铻铼铽铿销锁锂锃锅锆锇锈锉锊锋锌锍锎锏锐锑锒锓锔锕锖锗锘错锚锛锜锝锞锟锠锡锢锣锤锥锦锧锨锩锪锬锭键锯锰锱锲锳锴锵锶锷锸锹锺锻锼锽锾锿镀镁镂镃镄镅镆镇镈镉镊镌镍镏镐镑镒镓镔镕镖镗镘镙镚镛镜镝镞镟镠镡镣镤镥镦镧镨镩镪镫镬镭镮镯镱镲镳镴镵镶长门闩闪闫闬闭问闯闰闱闳间闵闶闷闸闹闺闻闼闽闾闿阀阁阂阃阄阅阆阇阈阉阊阋阌阍阎阏阐阑阒阓阔阕阖阗阘阙阚阛队阳阴阵阶际陆陇陈陉陕陦陧陨险随隐隶隽难雏雠雳雾霁霉霡霭靓靔静靥鞑鞒鞯鞲韦韧韨韩韪韫韬韵页顶顷顸项顺顼顽顾顿颀颁颂颃预颅领颇颈颉颊颋颌颍颎颏颐频颒颓颔颕颖颗题颙颚颛颜额颞颟颠颡颢颣颤颥颦颧风飏飐飑飒飓飔飕飖飗飘飙飚飞飨餍饣饤饦饧饨饩饪饫饬饭饮饯饰饱饲饳饴饵饶饷饸饹饺饻饼饽饾饿馀馁馂馃馄馅馆馇馈馉馊馋馌馍馎馏馐馑馒馓馔馕马驭驮驯驰驱驲驳驴驵驶驷驸驹驺驻驼驽驾驿骀骁骂骃骄骅骆骇骈骉骊骋验骍骎骏骐骑骒骓骔骕骖骗骘骙骚骛骜骝骞骟骠骡骢骣骤骥骦骧髅髋髌鬓鬶魇魉鱼鱽鱾鱿鲀鲁鲂鲃鲄鲅鲆鲇鲈鲉鲊鲋鲌鲍鲎鲏鲐鲑鲒鲓鲔鲕鲖鲗鲘鲙鲚鲛鲜鲝鲞鲟鲠鲡鲢鲣鲤鲥鲦鲧鲨鲩鲪鲫鲬鲭鲮鲯鲰鲱鲲鲳鲴鲵鲶鲷鲸鲹鲺鲻鲼鲽鲾鲿鳀鳁鳂鳃鳄鳅鳆鳇鳈鳉鳊鳋鳌鳍鳎鳏鳐鳑鳒鳓鳔鳕鳖鳗鳘鳙鳚鳛鳜鳝鳞鳟鳠鳡鳢鳣鳤鸟鸠鸡鸢鸣鸤鸥鸦鸧鸨鸩鸪鸫鸬鸭鸮鸯鸰鸱鸲鸳鸴鸵鸶鸷鸸鸹鸺鸻鸼鸽鸾鸿鹀鹁鹂鹃鹄鹅鹆鹈鹉鹊鹋鹌鹍鹎鹏鹐鹑鹒鹓鹔鹕鹖鹗鹘鹙鹚鹛鹜鹝鹞鹟鹠鹡鹢鹣鹤鹥鹦鹧鹨鹩鹪鹫鹬鹭鹮鹯鹰鹱鹲鹳鹴鹾麦麸麹麺麽黄黉黡黩黪黾鼋鼌鼍鼹齐齑齿龀龁龂龃龄龅龆龇龈龉龊龋龌龙龚龛龟鿎鿏鿒鿔𠀾𠆲𠆿𠇹𠉂𠉗𠋆𠚳𠛅𠛆𠛾𠡠𠮶𠯟𠯠𠰱𠰷𠱞𠲥𠴛𠴢𠵸𠵾𡋀𡋗𡋤𡍣𡒄𡝠𡞋𡞱𡠟𡥧𡭜𡭬𡳃𡳒𡶴𡸃𡺃𡺄𢋈𢗓𢘙𢘝𢘞𢙏𢙐𢙑𢙒𢙓𢛯𢠁𢢐𢧐𢫊𢫞𢫬𢬍𢬦𢭏𢽾𣃁𣆐𣈣𣍨𣍯𣍰𣎑𣏢𣐕𣐤𣑶𣒌𣓿𣔌𣗊𣗋𣗙𣘐𣘓𣘴𣘷𣚚𣞎𣨼𣭤𣯣𣱝𣲗𣲘𣳆𣶩𣶫𣶭𣷷𣸣𣺼𣺽𣽷𤆡𤆢𤇃𤇄𤇭𤇹𤈶𤈷𤊀𤊰𤋏𤎺𤎻𤙯𤝢𤞃𤞤𤠋𤦀𤩽𤳄𤶊𤶧𤻊𤽯𤾀𤿲𥁢𥅘𥅴𥅿𥆧𥇢𥎝𥐟𥐯𥐰𥐻𥞦𥧂𥩟𥩺𥫣𥬀𥬞𥬠𥭉𥮋𥮜𥮾𥱔𥹥𥺅𥺇𦈈𦈉𦈋𦈌𦈎𦈏𦈐𦈑𦈒𦈓𦈔𦈕𦈖𦈗𦈘𦈙𦈚𦈛𦈜𦈝𦈞𦈟𦈠𦈡𦍠𦛨𦝼𦟗𦨩𦰏𦰴𦶟𦶻𦻕𧉐𧉞𧌥𧏖𧏗𧑏𧒭𧜭𧝝𧝧𧮪𧳕𧹑𧹒𧹓𧹔𧹕𧹖𧹗𧿈𨀁𨀱𨁴𨂺𨄄𨅛𨅫𨅬𨉗𨐅𨐆𨐇𨐈𨐉𨐊𨑹𨟳𨠨𨡙𨡺𨤰𨰾𨰿𨱀𨱁𨱂𨱃𨱄𨱅𨱆𨱇𨱈𨱉𨱊𨱋𨱌𨱍𨱎𨱏𨱐𨱑𨱒𨱓𨱔𨱕𨱖𨷿𨸀𨸁𨸂𨸃𨸄𨸅𨸆𨸇𨸉𨸊𨸋𨸌𨸎𨸘𨸟𩏼𩏽𩏾𩏿𩐀𩓋𩖕𩖖𩖗𩙥𩙦𩙧𩙨𩙩𩙪𩙫𩙬𩙭𩙮𩙯𩙰𩟿𩠀𩠁𩠂𩠃𩠅𩠆𩠇𩠈𩠉𩠊𩠋𩠌𩠎𩠏𩠠𩡖𩧦𩧨𩧩𩧪𩧫𩧬𩧭𩧮𩧯𩧰𩧱𩧲𩧳𩧴𩧵𩧶𩧸𩧺𩧻𩧼𩧿𩨀𩨁𩨂𩨃𩨄𩨅𩨆𩨇𩨈𩨉𩨊𩨋𩨌𩨍𩨎𩨏𩨐𩩈𩬣𩬤𩭹𩯒𩰰𩲒𩴌𩽹𩽺𩽻𩽼𩽽𩽾𩽿𩾁𩾂𩾃𩾄𩾅𩾆𩾇𩾈𩾊𩾋𩾌𩾎𪉂𪉃𪉄𪉅𪉆𪉈𪉉𪉊𪉋𪉌𪉍𪉎𪉏𪉐𪉑𪉒𪉔𪉕𪎈𪎉𪎊𪎋𪎌𪑅𪔭𪚏𪚐𪜎𪞝𪟎𪟝𪠀𪠟𪠡𪠳𪠵𪠸𪠺𪠽𪡀𪡃𪡋𪡏𪡛𪡞𪡺𪢌𪢐𪢒𪢕𪢖𪢠𪢮𪢸𪣆𪣒𪣻𪤄𪤚𪥠𪥫𪥰𪥿𪧀𪧘𪨊𪨗𪨧𪨩𪨶𪨷𪨹𪩇𪩎𪩘𪩛𪩷𪩸𪪏𪪑𪪞𪪴𪪼𪫌𪫡𪫷𪫺𪬚𪬯𪭝𪭢𪭧𪭯𪭵𪭾𪮃𪮋𪮖𪮳𪮶𪯋𪰶𪱥𪱷𪲎𪲔𪲛𪲮𪳍𪳗𪴙𪵑𪵣𪵱𪶄𪶒𪶮𪷍𪷽𪸕𪸩𪹀𪹠𪹳𪹹𪺣𪺪𪺭𪺷𪺸𪺻𪺽𪻐𪻨𪻲𪻺𪼋𪼴𪽈𪽝𪽪𪽭𪽮𪽴𪽷𪾔𪾢𪾣𪾦𪾸𪿊𪿞𪿫𪿵𫀌𫀓𫀨𫀬𫀮𫁂𫁟𫁡𫁱𫁲𫁳𫁷𫁺𫂃𫂆𫂈𫂖𫂿𫃗𫄙𫄚𫄛𫄜𫄝𫄞𫄟𫄠𫄡𫄢𫄣𫄤𫄥𫄦𫄧𫄨𫄩𫄪𫄫𫄬𫄭𫄮𫄯𫄰𫄱𫄲𫄳𫄴𫄵𫄶𫄷𫄸𫄹𫅅𫅗𫅥𫅭𫅼𫆏𫆝𫆫𫇘𫇛𫇪𫇭𫇴𫇽𫈉𫈎𫈟𫈵𫉁𫉄𫊪𫊮𫊸𫊹𫊻𫋇𫋌𫋲𫋷𫋹𫋻𫌀𫌇𫌋𫌨𫌪𫌫𫌬𫌭𫌯𫍐𫍙𫍚𫍛𫍜𫍝𫍞𫍟𫍠𫍡𫍢𫍣𫍤𫍥𫍦𫍧𫍨𫍩𫍪𫍫𫍬𫍭𫍮𫍯𫍰𫍱𫍲𫍳𫍴𫍵𫍶𫍷𫍸𫍹𫍺𫍻𫍼𫍽𫍾𫍿𫎆𫎌𫎦𫎧𫎨𫎩𫎪𫎫𫎬𫎭𫎱𫎳𫎸𫎺𫏃𫏆𫏋𫏌𫏐𫏑𫏕𫏞𫏨𫐄𫐅𫐆𫐇𫐈𫐉𫐊𫐋𫐌𫐍𫐎𫐏𫐐𫐑𫐒𫐓𫐔𫐕𫐖𫐗𫐘𫐙𫐷𫑘𫑡𫑷𫓥𫓦𫓧𫓨𫓩𫓪𫓫𫓬𫓭𫓮𫓯𫓰𫓱𫓲𫓳𫓴𫓵𫓶𫓷𫓸𫓹𫓺𫓻𫓼𫓽𫓾𫓿𫔀𫔁𫔂𫔃𫔄𫔅𫔆𫔇𫔈𫔉𫔊𫔋𫔌𫔍𫔎𫔏𫔐𫔑𫔒𫔓𫔔𫔕𫔖𫔭𫔮𫔯𫔰𫔲𫔴𫔵𫔶𫔽𫕚𫕥𫕨𫖃𫖅𫖇𫖑𫖒𫖓𫖔𫖕𫖖𫖪𫖫𫖬𫖭𫖮𫖯𫖰𫖱𫖲𫖳𫖴𫖵𫖶𫖷𫖸𫖹𫖺𫗇𫗈𫗉𫗊𫗋𫗚𫗞𫗟𫗠𫗡𫗢𫗣𫗤𫗥𫗦𫗧𫗨𫗩𫗪𫗫𫗬𫗭𫗮𫗯𫗰𫗱𫗳𫗴𫗵𫘛𫘜𫘝𫘞𫘟𫘠𫘡𫘣𫘤𫘥𫘦𫘧𫘨𫘩𫘪𫘫𫘬𫘭𫘮𫘯𫘰𫘱𫘽𫙂𫚈𫚉𫚊𫚋𫚌𫚍𫚎𫚏𫚐𫚑𫚒𫚓𫚔𫚕𫚖𫚗𫚘𫚙𫚚𫚛𫚜𫚝𫚞𫚟𫚠𫚡𫚢𫚣𫚤𫚥𫚦𫚧𫚨𫚩𫚪𫚫𫚬𫚭𫛚𫛛𫛜𫛝𫛞𫛟𫛠𫛡𫛢𫛣𫛤𫛥𫛦𫛧𫛨𫛩𫛪𫛫𫛬𫛭𫛮𫛯𫛰𫛱𫛲𫛳𫛴𫛵𫛶𫛷𫛸𫛹𫛺𫛻𫛼𫛽𫛾𫜀𫜁𫜂𫜃𫜄𫜅𫜊𫜑𫜒𫜓𫜔𫜕𫜙𫜟𫜨𫜩𫜪𫜫𫜬𫜭𫜮𫜯𫜰𫜲𫜳𫝈𫝋𫝦𫝧𫝨𫝩𫝪𫝫𫝬𫝭𫝮𫝵𫞅𫞗𫞚𫞛𫞝𫞠𫞡𫞢𫞣𫞥𫞦𫞧𫞨𫞩𫞷𫟃𫟄𫟅𫟆𫟇𫟑𫟕𫟞𫟟𫟠𫟡𫟢𫟤𫟥𫟦𫟫𫟬𫟲𫟳𫟴𫟵𫟶𫟷𫟸𫟹𫟺𫟻𫟼𫟽𫟾𫟿𫠀𫠁𫠂𫠅𫠆𫠇𫠈𫠊𫠋𫠌𫠏𫠐𫠑𫠒𫠖𫠜𫢸𫧃𫧮𫫇𫬐𫭟𫭢𫭼𫮃𫰛𫵷𫶇𫷷𫸩𬀩𬀪𬂩𬃊𬇕𬇙𬇹𬉼𬊈𬊤𬍛𬍡𬍤𬒈𬒗𬕂𬘓𬘘𬘡𬘩𬘫𬘬𬘭𬘯𬙂𬙊𬙋𬜬𬜯𬞟𬟁𬟽𬣙𬣞𬣡𬣳𬤇𬤊𬤝𬨂𬨎𬩽𬪩𬬩𬬭𬬮𬬱𬬸𬬹𬬻𬬿𬭁𬭊𬭎𬭚𬭛𬭤𬭩𬭬𬭭𬭯𬭳𬭶𬭸𬭼𬮱𬮿𬯀𬯎𬱖𬱟𬳵𬳶𬳽𬳿𬴂𬴃𬴊𬶋𬶍𬶏𬶐𬶟𬶠𬶨𬶭𬶮𬷕𬸘𬸚𬸣𬸦𬸪𬸯𬹼𬺈𬺓𰬸𰰨𰶎𰻝𰾄𰾭𱊜万云丰发叶宁广厂历复苏坛坝钟证药种团柜闲烟雇确签鉴赞准别划";
@@ -6240,96 +6382,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     }).join('');
   }
 
-  const gcTaiwanRegionCodeCounty = Object.freeze({
-    TPE: '台北市', NWT: '新北市', TAO: '桃園市', TXG: '台中市', TNN: '台南市',
-    KHH: '高雄市', KEE: '基隆市', HSZ: '新竹市', CYI: '嘉義市', HSQ: '新竹縣',
-    MIA: '苗栗縣', CHA: '彰化縣', NAN: '南投縣', YUN: '雲林縣', CYQ: '嘉義縣',
-    PIF: '屏東縣', ILA: '宜蘭縣', HUA: '花蓮縣', TTT: '台東縣', PEN: '澎湖縣',
-    KIN: '金門縣', LIE: '連江縣'
-  });
-  const gcTaiwanCountyNames = [
-    '台北市','新北市','桃園市','台中市','台南市','高雄市','基隆市','新竹市','嘉義市',
-    '新竹縣','苗栗縣','彰化縣','南投縣','雲林縣','嘉義縣','屏東縣','宜蘭縣','花蓮縣',
-    '台東縣','澎湖縣','金門縣','連江縣'
-  ];
-  // Only unambiguous Taichung districts may complete a missing city name.
-  // Ambiguous names such as 東區／南區／西區／北區／大安區／和平區 are deliberately excluded.
-  const gcUniqueTaichungDistricts = [
-    '中區','西屯區','南屯區','北屯區','豐原區','東勢區','大甲區','清水區','沙鹿區','梧棲區',
-    '后里區','神岡區','潭子區','大雅區','新社區','石岡區','外埔區','烏日區','大肚區','龍井區',
-    '霧峰區','太平區','大里區'
-  ];
-  const gcTaiwanRegionCodePattern = /^(TPE|NWT|TAO|TXG|TNN|KHH|KEE|HSZ|CYI|HSQ|MIA|CHA|NAN|YUN|CYQ|PIF|ILA|HUA|TTT|PEN|KIN|LIE)\b\s*(?:[,，、-]\s*)?/i;
-  const gcTaiwanCountyStartPattern = /^(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)/;
-  const gcTaiwanPostalPrefixPattern = /^(?:[0-9０-９]{6}|[0-9０-９]{5}|[0-9０-９]{3})\s*(?:[,，、-]\s*)?(?=(?:TPE|NWT|TAO|TXG|TNN|KHH|KEE|HSZ|CYI|HSQ|MIA|CHA|NAN|YUN|CYQ|PIF|ILA|HUA|TTT|PEN|KIN|LIE)\b|(?:Taiwan|TWN)\b|(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)|[\u3400-\u9fff]{1,7}(?:區|鄉|鎮|市))/i;
-
-  function normalizeCallDisplayAddress(value) {
-    const original = String(value ?? '').trim();
-    if (!original) return original;
-    try {
-      let text = traditionalizeLineAddress(original)
-        .replace(/臺/g, '台')
-        .replace(/　/g, ' ')
-        .trim();
-      if (!text) return original;
-
-      // Provider metadata is removed only when it appears at the beginning in a recognisable form.
-      text = text.replace(gcTaiwanPostalPrefixPattern, '');
-      let countyFromCode = '';
-      const codeMatch = text.match(gcTaiwanRegionCodePattern);
-      if (codeMatch) {
-        countyFromCode = gcTaiwanRegionCodeCounty[codeMatch[1].toUpperCase()] || '';
-        text = text.slice(codeMatch[0].length);
-      }
-      text = text
-        .replace(/^(?:Taiwan|TWN)\b\s*(?:[,，、-]\s*)?/i, '')
-        .replace(/^[,，、\s-]+/, '')
-        .trim();
-      if (!text) return original;
-
-      // Keep a safety reference after provider metadata removal, so postal-code digits are not
-      // mistaken for a house number during fallback validation.
-      const safetyCore = text;
-      const explicitCounty = gcTaiwanCountyNames.find(county => text.startsWith(county)) || '';
-      if (!explicitCounty) {
-        const inferredCounty = countyFromCode ||
-          (gcUniqueTaichungDistricts.some(district => text.startsWith(district)) ? '台中市' : '');
-        if (inferredCounty) text = inferredCounty + text;
-      }
-
-      // Never create a duplicated county/city prefix.
-      gcTaiwanCountyNames.forEach(county => {
-        const duplicated = county + county;
-        while (text.startsWith(duplicated)) text = county + text.slice(duplicated.length);
-      });
-
-      // Compact provider punctuation only for a recognisable Taiwan street address.
-      const structured = gcTaiwanCountyStartPattern.test(text) &&
-        /(?:區|鄉|鎮|市).*(?:大道|路|街|道|段|巷|弄|號)/.test(text);
-      if (structured) {
-        text = text
-          .replace(/\s*[,，、]\s*/g, '')
-          .replace(/\s*([縣市區鄉鎮村里鄰路街道段巷弄號])\s*/g, '$1')
-          .replace(/(?<=[\u3400-\u9fff0-9０-９])\s+(?=[\u3400-\u9fff0-9０-９])/g, '')
-          .trim();
-      } else {
-        text = text.replace(/\s*[,，、]\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
-      }
-
-      // Any abnormal result falls back to the untouched original and must never block submission.
-      if (!text || /(?:undefined|null|�)/i.test(text)) return original;
-      const sourceDigits = (safetyCore.match(/[0-9０-９]/g) || []).join('');
-      const resultDigits = (text.match(/[0-9０-９]/g) || []).join('');
-      if (sourceDigits && !resultDigits) return original;
-      if (text.length > Math.max(original.length * 3, original.length + 80)) return original;
-      return text;
-    } catch (_) {
-      return original;
-    }
-  }
-
-  // app-v5719 uses this only to create the call confirmation/LINE display copy.
-  window.GC_normalizeCallDisplayAddress = normalizeCallDisplayAddress;
+  window.GC_traditionalizeDispatchAddress = traditionalizeLineAddress;
 
   function transformMessage(text) {
     let lines = String(text).split('\n').filter(line => !/[•・]\s*(跨縣市方向|行程方向|車輛資訊|車輛停放位置|乘車需求|補充資訊)\s*：/.test(line));

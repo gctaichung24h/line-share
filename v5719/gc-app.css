@@ -6224,3 +6224,41 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 .gc-driver-card .gc-time-trigger.is-empty.is-waiting{
   color:var(--gc-premium-muted)!important;
 }
+
+/* GC_R10Z14F7_CALL_CONFIRM_INTRO_HIERARCHY
+   Call confirmation only: restrained two-line hierarchy, with no warning box, icon,
+   modal geometry change, address-row change, driver confirmation or fare confirmation change. */
+.gc-call-card .confirm-intro.gc-call-review-intro{
+  display:grid!important;
+  gap:2px!important;
+  text-align:center!important;
+}
+.gc-call-card .confirm-intro.gc-call-review-intro .confirm-intro-primary,
+.gc-call-card .confirm-intro.gc-call-review-intro .confirm-intro-secondary{
+  display:block!important;
+  font-family:inherit!important;
+  font-size:inherit!important;
+  line-height:inherit!important;
+  letter-spacing:inherit!important;
+}
+.gc-call-card .confirm-intro.gc-call-review-intro .confirm-intro-primary{
+  color:#5f7485!important;
+  font-weight:600!important;
+}
+.gc-call-card .confirm-intro.gc-call-review-intro .confirm-intro-secondary{
+  color:#81919d!important;
+  font-weight:450!important;
+}
+
+/* GC_R10Z14F8_FAVORITE_SHEET_COMPACT_ONLY
+   Only the common-trip Bottom Sheet height is reduced; its list remains independently scrollable. */
+#gcFavoriteSheet .gc-sheet{
+  height:min(60dvh,560px)!important;
+  max-height:calc(100dvh - 88px)!important;
+}
+@media(max-height:700px){
+  #gcFavoriteSheet .gc-sheet{
+    height:min(66dvh,520px)!important;
+    max-height:calc(100dvh - 64px)!important;
+  }
+}

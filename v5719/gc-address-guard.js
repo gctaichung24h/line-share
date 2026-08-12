@@ -389,7 +389,7 @@
             if (!item || typeof item !== 'object') return null;
             const pickup = sanitizeStoredValue(item.pickup);
             const destination = sanitizeStoredValue(item.destination);
-            if (!pickup || !destination) return null;
+            if (!pickup) return null;
             return { ...item, pickup, destination };
           }).filter(Boolean);
           if (JSON.stringify(clean) !== JSON.stringify(parsed)) localStorage.setItem('gc_favorite_trips_v1', JSON.stringify(clean));
