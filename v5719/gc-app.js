@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f13';
+  const GC_BUILD_VERSION = 'master202608r10z14f14';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -10,6 +10,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F11_FAVORITE_RESPONSIVE_ADMIN_HINT_AND_PICKUP_ONLY_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F12_FAVORITE_CROSS_DEVICE_EDIT_AND_SINGLE_POINT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F13_FAVORITE_STATUS_LIFECYCLE
+  // GC_MASTER_STABLE_2026_08R10Z14F14_DRIVER_REVIEW_NORMALIZATION_AND_CONFIRM_INTRO
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -5046,12 +5047,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const adminWarningValue = pickupAdminAmbiguity
         ? `尚未確認（可能為${adminAreaText(pickupAdminAmbiguity.options, 'line')}）`
         : '';
-      const reviewedPickup = mode === 'call' ? normalizeDispatchAddressForReview(pickup) : pickup;
-      const reviewedDestination = mode === 'call' ? normalizeDispatchAddressForReview(destination) : destination;
+      // GC_R10Z14F14_DRIVER_REVIEW_NORMALIZATION
+      // Call and driver share the same review/send address copy. The raw form value is preserved
+      // for navigation, duplicate signatures and recent-address behavior; only the confirmation
+      // and LINE message use this normalized display copy.
+      const reviewedPickup = normalizeDispatchAddressForReview(pickup);
+      const reviewedDestination = normalizeDispatchAddressForReview(destination);
       // GC_R10Z14F7_CONFIRM_REVIEWED_ADMIN_RECHECK
       // The form-page hint still evaluates the passenger's visible raw input. The confirmation
       // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
-      const pickupAdminReminderSource = mode === 'call' ? reviewedPickup : pickup;
+      const pickupAdminReminderSource = reviewedPickup;
       const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingReminderAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
@@ -5146,6 +5151,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         }
       }, mode === 'call' ? {
         introPrimary: '請再次確認上、下車地點是否正確。',
+        introSecondary: '確認無誤後再送出。'
+      } : mode === 'driver' ? {
+        introPrimary: '請再次確認代駕地點是否正確。',
         introSecondary: '確認無誤後再送出。'
       } : {});
     });
