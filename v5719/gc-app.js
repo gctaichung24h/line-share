@@ -2,13 +2,14 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f12';
+  const GC_BUILD_VERSION = 'master202608r10z14f13';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
   // GC_MASTER_STABLE_2026_08R10Z14F10_FAVORITE_SHEET_SAVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F11_FAVORITE_RESPONSIVE_ADMIN_HINT_AND_PICKUP_ONLY_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F12_FAVORITE_CROSS_DEVICE_EDIT_AND_SINGLE_POINT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F13_FAVORITE_STATUS_LIFECYCLE
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -6012,7 +6013,17 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       panel.classList.remove('gc-sheet-dragging', 'gc-sheet-snapback');
       panel.style.removeProperty('transform');
     };
+    // R10Z14F13: status messages belong only to the current favorite-sheet session.
+    // Clear success/error state when the sheet is closed or reopened so an old route result
+    // can never be mistaken for the passenger's newly edited address.
+    const clearFavoriteSheetStatus = () => {
+      const status = document.getElementById('favoriteStatus');
+      if (!status) return;
+      status.textContent = '';
+      status.classList.remove('is-error', 'is-success');
+    };
     const close = () => {
+      clearFavoriteSheetStatus();
       resetSheetDrag();
       sheet.classList.add('hidden');
       sheet.hidden = true;
@@ -6030,6 +6041,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       window.scrollTo(0, favoriteSheetScrollY);
     };
     const open = () => {
+      clearFavoriteSheetStatus();
       const y = window.scrollY;
       const active = document.activeElement;
       if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) active.blur();

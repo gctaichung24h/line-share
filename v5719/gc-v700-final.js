@@ -90,7 +90,17 @@
       panel.classList.remove('gc-sheet-dragging', 'gc-sheet-snapback');
       panel.style.removeProperty('transform');
     };
+    // R10Z14F13: status messages belong only to the current favorite-sheet session.
+    // Clear success/error state when the sheet is closed or reopened so an old route result
+    // can never be mistaken for the passenger's newly edited address.
+    const clearFavoriteSheetStatus = () => {
+      const status = document.getElementById('favoriteStatus');
+      if (!status) return;
+      status.textContent = '';
+      status.classList.remove('is-error', 'is-success');
+    };
     const close = () => {
+      clearFavoriteSheetStatus();
       resetSheetDrag();
       sheet.classList.add('hidden');
       sheet.hidden = true;
@@ -108,6 +118,7 @@
       window.scrollTo(0, favoriteSheetScrollY);
     };
     const open = () => {
+      clearFavoriteSheetStatus();
       const y = window.scrollY;
       const active = document.activeElement;
       if (active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) active.blur();
