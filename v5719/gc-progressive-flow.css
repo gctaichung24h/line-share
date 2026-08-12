@@ -1984,7 +1984,7 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
    on call/driver reservation forms. Unfocused unit styling, selected values, geometry
    and all existing interaction flow remain unchanged. */
 .gc-fare-card .gc-fare-calc-input-wrap:focus-within>b{
-  box-shadow:none!important;
+  box-shadow:inset 1px 0 0 #cbd9e3!important;
 }
 .gc-call-card .gc-date-shell.is-empty,
 .gc-call-card .gc-time-trigger.is-empty,
