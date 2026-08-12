@@ -2,9 +2,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f8';
+  const GC_BUILD_VERSION = 'master202608r10z14f9';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
+  // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -2647,6 +2648,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const route = document.getElementById('favoriteSaveRoute');
     if (!overlay || !input || !route) return;
     input.value = nextFavoriteDefaultName(trips);
+    route.classList.toggle('is-pickup-only', !destination);
     route.textContent = destination ? `${pickup} → ${destination}` : pickup;
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;

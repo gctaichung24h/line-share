@@ -6262,3 +6262,35 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
     max-height:calc(100dvh - 64px)!important;
   }
 }
+
+/* GC_R10Z14F9_TARGETED_THREE_FIXES
+   Named scope only:
+   1) pickup-only favorite save preview hides the obsolete route label;
+   2) favorite sheet gets slightly more list viewport while bottom controls retain their style/order;
+   3) call-reservation empty date/time hint colors are optically identical.
+   No other geometry, typography, data logic or page is changed. */
+.favorite-save-route.is-pickup-only{
+  padding-left:12px!important;
+}
+.favorite-save-route.is-pickup-only:before{
+  content:none!important;
+  display:none!important;
+}
+
+#gcFavoriteSheet .gc-sheet{
+  height:min(64dvh,590px)!important;
+  max-height:calc(100dvh - 76px)!important;
+}
+@media(max-height:700px){
+  #gcFavoriteSheet .gc-sheet{
+    height:min(70dvh,540px)!important;
+    max-height:calc(100dvh - 56px)!important;
+  }
+}
+
+.gc-call-card .gc-date-shell.is-empty .gc-date-display,
+.gc-call-card .gc-time-trigger.is-empty #timeDisplay,
+.gc-call-card .gc-time-trigger.is-empty.is-waiting #timeDisplay{
+  color:#5f7585!important;
+  opacity:1!important;
+}
