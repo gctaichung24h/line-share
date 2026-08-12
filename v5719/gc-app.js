@@ -2,12 +2,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f11';
+  const GC_BUILD_VERSION = 'master202608r10z14f12';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
   // GC_MASTER_STABLE_2026_08R10Z14F10_FAVORITE_SHEET_SAVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F11_FAVORITE_RESPONSIVE_ADMIN_HINT_AND_PICKUP_ONLY_FLOW
+  // GC_MASTER_STABLE_2026_08R10Z14F12_FAVORITE_CROSS_DEVICE_EDIT_AND_SINGLE_POINT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -2545,6 +2546,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             <button class="favorite-save-confirm" id="favoriteSaveConfirmBtn" type="button">確定儲存</button>
           </div>
         </section>
+      </div>
+      <div class="favorite-save-overlay favorite-edit-overlay hidden" id="favoriteEditOverlay">
+        <section class="favorite-save-card favorite-edit-card" role="dialog" aria-modal="true" aria-labelledby="favoriteEditTitle">
+          <h2 id="favoriteEditTitle">編輯行程名稱</h2>
+          <label for="favoriteEditNameInput">行程名稱</label>
+          <input class="input" id="favoriteEditNameInput" type="text" maxlength="30">
+          <div class="favorite-edit-route" id="favoriteEditRoute" aria-label="目前行程地址"></div>
+          <div class="favorite-save-actions">
+            <button class="favorite-save-cancel" id="favoriteEditCancelBtn" type="button">取消</button>
+            <button class="favorite-save-confirm" id="favoriteEditConfirmBtn" type="button">儲存名稱</button>
+          </div>
+        </section>
       </div>`;
   }
 
@@ -2576,10 +2589,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     } else {
       list.innerHTML = trips.map((trip, index) => `
         <div class="favorite-row">
-          <button class="favorite-use" type="button" data-index="${index}">
-            <strong>${escapeHtml(trip.name)}</strong>
-            <span>${escapeHtml(trip.destination ? `${trip.pickup} → ${trip.destination}` : trip.pickup)}</span>
-          </button>
+          <div class="favorite-main">
+            <button class="favorite-use" type="button" data-index="${index}">
+              <strong>${escapeHtml(trip.name)}</strong>
+              <span>${escapeHtml(trip.destination ? `${trip.pickup} → ${trip.destination}` : trip.pickup)}</span>
+            </button>
+            <button class="favorite-edit-name" type="button" data-index="${index}" aria-label="編輯${escapeHtml(trip.name)}名稱" title="編輯名稱">✎</button>
+          </div>
           <button class="favorite-delete" type="button" data-index="${index}">${escapeHtml(COMMON['最近地址刪除'] || '刪除')}</button>
         </div>`).join('');
     }
@@ -2698,10 +2714,61 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     });
   }
 
+  function closeFavoriteEditModal() {
+    const overlay = document.getElementById('favoriteEditOverlay');
+    const active = document.activeElement;
+    if (active && typeof active.blur === 'function') active.blur();
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    delete overlay.dataset.index;
+  }
+
+  function openFavoriteEditModal(index) {
+    const trips = loadFavoriteTrips();
+    const trip = trips[Number(index)];
+    const overlay = document.getElementById('favoriteEditOverlay');
+    const input = document.getElementById('favoriteEditNameInput');
+    const route = document.getElementById('favoriteEditRoute');
+    if (!trip || !overlay || !input || !route) return;
+    overlay.dataset.index = String(index);
+    input.value = String(trip.name || '').slice(0, 30);
+    route.textContent = trip.destination ? `${trip.pickup} → ${trip.destination}` : trip.pickup;
+    overlay.classList.remove('hidden');
+  }
+
+  function bindFavoriteEditModal() {
+    const overlay = document.getElementById('favoriteEditOverlay');
+    document.getElementById('favoriteEditCancelBtn')?.addEventListener('click', closeFavoriteEditModal);
+    overlay?.addEventListener('click', event => {
+      if (event.target === overlay) closeFavoriteEditModal();
+    });
+    document.getElementById('favoriteEditConfirmBtn')?.addEventListener('click', () => {
+      if (!overlay) return;
+      const index = Number(overlay.dataset.index);
+      const trips = loadFavoriteTrips();
+      const trip = trips[index];
+      if (!trip) { closeFavoriteEditModal(); return; }
+      const input = document.getElementById('favoriteEditNameInput');
+      const nextName = String(input?.value || '').trim().slice(0, 30) || trip.name;
+      trips[index] = { ...trip, name: nextName };
+      saveFavoriteTrips(trips);
+      closeFavoriteEditModal();
+      refreshFavoriteTrips();
+      setFavoriteStatus('行程名稱已更新。', 'success');
+    });
+  }
+
   function bindFavoriteTrips() {
     const box = document.getElementById('favoriteTripsBox');
     if (!box) return;
     box.addEventListener('click', event => {
+      const editButton = event.target.closest('.favorite-edit-name');
+      if (editButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        openFavoriteEditModal(Number(editButton.dataset.index));
+        return;
+      }
       const useButton = event.target.closest('.favorite-use');
       if (useButton) {
         const trip = loadFavoriteTrips()[Number(useButton.dataset.index)];
@@ -2731,13 +2798,15 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           document.getElementById(`${id}Error`)?.classList.remove('show');
         });
         pickupInput?.dispatchEvent(new Event('input', { bubbles: true }));
-        // R10Z14F11: a pickup-only favorite must advance the progressive flow exactly like
-        // manually entering the same pickup and leaving the field. The change event runs the
-        // existing commitPickup handler; it does not alter validation or destination rules.
+        // A favorite fill must land in the exact same progressive state as manual input.
+        // Keep a pickup-only trip pickup-only, preserve any destination the passenger already typed,
+        // and explicitly re-run the existing progressive-flow commit/update path.
         pickupInput?.dispatchEvent(new Event('change', { bubbles: true }));
+        document.getElementById('serviceForm')?.dispatchEvent(new CustomEvent('gc:address-verified', { bubbles: true, detail: { id: 'pickup', source: 'favorite' } }));
         if (hasSavedDestination) {
           destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
           destinationInput?.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('serviceForm')?.dispatchEvent(new CustomEvent('gc:address-verified', { bubbles: true, detail: { id: 'destination', source: 'favorite' } }));
         }
         box.open = false;
         setFavoriteStatus('', '');
@@ -4858,6 +4927,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     installVerticalOnlyTouchGuard();
     bindFavoriteTrips();
     bindFavoriteSaveModal();
+    bindFavoriteEditModal();
     bindCurrentLocation(mode);
     bindSmartAddressInputs();
     bindConfirmationModal();

@@ -2151,7 +2151,7 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 }
 #gcFavoriteSheet .gc-sheet-body{
   display:flex!important;
-  flex:1 1 auto!important;
+  flex:1 1 0%!important;
   min-height:0!important;
   width:100%!important;
   max-width:100%!important;
@@ -2179,8 +2179,8 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   inset:0!important;
   flex-direction:column!important;
   min-height:0!important;
-  height:auto!important;
-  max-height:none!important;
+  height:100%!important;
+  max-height:100%!important;
   width:auto!important;
   max-width:none!important;
   margin:0!important;
@@ -2274,5 +2274,219 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   #gcFavoriteSheet .favorite-row{
     grid-template-columns:minmax(0,1fr) 64px!important;
     gap:8px!important;
+  }
+}
+
+
+/* GC_R10Z14F12_FAVORITE_CROSS_DEVICE_ROOT_AND_EDIT
+   Scope lock: only common-trip sheet/status/edit-name UI. The sheet uses one flex-column
+   sizing model across iOS/Android: fixed header, flexible scroll list, fixed bottom controls. */
+#gcFavoriteSheet .gc-sheet{
+  display:flex!important;
+  flex-direction:column!important;
+  width:min(calc(100% - 4px),540px)!important;
+  height:min(72vh,620px)!important;
+  height:min(72dvh,620px)!important;
+  min-height:0!important;
+  max-height:calc(100vh - 48px)!important;
+  max-height:calc(100dvh - 48px)!important;
+  margin:0 auto!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#gcFavoriteSheet .gc-sheet-handle,
+#gcFavoriteSheet .gc-sheet-head{
+  flex:0 0 auto!important;
+}
+#gcFavoriteSheet .gc-sheet-body{
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:12px 0 1px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .gc-favorite-sheet-box{
+  display:block!important;
+  position:relative!important;
+  min-height:0!important;
+  height:100%!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .gc-favorite-sheet-box>.favorite-content{
+  display:flex!important;
+  flex-direction:column!important;
+  position:absolute!important;
+  inset:0!important;
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  width:auto!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-list-viewport{
+  display:block!important;
+  flex:1 1 0%!important;
+  min-height:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:2px 0 10px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+  scrollbar-gutter:auto!important;
+  contain:none!important;
+  isolation:auto!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-list{
+  display:flex!important;
+  flex-direction:column!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  gap:10px!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 70px!important;
+  gap:10px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  flex:0 0 auto!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-main{
+  position:relative!important;
+  min-width:0!important;
+  width:100%!important;
+  height:100%!important;
+}
+#gcFavoriteSheet .favorite-use,
+#gcFavoriteSheet .favorite-delete{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-use{
+  padding-right:48px!important;
+}
+#gcFavoriteSheet .favorite-edit-name{
+  position:absolute!important;
+  z-index:2!important;
+  top:9px!important;
+  right:9px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:32px!important;
+  min-width:32px!important;
+  height:32px!important;
+  min-height:32px!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #d8e4ec!important;
+  border-radius:10px!important;
+  background:#f5f9fc!important;
+  color:#6c8496!important;
+  box-shadow:none!important;
+  font:700 15px/1 inherit!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+#gcFavoriteSheet .favorite-edit-name:active{
+  background:#edf4f8!important;
+}
+#gcFavoriteSheet .favorite-actions,
+#gcFavoriteSheet .favorite-status{
+  flex:0 0 auto!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-status{
+  text-align:center!important;
+}
+#gcFavoriteSheet .favorite-status.is-success,
+#gcFavoriteSheet .favorite-status.is-error{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#gcFavoriteSheet .favorite-status:empty{
+  display:none!important;
+}
+.favorite-edit-overlay{
+  z-index:12020!important;
+}
+.favorite-edit-card{
+  width:min(calc(100% - 34px),380px)!important;
+  padding:20px 18px 18px!important;
+}
+.favorite-edit-card h2{
+  margin-bottom:16px!important;
+}
+#favoriteEditNameInput{
+  font-size:16px!important;
+  -webkit-text-size-adjust:100%!important;
+}
+.favorite-edit-route{
+  margin-top:11px!important;
+  padding:10px 12px!important;
+  border:1px solid #e0e8ee!important;
+  border-radius:12px!important;
+  background:#f7f9fb!important;
+  color:#6d8293!important;
+  font-size:11.75px!important;
+  font-weight:550!important;
+  line-height:1.5!important;
+  text-align:left!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+@media(max-height:700px){
+  #gcFavoriteSheet .gc-sheet{
+    height:min(78vh,540px)!important;
+    height:min(78dvh,540px)!important;
+    max-height:calc(100vh - 36px)!important;
+    max-height:calc(100dvh - 36px)!important;
+  }
+}
+@media(max-width:340px){
+  #gcFavoriteSheet .favorite-row{
+    grid-template-columns:minmax(0,1fr) 64px!important;
+    gap:8px!important;
+  }
+  #gcFavoriteSheet .favorite-use{
+    padding-right:43px!important;
+  }
+  #gcFavoriteSheet .favorite-edit-name{
+    right:7px!important;
+    width:30px!important;
+    min-width:30px!important;
+    height:30px!important;
+    min-height:30px!important;
   }
 }
