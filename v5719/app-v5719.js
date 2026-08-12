@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f17';
+  const GC_BUILD_VERSION = 'master202608r10z14f18';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -12,6 +12,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
+  // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_AND_DRIVER_DESTINATION_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -748,15 +749,22 @@
   }
 
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
-  // Keep the user's currently edited control visually anchored while address suggestions,
-  // admin guidance or fare-result UI changes height. This covers call/driver addresses and
-  // fare pickup/destination/minutes/km. It never steals focus, never closes the keyboard and
-  // never scrolls an unrelated field. A short blur grace also absorbs iOS/Android keyboard
-  // dismissal re-anchoring and the delayed address cleanup that runs after pressing Done.
+  // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_STABILITY
+  // While a control is actively edited, keep its on-screen top stable against suggestion/guidance
+  // DOM mutations. When the virtual keyboard is dismissed (iOS Done / Android hide), preserve the
+  // document scroll position rather than repeatedly re-anchoring against visualViewport.offsetTop.
+  // The latter changes during keyboard animation and was the remaining one-frame "shake".
   const GC_VIEWPORT_STABLE_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
+  const GC_KEYBOARD_TEXT_TYPES = new Set(['', 'text', 'search', 'tel', 'url', 'email', 'number']);
   let gcBlurViewportSession = null;
   let gcBlurViewportTimer = 0;
   let gcViewportTailSpacer = null;
+  let gcKeyboardDismissSession = null;
+  let gcKeyboardDismissReleaseTimer = 0;
+  let gcKeyboardDismissMaxTimer = 0;
+  let gcKeyboardViewportBaseline = Number(
+    window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
+  );
 
   function clearViewportTailSpacer() {
     if (!gcViewportTailSpacer) return;
@@ -782,11 +790,24 @@
     gcViewportTailSpacer.style.height = `${missing + 2}px`;
   }
 
+  function activeModeForViewportStability() {
+    return new URLSearchParams(location.search).get('mode');
+  }
+
   function viewportStableInputEligible(input) {
     if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
-    const activeMode = new URLSearchParams(location.search).get('mode');
+    const activeMode = activeModeForViewportStability();
     if (activeMode === 'fare') return true;
     return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+  }
+
+  function keyboardDismissInputEligible(input) {
+    if (!input || !input.isConnected || !input.closest?.('#app')) return false;
+    if (!['call', 'driver', 'fare'].includes(activeModeForViewportStability())) return false;
+    if (input.disabled || input.readOnly) return false;
+    if (input.tagName === 'TEXTAREA') return true;
+    if (input.tagName !== 'INPUT') return false;
+    return GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase());
   }
 
   function viewportStableTop(input) {
@@ -797,12 +818,98 @@
   function otherEditorHasFocus(input) {
     const active = document.activeElement;
     if (!active || active === input) return false;
-    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    return keyboardDismissInputEligible(active);
+  }
+
+  function captureKeyboardViewportBaseline() {
+    const current = Number(
+      window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
+    );
+    if (current > gcKeyboardViewportBaseline) gcKeyboardViewportBaseline = current;
+  }
+
+  function keyboardAppearsOpen() {
+    const viewport = window.visualViewport;
+    if (!viewport) return false;
+    const current = Number(viewport.height || 0);
+    if (!current) return false;
+    return gcKeyboardViewportBaseline - current >= 72;
+  }
+
+  function restoreBodyInlineStyle(body, snapshot) {
+    if (!body || !snapshot) return;
+    for (const [key, value] of Object.entries(snapshot)) body.style[key] = value;
+  }
+
+  function releaseKeyboardDismissFreeze(session, { immediate = false } = {}) {
+    if (!session || gcKeyboardDismissSession !== session) return;
+    clearTimeout(gcKeyboardDismissReleaseTimer);
+    clearTimeout(gcKeyboardDismissMaxTimer);
+    gcKeyboardDismissReleaseTimer = 0;
+    gcKeyboardDismissMaxTimer = 0;
+    gcKeyboardDismissSession = null;
+    if (session.frozen) {
+      const body = document.body;
+      const modalOwnsViewport = body.classList.contains('modal-open') || body.classList.contains('gc-modal-lock');
+      if (!modalOwnsViewport) {
+        restoreBodyInlineStyle(body, session.bodyStyle);
+        const restoreY = Math.max(0, session.scrollY);
+        const restore = () => window.scrollTo(0, restoreY);
+        restore();
+        requestAnimationFrame(restore);
+        if (!immediate) setTimeout(restore, 46);
+      }
+    }
+    captureKeyboardViewportBaseline();
+  }
+
+  function scheduleKeyboardDismissRelease(session, delay = 135) {
+    if (!session || gcKeyboardDismissSession !== session) return;
+    clearTimeout(gcKeyboardDismissReleaseTimer);
+    gcKeyboardDismissReleaseTimer = setTimeout(() => releaseKeyboardDismissFreeze(session), delay);
+  }
+
+  function activateKeyboardDismissFreeze(session) {
+    if (!session || gcBlurViewportSession !== session || gcKeyboardDismissSession) return;
+    const active = document.activeElement;
+    // Pressing Done leaves focus on body; tapping another field/button transfers focus elsewhere.
+    // Do not freeze in that second case, otherwise a same-gesture submit/modal could inherit stale body styles.
+    if (otherEditorHasFocus(session.input) || active === session.input) return;
+    if (active && active !== document.body && active !== document.documentElement) return;
+    if (!keyboardAppearsOpen()) return;
+    const body = document.body;
+    if (!body || getComputedStyle(body).position === 'fixed' || body.classList.contains('modal-open')) return;
+    session.bodyStyle = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow
+    };
+    session.frozen = true;
+    gcKeyboardDismissSession = session;
+    body.style.position = 'fixed';
+    body.style.top = `-${session.scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    // Keep overflow untouched: WebKit may still use it while animating the keyboard viewport.
+    scheduleKeyboardDismissRelease(session, 420);
+    gcKeyboardDismissMaxTimer = setTimeout(() => releaseKeyboardDismissFreeze(session), 900);
   }
 
   function restoreViewportStableSession(session) {
     if (!session || !session.input?.isConnected) return;
     if (otherEditorHasFocus(session.input)) return;
+    // During keyboard dismissal the desired invariant is document scrollY. visualViewport.offsetTop
+    // changes as the keyboard closes, so using it as an anchor creates the visible one-frame bounce.
+    if (session.blurPhase) {
+      if (gcKeyboardDismissSession === session && session.frozen) return;
+      const currentScrollY = window.scrollY || window.pageYOffset || 0;
+      if (Math.abs(currentScrollY - session.scrollY) > 1) window.scrollTo(0, session.scrollY);
+      return;
+    }
     ensureFareNumberViewportCapacity(session);
     const currentTop = viewportStableTop(session.input);
     const topDelta = currentTop - session.anchorTop;
@@ -815,37 +922,53 @@
   }
 
   function beginBlurViewportStability(input) {
-    if (!viewportStableInputEligible(input)) return;
+    if (!keyboardDismissInputEligible(input)) return;
     const session = {
       input,
       anchorTop: viewportStableTop(input),
       scrollY: window.scrollY || window.pageYOffset || 0,
       docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0),
-      expiresAt: performance.now() + 620
+      blurPhase: true,
+      expiresAt: performance.now() + 980,
+      frozen: false
     };
     gcBlurViewportSession = session;
     clearTimeout(gcBlurViewportTimer);
+    // Preserve enough document height for fare number fields before the body is temporarily frozen.
+    ensureFareNumberViewportCapacity(session);
+    // A same-gesture focus transfer completes before this microtask; otherwise the keyboard is
+    // dismissing and the current document position is frozen before the next painted frame.
+    queueMicrotask(() => activateKeyboardDismissFreeze(session));
     const restore = () => {
       if (gcBlurViewportSession !== session || performance.now() > session.expiresAt) return;
       restoreViewportStableSession(session);
     };
-    [0, 42, 96, 170, 270, 410, 560].forEach(delay => setTimeout(restore, delay));
+    [0, 70, 180, 360, 620, 880].forEach(delay => setTimeout(restore, delay));
     gcBlurViewportTimer = setTimeout(() => {
       if (gcBlurViewportSession === session) gcBlurViewportSession = null;
-    }, 660);
+    }, 1000);
   }
 
   document.addEventListener('focusin', event => {
     const input = event.target;
-    if (!viewportStableInputEligible(input)) return;
+    if (!keyboardDismissInputEligible(input)) return;
+    if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
     gcBlurViewportSession = null;
     clearTimeout(gcBlurViewportTimer);
+    captureKeyboardViewportBaseline();
   }, true);
   document.addEventListener('focusout', event => beginBlurViewportStability(event.target), true);
+
   const restoreBlurViewportOnVisualChange = () => {
     const session = gcBlurViewportSession;
     if (!session || performance.now() > session.expiresAt) return;
+    if (gcKeyboardDismissSession === session) {
+      // Release only after resize/scroll events have stopped, so the keyboard close is one continuous
+      // transition rather than a tug-of-war between WebKit and JavaScript scroll corrections.
+      scheduleKeyboardDismissRelease(session, 140);
+      return;
+    }
     requestAnimationFrame(() => restoreViewportStableSession(session));
   };
   window.visualViewport?.addEventListener('resize', restoreBlurViewportOnVisualChange, { passive: true });
@@ -854,7 +977,7 @@
   function mutateRideAddressUiStable(input, mutator) {
     if (!viewportStableInputEligible(input)) return mutator();
     const activeSession = document.activeElement === input
-      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0) }
+      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
       : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
         ? gcBlurViewportSession
         : null);
@@ -872,7 +995,10 @@
   }
   window.GC_mutateInputViewportStable = mutateRideAddressUiStable;
   window.GC_clearViewportTailSpacer = clearViewportTailSpacer;
-  window.addEventListener('pagehide', clearViewportTailSpacer, { passive: true });
+  window.addEventListener('pagehide', () => {
+    if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
+    clearViewportTailSpacer();
+  }, { passive: true });
 
   function hideAddressSuggestions(id) {
     const input = document.getElementById(id);
@@ -5252,9 +5378,10 @@
       // for navigation, duplicate signatures and recent-address behavior; only the confirmation
       // and LINE message use this normalized display copy.
       const reviewedPickup = normalizeDispatchAddressForReview(pickup);
-      const reviewedDestination = mode === 'call'
-        ? normalizeCallDestinationForDisplay(destination)
-        : normalizeDispatchAddressForReview(destination);
+      // GC_R10Z14F18_DRIVER_DESTINATION_DISPLAY_NORMALIZATION
+      // Call drop-off and driver delivery are both descriptive reference destinations. Use the
+      // same non-blocking Taiwan display formatter; failures fall back to the original value.
+      const reviewedDestination = normalizeCallDestinationForDisplay(destination);
       // GC_R10Z14F7_CONFIRM_REVIEWED_ADMIN_RECHECK
       // The form-page hint still evaluates the passenger's visible raw input. The confirmation
       // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
