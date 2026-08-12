@@ -1,6 +1,8 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14';
+  const GC_BUILD_VERSION = 'master202608r10z14f';
+  // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
+  // Named-scope patch only: shortcut alignment, empty schedule hint tone, fare unit divider, and approved success-page copy.
   // GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX
   // GC_MASTER_STABLE_2026_08R10Z9H_NEEDS_GROUPED_REFLOW
   // GC_MASTER_STABLE_2026_08R10Z9I_NEEDS_TITLE_AND_FARE_INNER_CARD
@@ -5127,6 +5129,9 @@
       const parts = text.split(/\\n/);
       if (parts[0] === '取消請主動告知小編') {
         return `<aside class="gc-cancellation-notice" role="note"><strong>${escapeHtml(parts[0])}</strong><span>${parts.slice(1).map(escapeHtml).join('<br>')}</span></aside>`;
+      }
+      if (text === '本次僅為估價需求，尚未成立即時叫車或預約叫車訂單。') {
+        return `<aside class="gc-estimate-notice" role="note"><strong>${escapeHtml(text)}</strong></aside>`;
       }
       return `<p>${escapeHtml(text).replace(/\\n/g, '<br>')}</p>`;
     }).join('');
