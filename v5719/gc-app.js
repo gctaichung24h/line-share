@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f14';
+  const GC_BUILD_VERSION = 'master202608r10z14f17';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -11,6 +11,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F12_FAVORITE_CROSS_DEVICE_EDIT_AND_SINGLE_POINT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F13_FAVORITE_STATUS_LIFECYCLE
   // GC_MASTER_STABLE_2026_08R10Z14F14_DRIVER_REVIEW_NORMALIZATION_AND_CONFIRM_INTRO
+  // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -660,6 +663,67 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   window.GC_normalizeDispatchAddressForReview = normalizeDispatchAddressForReview;
 
+  // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
+  // Call destination is reference-only. Normalize only a display copy used by the confirmation
+  // and LINE text; raw passenger input remains untouched for validation/navigation/storage.
+  // Provider-style reversed Taiwan labels are reordered only when county + district + road/door
+  // are all unambiguous. Any uncertain/failed conversion falls back to the existing safe copy.
+  function normalizeCallDestinationForDisplay(address) {
+    const original = normalizeAddress(address);
+    if (!original) return '';
+    const fallback = normalizeDispatchAddressForReview(original) || original;
+    try {
+      let text = typeof window.GC_traditionalizeDispatchAddress === 'function'
+        ? window.GC_traditionalizeDispatchAddress(original)
+        : original;
+      text = normalizeAddress(text).replace(/臺/g, '台').replace(/　/g, ' ').trim();
+      if (!text || /(?:undefined|null|�)/i.test(text)) return fallback;
+
+      // Remove provider-only terminal country / postal tokens for this display-only copy.
+      // 台灣大道 remains safe because only a standalone terminal token is removed.
+      text = text.replace(/[\s,，、-]+(?:台灣|臺灣|Taiwan|TWN)$/i, '').trim();
+      text = text.replace(/[\s,，、-]+[0-9０-９]{3,6}$/, '').trim();
+      text = text.replace(/[\s,，、-]+(?:台灣|臺灣|Taiwan|TWN)$/i, '').trim();
+      if (!text) return fallback;
+
+      const cleaned = normalizeDispatchAddressForReview(text) || text;
+      const cleanedCopy = normalizeAddress(cleaned).replace(/臺/g, '台').trim();
+      const county = canonicalTaiwanCounty(text) || canonicalTaiwanCounty(cleanedCopy);
+      if (!county) return cleanedCopy || fallback;
+
+      const districtCandidates = Array.from(text.matchAll(/([\u3400-\u9fff]{1,8}(?:區|鄉|鎮|市))/g))
+        .map(match => match[1])
+        .filter(token => token && token !== county && !ADDRESS_TAIWAN_COUNTIES.includes(token));
+      const district = districtCandidates[0] || '';
+      if (!district) return cleanedCopy || fallback;
+
+      const countyIndex = text.indexOf(county);
+      const districtIndex = text.indexOf(district);
+      const doorMatch = text.match(/^(.+?(?:大道|路|街|道|巷|弄)[^,，、]{0,80}?[0-9０-９]+(?:[-之][0-9０-９]+)?號(?:之[0-9０-９]+)?)(?=\s|[,，、-]|$)/);
+      if (!doorMatch) return cleanedCopy || fallback;
+      const roadDoor = normalizeAddress(doorMatch[1]).replace(/臺/g, '台').trim();
+      if (!roadDoor || roadDoor.includes(county) || roadDoor.includes(district)) return cleanedCopy || fallback;
+      if (countyIndex < 0 || districtIndex < 0 || doorMatch.index > Math.min(countyIndex, districtIndex)) return cleanedCopy || fallback;
+
+      // Do not discard an unknown store / POI suffix: only reorder when all remaining material
+      // is exactly the recognized district/county plus punctuation/spacing.
+      let remainder = text.slice(doorMatch[0].length);
+      remainder = remainder.replace(district, ' ').replace(county, ' ')
+        .replace(/[\s,，、-]+/g, ' ').trim();
+      if (remainder) return cleanedCopy || fallback;
+
+      const candidate = normalizeDispatchAddressForReview(`${county}${district}${roadDoor}`);
+      if (!candidate || /(?:undefined|null|�)/i.test(candidate)) return fallback;
+      if (!candidate.includes(county) || !candidate.includes(district)) return fallback;
+      if (!/[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(candidate)) return fallback;
+      return candidate;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  window.GC_normalizeCallDestinationForDisplay = normalizeCallDestinationForDisplay;
+
   // GC_MASTER_STABLE_2026_08R4_LOCATION_ADDRESS_CLEAN
   // Reverse-geocoder output uses the same dispatch-safe cleanup as every other address source.
   function cleanLocatedTaiwanAddress(address) {
@@ -685,11 +749,141 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return normalized;
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
+  // Keep the user's currently edited control visually anchored while address suggestions,
+  // admin guidance or fare-result UI changes height. This covers call/driver addresses and
+  // fare pickup/destination/minutes/km. It never steals focus, never closes the keyboard and
+  // never scrolls an unrelated field. A short blur grace also absorbs iOS/Android keyboard
+  // dismissal re-anchoring and the delayed address cleanup that runs after pressing Done.
+  const GC_VIEWPORT_STABLE_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
+  let gcBlurViewportSession = null;
+  let gcBlurViewportTimer = 0;
+  let gcViewportTailSpacer = null;
+
+  function clearViewportTailSpacer() {
+    if (!gcViewportTailSpacer) return;
+    gcViewportTailSpacer.remove();
+    gcViewportTailSpacer = null;
+  }
+
+  function ensureFareNumberViewportCapacity(session) {
+    if (!session || !['fareKm', 'fareMinutes'].includes(session.input?.id)) return;
+    const viewportHeight = Number(window.visualViewport?.height || window.innerHeight || 0);
+    if (!viewportHeight) return;
+    const desiredScrollY = Math.max(0, session.docTop - session.anchorTop);
+    const maxScrollY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+    const missing = Math.ceil(desiredScrollY - maxScrollY);
+    if (missing <= 1) return;
+    if (!gcViewportTailSpacer) {
+      gcViewportTailSpacer = document.createElement('div');
+      gcViewportTailSpacer.id = 'gcViewportTailSpacer';
+      gcViewportTailSpacer.setAttribute('aria-hidden', 'true');
+      gcViewportTailSpacer.style.cssText = 'display:block;width:1px;min-width:1px;pointer-events:none;visibility:hidden;';
+      document.body.appendChild(gcViewportTailSpacer);
+    }
+    gcViewportTailSpacer.style.height = `${missing + 2}px`;
+  }
+
+  function viewportStableInputEligible(input) {
+    if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
+    const activeMode = new URLSearchParams(location.search).get('mode');
+    if (activeMode === 'fare') return true;
+    return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+  }
+
+  function viewportStableTop(input) {
+    const viewportOffset = Number(window.visualViewport?.offsetTop || 0);
+    return input.getBoundingClientRect().top - viewportOffset;
+  }
+
+  function otherEditorHasFocus(input) {
+    const active = document.activeElement;
+    if (!active || active === input) return false;
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+  }
+
+  function restoreViewportStableSession(session) {
+    if (!session || !session.input?.isConnected) return;
+    if (otherEditorHasFocus(session.input)) return;
+    ensureFareNumberViewportCapacity(session);
+    const currentTop = viewportStableTop(session.input);
+    const topDelta = currentTop - session.anchorTop;
+    if (Math.abs(topDelta) > 1) {
+      window.scrollBy(0, topDelta);
+      return;
+    }
+    const currentScrollY = window.scrollY || window.pageYOffset || 0;
+    if (Math.abs(currentScrollY - session.scrollY) > 1) window.scrollTo(0, session.scrollY);
+  }
+
+  function beginBlurViewportStability(input) {
+    if (!viewportStableInputEligible(input)) return;
+    const session = {
+      input,
+      anchorTop: viewportStableTop(input),
+      scrollY: window.scrollY || window.pageYOffset || 0,
+      docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0),
+      expiresAt: performance.now() + 620
+    };
+    gcBlurViewportSession = session;
+    clearTimeout(gcBlurViewportTimer);
+    const restore = () => {
+      if (gcBlurViewportSession !== session || performance.now() > session.expiresAt) return;
+      restoreViewportStableSession(session);
+    };
+    [0, 42, 96, 170, 270, 410, 560].forEach(delay => setTimeout(restore, delay));
+    gcBlurViewportTimer = setTimeout(() => {
+      if (gcBlurViewportSession === session) gcBlurViewportSession = null;
+    }, 660);
+  }
+
+  document.addEventListener('focusin', event => {
+    const input = event.target;
+    if (!viewportStableInputEligible(input)) return;
+    clearViewportTailSpacer();
+    gcBlurViewportSession = null;
+    clearTimeout(gcBlurViewportTimer);
+  }, true);
+  document.addEventListener('focusout', event => beginBlurViewportStability(event.target), true);
+  const restoreBlurViewportOnVisualChange = () => {
+    const session = gcBlurViewportSession;
+    if (!session || performance.now() > session.expiresAt) return;
+    requestAnimationFrame(() => restoreViewportStableSession(session));
+  };
+  window.visualViewport?.addEventListener('resize', restoreBlurViewportOnVisualChange, { passive: true });
+  window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
+
+  function mutateRideAddressUiStable(input, mutator) {
+    if (!viewportStableInputEligible(input)) return mutator();
+    const activeSession = document.activeElement === input
+      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0) }
+      : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
+        ? gcBlurViewportSession
+        : null);
+    if (!activeSession) return mutator();
+
+    const result = mutator();
+    const restore = () => {
+      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      restoreViewportStableSession(activeSession);
+    };
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
+    setTimeout(restore, 54);
+    setTimeout(restore, 148);
+    return result;
+  }
+  window.GC_mutateInputViewportStable = mutateRideAddressUiStable;
+  window.GC_clearViewportTailSpacer = clearViewportTailSpacer;
+  window.addEventListener('pagehide', clearViewportTailSpacer, { passive: true });
+
   function hideAddressSuggestions(id) {
+    const input = document.getElementById(id);
     const box = document.getElementById(`${id}Suggest`);
     if (!box) return;
-    box.innerHTML = '';
-    box.classList.add('hidden');
+    mutateRideAddressUiStable(input, () => {
+      box.innerHTML = '';
+      box.classList.add('hidden');
+    });
   }
 
   function cleanSuggestedAddress(value) {
@@ -1874,9 +2068,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const status = pickupStatusElement(input);
     input._gcAdminAmbiguity = null;
     if (!status || status.dataset.gcStatusOwner !== 'admin-ambiguity') return;
-    status.textContent = '';
-    status.className = 'location-status';
-    delete status.dataset.gcStatusOwner;
+    mutateRideAddressUiStable(input, () => {
+      status.textContent = '';
+      status.className = 'location-status';
+      delete status.dataset.gcStatusOwner;
+    });
   }
 
   function pickupAdminReminderEligible(input, query = input?.value || '') {
@@ -1897,29 +2093,31 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       return;
     }
 
-    // A stale location error/success is replaced when the rider has moved on to typed text.
-    // Live GPS and confirmed-location states are protected by attachedLocation above.
-    if (status.dataset.gcStatusOwner === 'location') {
-      status.textContent = '';
-      status.className = 'location-status';
-    }
-    status.dataset.gcStatusOwner = 'admin-ambiguity';
     const queryKey = addressConfidenceKey(query);
     const usableEvidence = evidence?.queryKey === queryKey && evidence.options?.length >= 2 ? evidence : null;
     input._gcAdminAmbiguity = usableEvidence;
+    mutateRideAddressUiStable(input, () => {
+      // A stale location error/success is replaced when the rider has moved on to typed text.
+      // Live GPS and confirmed-location states are protected by attachedLocation above.
+      if (status.dataset.gcStatusOwner === 'location') {
+        status.textContent = '';
+        status.className = 'location-status';
+      }
+      status.dataset.gcStatusOwner = 'admin-ambiguity';
 
-    if (!usableEvidence) {
-      status.className = 'location-status is-address-admin-soft';
-      status.textContent = 'ⓘ 建議補上行政區，避免同名路段派錯車';
-      return;
-    }
+      if (!usableEvidence) {
+        status.className = 'location-status is-address-admin-soft';
+        status.textContent = 'ⓘ 建議補上行政區，避免同名路段派錯車';
+        return;
+      }
 
-    const areaText = adminAreaText(usableEvidence.options);
-    status.className = 'location-status is-address-admin-strong';
-    status.innerHTML = `<strong>此門牌可能位於${escapeHtml(areaText)}，請確認上車地區。</strong>
-      <span class="gc-address-admin-options" role="group" aria-label="選擇上車行政區">
-        ${usableEvidence.options.map((option, index) => `<button type="button" data-admin-option="${index}" aria-label="選擇${escapeHtml(option.admin)}">${escapeHtml(option.label)}</button>`).join('')}
-      </span>`;
+      const areaText = adminAreaText(usableEvidence.options);
+      status.className = 'location-status is-address-admin-strong';
+      status.innerHTML = `<strong>此門牌可能位於${escapeHtml(areaText)}，請確認上車地區。</strong>
+        <span class="gc-address-admin-options" role="group" aria-label="選擇上車行政區">
+          ${usableEvidence.options.map((option, index) => `<button type="button" data-admin-option="${index}" aria-label="選擇${escapeHtml(option.admin)}">${escapeHtml(option.label)}</button>`).join('')}
+        </span>`;
+    });
   }
 
   function lookupPickupAdminAmbiguity(query) {
@@ -2119,9 +2317,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const input = document.getElementById(id);
     const box = document.getElementById(`${id}Suggest`);
     if (!input || !box || !Array.isArray(suggestions) || !suggestions.length) return;
-    box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
-    box._gcSuggestions = suggestions;
-    box.classList.remove('hidden');
+    mutateRideAddressUiStable(input, () => {
+      box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
+      box._gcSuggestions = suggestions;
+      box.classList.remove('hidden');
+    });
   }
 
   async function verifyAddressField(id, options = {}) {
@@ -2357,9 +2557,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           // before showing the list. Resolve only after an explicit tap or when the user submits.
           if (!suggestions.length) { hideAddressSuggestions(id); return; }
           if (document.activeElement !== input) { hideAddressSuggestions(id); return; }
-          box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
-          box._gcSuggestions = suggestions;
-          box.classList.remove('hidden');
+          mutateRideAddressUiStable(input, () => {
+            box.innerHTML = suggestions.map((item, index) => renderAddressSuggestion(item, index)).join('');
+            box._gcSuggestions = suggestions;
+            box.classList.remove('hidden');
+          });
         }, ADDRESS_SUGGEST_DEBOUNCE_MS);
       });
 
@@ -5052,7 +5254,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // for navigation, duplicate signatures and recent-address behavior; only the confirmation
       // and LINE message use this normalized display copy.
       const reviewedPickup = normalizeDispatchAddressForReview(pickup);
-      const reviewedDestination = normalizeDispatchAddressForReview(destination);
+      const reviewedDestination = mode === 'call'
+        ? normalizeCallDestinationForDisplay(destination)
+        : normalizeDispatchAddressForReview(destination);
       // GC_R10Z14F7_CONFIRM_REVIEWED_ADMIN_RECHECK
       // The form-page hint still evaluates the passenger's visible raw input. The confirmation
       // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
@@ -5199,7 +5403,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       longDistance.classList.add('hidden');
     };
 
-    const update = () => {
+    const update = input => mutateRideAddressUiStable(input, () => {
       const kmText = kmInput.value.trim();
       const minuteText = minuteInput.value.trim();
       if (!kmText || !minuteText) {
@@ -5231,16 +5435,20 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       note2.textContent = fareTextTemplate(cfg['結果說明2'] || '預估與實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
       longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
       longDistance.classList.toggle('hidden', !estimate.longDistance);
-    };
+    });
 
-    kmInput.addEventListener('input', update);
-    minuteInput.addEventListener('input', update);
-    kmInput.addEventListener('change', update);
-    minuteInput.addEventListener('change', update);
+    kmInput.addEventListener('input', () => update(kmInput));
+    minuteInput.addEventListener('input', () => update(minuteInput));
+    kmInput.addEventListener('change', () => update(kmInput));
+    minuteInput.addEventListener('change', () => update(minuteInput));
     calculatorInputs.forEach(input => input.addEventListener('blur', () => {
-      requestAnimationFrame(() => {
-        if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
-      });
+      // Keep the result area's edit-space until the virtual keyboard has finished dismissing.
+      // Removing it on the first blur frame races iOS/Android viewport restoration and causes
+      // the page to jump. The generic blur-grace anchor above absorbs the delayed height change.
+      setTimeout(() => {
+        if (calculatorInputs.includes(document.activeElement)) return;
+        mutateRideAddressUiStable(input, clearPreservedEditSpace);
+      }, 360);
     }));
     reset();
   }
@@ -6744,6 +6952,19 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return true;
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z14F16_FARE_VIEWPORT_STABILITY
+  // Reuse the core input anchor around fare-only guidance/action mutations. When no eligible
+  // input is focused (or in the short keyboard-dismiss grace), this is a no-op.
+  function mutateFareViewportStable(input, mutator) {
+    const helper = window.GC_mutateInputViewportStable;
+    return typeof helper === 'function' ? helper(input, mutator) : mutator();
+  }
+  function fareEditingInput(preferred = null) {
+    const active = document.activeElement;
+    if (active && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return active;
+    return preferred;
+  }
+
   let fareAdminGuidanceToken = 0;
   let fareAdminGuidanceTimer = 0;
   function fareAdminTargetLabel(id) {
@@ -6757,37 +6978,40 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function renderFareAdminGuidance(results = []) {
     const slot = qs('gcFareAdminGuidance');
     if (!slot) return;
-    const active = results.filter(result => result && result.state !== 'none');
-    if (!active.length) {
-      slot.className = 'gc-fare-admin-guidance hidden';
-      slot.dataset.state = 'none';
-      slot.innerHTML = '';
-      return;
-    }
+    const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
+    return mutateFareViewportStable(fareEditingInput(preferred), () => {
+      const active = results.filter(result => result && result.state !== 'none');
+      if (!active.length) {
+        slot.className = 'gc-fare-admin-guidance hidden';
+        slot.dataset.state = 'none';
+        slot.innerHTML = '';
+        return;
+      }
 
-    const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
-    slot.className = 'gc-fare-admin-guidance';
-    slot.dataset.state = strong.length ? 'strong' : 'soft';
-    if (!strong.length) {
-      slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
-        <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
-      return;
-    }
+      const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
+      slot.className = 'gc-fare-admin-guidance';
+      slot.dataset.state = strong.length ? 'strong' : 'soft';
+      if (!strong.length) {
+        slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
+          <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
+        return;
+      }
 
-    slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
-      <div class="gc-fare-admin-items">
-        ${strong.map(result => {
-          const input = qs(result.targetId);
-          const visible = trim(input?.value);
-          const areas = fareAdminAreaText(result.options);
-          return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
-            <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
-            <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
-              ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
-            </div>
-          </section>`;
-        }).join('')}
-      </div>`;
+      slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
+        <div class="gc-fare-admin-items">
+          ${strong.map(result => {
+            const input = qs(result.targetId);
+            const visible = trim(input?.value);
+            const areas = fareAdminAreaText(result.options);
+            return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
+              <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
+              <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
+                ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
+              </div>
+            </section>`;
+          }).join('')}
+        </div>`;
+    });
   }
 
   function refreshFareAdminGuidance() {
@@ -7151,18 +7375,21 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
         saveDraft();
-        if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
-        if (input === destination && trim(destination.value)) setFieldError('destination', '');
-        if (input === pickup || input === destination) queueFareAdminGuidance();
+        mutateFareViewportStable(input, () => {
+          if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
+          if (input === destination && trim(destination.value)) setFieldError('destination', '');
+          if (input === pickup || input === destination) queueFareAdminGuidance();
+        });
       });
       input.addEventListener('change', () => {
         saveDraft();
-        if (input === pickup || input === destination) refreshFareAdminGuidance();
+        if (input === pickup || input === destination) mutateFareViewportStable(input, refreshFareAdminGuidance);
       });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
-      qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
-      qs(id)?.addEventListener('change', () => setTimeout(refreshFareAction, 0));
+      const input = qs(id);
+      input?.addEventListener('input', () => setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0));
+      input?.addEventListener('change', () => setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0));
     });
     clearLegacyFareStorage();
     currentFareFlow(true);
@@ -7228,6 +7455,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
   // GC_MASTER_STABLE_2026_08R10Z9L_CONFIRMED_RESERVATION_GATE
   // GC_MASTER_STABLE_2026_08R10Z9W_SERVICE_SCOPED_SCHEDULE_VISIBILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -7296,7 +7525,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       else delete pickup.dataset.gcFlowCommitted;
     };
     pickup?.addEventListener('input', () => {
-      if (pickup.dataset.gcAddressVerified !== '1') delete pickup.dataset.gcFlowCommitted;
+      // While the passenger is actively editing an already-committed pickup, keep downstream
+      // sections structurally stable. Re-evaluate/collapse only after editing finishes (blur/change).
+      if (document.activeElement !== pickup && pickup.dataset.gcAddressVerified !== '1') {
+        delete pickup.dataset.gcFlowCommitted;
+      }
     }, { passive:true });
     pickup?.addEventListener('blur', commitPickup, { passive:true });
     pickup?.addEventListener('change', commitPickup, { passive:true });

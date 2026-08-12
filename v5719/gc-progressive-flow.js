@@ -4,6 +4,8 @@
   // GC_MASTER_STABLE_2026_08R10Z9C_PROGRESSIVE_STABLE_COMMIT
   // GC_MASTER_STABLE_2026_08R10Z9L_CONFIRMED_RESERVATION_GATE
   // GC_MASTER_STABLE_2026_08R10Z9W_SERVICE_SCOPED_SCHEDULE_VISIBILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -72,7 +74,11 @@
       else delete pickup.dataset.gcFlowCommitted;
     };
     pickup?.addEventListener('input', () => {
-      if (pickup.dataset.gcAddressVerified !== '1') delete pickup.dataset.gcFlowCommitted;
+      // While the passenger is actively editing an already-committed pickup, keep downstream
+      // sections structurally stable. Re-evaluate/collapse only after editing finishes (blur/change).
+      if (document.activeElement !== pickup && pickup.dataset.gcAddressVerified !== '1') {
+        delete pickup.dataset.gcFlowCommitted;
+      }
     }, { passive:true });
     pickup?.addEventListener('blur', commitPickup, { passive:true });
     pickup?.addEventListener('change', commitPickup, { passive:true });

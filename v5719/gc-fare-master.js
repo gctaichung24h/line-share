@@ -148,6 +148,19 @@
     return true;
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z14F16_FARE_VIEWPORT_STABILITY
+  // Reuse the core input anchor around fare-only guidance/action mutations. When no eligible
+  // input is focused (or in the short keyboard-dismiss grace), this is a no-op.
+  function mutateFareViewportStable(input, mutator) {
+    const helper = window.GC_mutateInputViewportStable;
+    return typeof helper === 'function' ? helper(input, mutator) : mutator();
+  }
+  function fareEditingInput(preferred = null) {
+    const active = document.activeElement;
+    if (active && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return active;
+    return preferred;
+  }
+
   let fareAdminGuidanceToken = 0;
   let fareAdminGuidanceTimer = 0;
   function fareAdminTargetLabel(id) {
@@ -161,37 +174,40 @@
   function renderFareAdminGuidance(results = []) {
     const slot = qs('gcFareAdminGuidance');
     if (!slot) return;
-    const active = results.filter(result => result && result.state !== 'none');
-    if (!active.length) {
-      slot.className = 'gc-fare-admin-guidance hidden';
-      slot.dataset.state = 'none';
-      slot.innerHTML = '';
-      return;
-    }
+    const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
+    return mutateFareViewportStable(fareEditingInput(preferred), () => {
+      const active = results.filter(result => result && result.state !== 'none');
+      if (!active.length) {
+        slot.className = 'gc-fare-admin-guidance hidden';
+        slot.dataset.state = 'none';
+        slot.innerHTML = '';
+        return;
+      }
 
-    const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
-    slot.className = 'gc-fare-admin-guidance';
-    slot.dataset.state = strong.length ? 'strong' : 'soft';
-    if (!strong.length) {
-      slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
-        <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
-      return;
-    }
+      const strong = active.filter(result => result.state === 'strong' && result.options?.length >= 2);
+      slot.className = 'gc-fare-admin-guidance';
+      slot.dataset.state = strong.length ? 'strong' : 'soft';
+      if (!strong.length) {
+        slot.innerHTML = `<strong>⚠️ 先確認行政區，試算才準確</strong>
+          <p>Google 可能自動選到同名路段，請確認地圖顯示的上、下車地點。</p>`;
+        return;
+      }
 
-    slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
-      <div class="gc-fare-admin-items">
-        ${strong.map(result => {
-          const input = qs(result.targetId);
-          const visible = trim(input?.value);
-          const areas = fareAdminAreaText(result.options);
-          return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
-            <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
-            <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
-              ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
-            </div>
-          </section>`;
-        }).join('')}
-      </div>`;
+      slot.innerHTML = `<strong>⚠️ 找到同名地址，請確認行政區</strong>
+        <div class="gc-fare-admin-items">
+          ${strong.map(result => {
+            const input = qs(result.targetId);
+            const visible = trim(input?.value);
+            const areas = fareAdminAreaText(result.options);
+            return `<section class="gc-fare-admin-item" data-target="${escapeHtml(result.targetId)}">
+              <p>${escapeHtml(fareAdminTargetLabel(result.targetId))}「${escapeHtml(visible)}」可能位於${escapeHtml(areas)}</p>
+              <div class="gc-fare-admin-options" role="group" aria-label="選擇${escapeHtml(fareAdminTargetLabel(result.targetId))}行政區">
+                ${result.options.map((option, index) => `<button type="button" data-target="${escapeHtml(result.targetId)}" data-admin-option="${index}">${escapeHtml(option.label)}</button>`).join('')}
+              </div>
+            </section>`;
+          }).join('')}
+        </div>`;
+    });
   }
 
   function refreshFareAdminGuidance() {
@@ -555,18 +571,21 @@
     [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
       input.addEventListener('input', () => {
         saveDraft();
-        if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
-        if (input === destination && trim(destination.value)) setFieldError('destination', '');
-        if (input === pickup || input === destination) queueFareAdminGuidance();
+        mutateFareViewportStable(input, () => {
+          if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
+          if (input === destination && trim(destination.value)) setFieldError('destination', '');
+          if (input === pickup || input === destination) queueFareAdminGuidance();
+        });
       });
       input.addEventListener('change', () => {
         saveDraft();
-        if (input === pickup || input === destination) refreshFareAdminGuidance();
+        if (input === pickup || input === destination) mutateFareViewportStable(input, refreshFareAdminGuidance);
       });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
-      qs(id)?.addEventListener('input', () => setTimeout(refreshFareAction, 0));
-      qs(id)?.addEventListener('change', () => setTimeout(refreshFareAction, 0));
+      const input = qs(id);
+      input?.addEventListener('input', () => setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0));
+      input?.addEventListener('change', () => setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0));
     });
     clearLegacyFareStorage();
     currentFareFlow(true);
