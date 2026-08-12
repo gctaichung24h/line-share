@@ -2,10 +2,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f9';
+  const GC_BUILD_VERSION = 'master202608r10z14f10';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
+  // GC_MASTER_STABLE_2026_08R10Z14F10_FAVORITE_SHEET_SAVE_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -2586,10 +2587,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function closeFavoriteSaveModal() {
     const overlay = document.getElementById('favoriteSaveOverlay');
-    // iOS LIFF: close the keyboard/focus first, then restore the exact pre-modal viewport.
+    // If the save dialog came from the common-trip sheet, close only this dialog and
+    // preserve the sheet context. Standalone callers still restore the original viewport.
     const active = document.activeElement;
     if (active && typeof active.blur === 'function') active.blur();
-    if (overlay) overlay.classList.add('hidden');
+    const openedFromFavoriteSheet = overlay?.dataset.sheetOpen === '1';
+    if (overlay) {
+      overlay.classList.add('hidden');
+      delete overlay.dataset.sheetOpen;
+      delete overlay.dataset.pickup;
+      delete overlay.dataset.destination;
+    }
+    if (openedFromFavoriteSheet) return;
     const restoreY = modalScrollY;
     unlockViewport();
     const normalizeViewport = () => {
@@ -2631,17 +2640,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       setFavoriteStatus(COMMON['常用行程已滿'] || '最多可儲存 5 組，請先刪除一組。', 'error');
       return;
     }
-    // V8.1: 儲存常用行程時強制關閉 Bottom Sheet，中央 Dialog 是唯一焦點。
+    // Keep the Bottom Sheet visible underneath the centered save dialog so a successful
+    // save returns to the common-trip list instead of jumping back to the main form.
     const favoriteSheet = document.getElementById('gcFavoriteSheet');
-    if (favoriteSheet) {
-      favoriteSheet.classList.add('hidden');
-      favoriteSheet.hidden = true;
-      favoriteSheet.setAttribute('aria-hidden', 'true');
-      favoriteSheet.style.setProperty('display', 'none', 'important');
-    }
-    document.body.classList.remove('gc-sheet-open');
-    document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
-    document.getElementById('gcFavoriteToggle')?.setAttribute('aria-expanded', 'false');
+    const sheetVisible = !!(favoriteSheet && !favoriteSheet.classList.contains('hidden') && !favoriteSheet.hidden);
 
     const overlay = document.getElementById('favoriteSaveOverlay');
     const input = document.getElementById('favoriteNameInput');
@@ -2652,8 +2654,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     route.textContent = destination ? `${pickup} → ${destination}` : pickup;
     overlay.dataset.pickup = pickup;
     overlay.dataset.destination = destination;
+    overlay.dataset.sheetOpen = sheetVisible ? '1' : '0';
     overlay.classList.remove('hidden');
-    lockViewport();
+    if (!sheetVisible) lockViewport();
     // V8.1: 不自動叫出鍵盤，Dialog 開啟時保持正中央；使用者點名稱欄才進入編輯。
   }
 
@@ -6026,12 +6029,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       zone.addEventListener('pointercancel', dragEnd);
     });
 
-    const saveOverlay = document.getElementById('favoriteSaveOverlay');
-    if (saveOverlay) {
-      new MutationObserver(() => {
-        if (!saveOverlay.classList.contains('hidden')) close();
-      }).observe(saveOverlay, { attributes: true, attributeFilter: ['class'] });
-    }
+    // R10Z14F10: the save dialog preserves the common-trip sheet context;
+    // do not auto-close the sheet when the centered save overlay opens.
   }
 
   function compactAddressActions() {

@@ -2071,3 +2071,61 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   color:#5f7585!important;
   opacity:1!important;
 }
+
+
+/* GC_R10Z14F10_FAVORITE_SHEET_SAVE_FLOW_ONLY
+   Scope lock: common-trip save preview and common-trip Bottom Sheet only.
+   Preserve card/button design and data behavior; fix route-label collision and sheet width. */
+.favorite-save-route{
+  display:flex!important;
+  align-items:flex-start!important;
+  min-height:64px!important;
+  padding:26px 12px 12px!important;
+  box-sizing:border-box!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+}
+.favorite-save-route:before{
+  left:12px!important;
+  top:8px!important;
+  line-height:1!important;
+}
+#gcFavoriteSheet .gc-sheet-body,
+#gcFavoriteSheet .gc-favorite-sheet-box,
+#gcFavoriteSheet .gc-favorite-sheet-box>.favorite-content,
+#gcFavoriteSheet .favorite-list-viewport,
+#gcFavoriteSheet .favorite-list,
+#gcFavoriteSheet .favorite-actions,
+#gcFavoriteSheet .favorite-status{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  align-self:stretch!important;
+  justify-self:stretch!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .gc-sheet-body,
+#gcFavoriteSheet .favorite-list-viewport,
+#gcFavoriteSheet .favorite-actions,
+#gcFavoriteSheet .favorite-status{
+  padding-left:0!important;
+  padding-right:0!important;
+}
+#gcFavoriteSheet .favorite-list-viewport{scrollbar-gutter:auto!important}
+#gcFavoriteSheet .favorite-row{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  justify-self:stretch!important;
+}
+#gcFavoriteSheet .favorite-use,
+#gcFavoriteSheet .favorite-delete{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.favorite-save-route.is-pickup-only{
+  min-height:0!important;
+  padding:11px 12px!important;
+}

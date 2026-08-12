@@ -193,12 +193,8 @@
       zone.addEventListener('pointercancel', dragEnd);
     });
 
-    const saveOverlay = document.getElementById('favoriteSaveOverlay');
-    if (saveOverlay) {
-      new MutationObserver(() => {
-        if (!saveOverlay.classList.contains('hidden')) close();
-      }).observe(saveOverlay, { attributes: true, attributeFilter: ['class'] });
-    }
+    // R10Z14F10: the save dialog preserves the common-trip sheet context;
+    // do not auto-close the sheet when the centered save overlay opens.
   }
 
   function compactAddressActions() {
