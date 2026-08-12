@@ -4816,6 +4816,18 @@
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
 
+      const normalizeCallDisplay = address => {
+        if (mode !== 'call') return address;
+        try {
+          const normalized = window.GC_normalizeCallDisplayAddress?.(address);
+          return normalized || address;
+        } catch (_) {
+          return address;
+        }
+      };
+      const pickupDisplay = normalizeCallDisplay(pickup);
+      const destinationDisplay = normalizeCallDisplay(destination);
+
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
@@ -4824,9 +4836,9 @@
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
-      appendLine(lines, cfg['訊息欄位_上車'], pickup);
+      appendLine(lines, cfg['訊息欄位_上車'], pickupDisplay);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
-      appendLine(lines, cfg['訊息欄位_下車'], destination);
+      appendLine(lines, cfg['訊息欄位_下車'], destinationDisplay);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
 
       if (mode === 'driver') {
@@ -4864,10 +4876,10 @@
           { label: cfg['訊息欄位_日期'], value: value('date') },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
-        { label: cfg['訊息欄位_上車'], value: pickup, emphasis: true },
+        { label: cfg['訊息欄位_上車'], value: pickupDisplay, emphasis: true },
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(adminSoftReminder ? [{ label: '', value: adminSoftReminder, note: true }] : []),
-        { label: cfg['訊息欄位_下車'], value: destination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        { label: cfg['訊息欄位_下車'], value: destinationDisplay || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
