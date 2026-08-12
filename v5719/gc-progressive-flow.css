@@ -2129,3 +2129,150 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   min-height:0!important;
   padding:11px 12px!important;
 }
+
+
+/* GC_R10Z14F11_FAVORITE_SHEET_RESPONSIVE_ROOT_FIX
+   Scope lock: only #gcFavoriteSheet. Replace the legacy mixed grid/flex sizing with one
+   flex-column layout so iPhone 13 / Pro Max / Display Zoom all use the same model:
+   fixed header, independently scrollable trip list, fixed bottom controls. */
+#gcFavoriteSheet .gc-sheet{
+  display:flex!important;
+  flex-direction:column!important;
+  width:min(100%,540px)!important;
+  height:min(72dvh,610px)!important;
+  min-height:0!important;
+  max-height:calc(100dvh - 56px)!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#gcFavoriteSheet .gc-sheet-handle,
+#gcFavoriteSheet .gc-sheet-head{
+  flex:0 0 auto!important;
+}
+#gcFavoriteSheet .gc-sheet-body{
+  display:flex!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:12px 0 1px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .gc-favorite-sheet-box{
+  display:block!important;
+  position:relative!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  height:100%!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .gc-favorite-sheet-box>.favorite-content{
+  display:flex!important;
+  position:absolute!important;
+  inset:0!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  width:auto!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-list-viewport{
+  display:block!important;
+  flex:1 1 0%!important;
+  min-height:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:2px 0 10px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:auto!important;
+  box-sizing:border-box!important;
+  contain:layout paint!important;
+  isolation:isolate!important;
+}
+#gcFavoriteSheet .favorite-list{
+  display:flex!important;
+  flex-direction:column!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 70px!important;
+  gap:10px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  box-sizing:border-box!important;
+  flex:0 0 auto!important;
+}
+#gcFavoriteSheet .favorite-use,
+#gcFavoriteSheet .favorite-delete{
+  min-width:0!important;
+  max-width:100%!important;
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-actions{
+  position:relative!important;
+  z-index:3!important;
+  display:grid!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:10px 0 2px!important;
+  box-sizing:border-box!important;
+  isolation:isolate!important;
+}
+#gcFavoriteSheet .favorite-status{
+  position:relative!important;
+  z-index:3!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  margin:8px 0 2px!important;
+  box-sizing:border-box!important;
+}
+#gcFavoriteSheet .favorite-status:empty{
+  display:none!important;
+  margin:0!important;
+  padding:0!important;
+  min-height:0!important;
+  border:0!important;
+}
+@media(max-height:720px){
+  #gcFavoriteSheet .gc-sheet{
+    height:min(76dvh,520px)!important;
+    max-height:calc(100dvh - 44px)!important;
+  }
+}
+@media(max-width:340px){
+  #gcFavoriteSheet .favorite-row{
+    grid-template-columns:minmax(0,1fr) 64px!important;
+    gap:8px!important;
+  }
+}

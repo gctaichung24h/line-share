@@ -1,10 +1,11 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f10';
+  const GC_BUILD_VERSION = 'master202608r10z14f11';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
   // GC_MASTER_STABLE_2026_08R10Z14F10_FAVORITE_SHEET_SAVE_FLOW
+  // GC_MASTER_STABLE_2026_08R10Z14F11_FAVORITE_RESPONSIVE_ADMIN_HINT_AND_PICKUP_ONLY_FLOW
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -1642,6 +1643,14 @@
     return Boolean(core.road && core.house && (!core.county || !core.district));
   }
 
+  // R10Z14F11: the non-blocking UI reminder only needs a usable district / township / town.
+  // Strict navigation/address validation above is intentionally unchanged. This prevents addresses
+  // such as "霧峰區中正路523號" from being nagged only because the county/city text is omitted.
+  function isDoorAddressMissingReminderAdmin(value) {
+    const core = dispatchDoorAddressCore(value);
+    return Boolean(core.road && core.house && !core.district);
+  }
+
   function chooseConfidentTypedResolution(query, candidates) {
     if (!Array.isArray(candidates) || !candidates.length) return null;
     const normalized = smartNormalizeTaiwanAddress(query);
@@ -1872,7 +1881,7 @@
     // address may receive the same non-blocking administrative-area guidance.
     const activeLocation = Boolean(attachedLocation && attachedLocation.sendMap !== false);
     if (activeLocation) return false;
-    return isDoorAddressMissingAdmin(query);
+    return isDoorAddressMissingReminderAdmin(query);
   }
 
   function renderPickupAdminReminder(input, evidence = null) {
@@ -2720,7 +2729,14 @@
           document.getElementById(`${id}Error`)?.classList.remove('show');
         });
         pickupInput?.dispatchEvent(new Event('input', { bubbles: true }));
-        if (hasSavedDestination) destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
+        // R10Z14F11: a pickup-only favorite must advance the progressive flow exactly like
+        // manually entering the same pickup and leaving the field. The change event runs the
+        // existing commitPickup handler; it does not alter validation or destination rules.
+        pickupInput?.dispatchEvent(new Event('change', { bubbles: true }));
+        if (hasSavedDestination) {
+          destinationInput?.dispatchEvent(new Event('input', { bubbles: true }));
+          destinationInput?.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         box.open = false;
         setFavoriteStatus('', '');
         return;
@@ -4963,10 +4979,10 @@
       // The form-page hint still evaluates the passenger's visible raw input. The confirmation
       // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
       const pickupAdminReminderSource = mode === 'call' ? reviewedPickup : pickup;
-      const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingAdmin(pickupAdminReminderSource)
+      const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingReminderAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
-      const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingAdmin(reviewedDestination)
+      const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingReminderAdmin(reviewedDestination)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
 
