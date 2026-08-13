@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f21';
+  const GC_BUILD_VERSION = 'master202608r10z14f22';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -16,6 +16,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_AND_DRIVER_DESTINATION_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
+  // GC_MASTER_STABLE_2026_08R10Z14F22_FARE_NUMBER_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -876,7 +877,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function viewportStableInputEligible(input) {
     if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
     const activeMode = activeModeForViewportStability();
-    if (activeMode === 'fare') return true;
+    // F22: fare number fields sit above the result area, so their own UI updates do not need
+    // JavaScript scroll anchoring. Let the mobile browser position them natively; the address
+    // fields keep the existing stabilization path.
+    if (activeMode === 'fare') return input.id === 'pickup' || input.id === 'destination';
     return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
   }
 
@@ -897,8 +901,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function keyboardDismissInputEligible(input) {
     if (!input || !input.isConnected || !input.closest?.('#app')) return false;
-    if (!['call', 'driver', 'fare'].includes(activeModeForViewportStability())) return false;
+    const activeMode = activeModeForViewportStability();
+    if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
     if (input.disabled || input.readOnly) return false;
+    // F22: do not body-freeze or re-anchor fareMinutes/fareKm on Done/refocus. Native mobile
+    // viewport behavior is smoother here; result-height release is handled separately below.
+    if (activeMode === 'fare' && (input.id === 'fareKm' || input.id === 'fareMinutes')) return false;
     if (input.tagName === 'TEXTAREA') return true;
     if (input.tagName !== 'INPUT') return false;
     return GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase());
@@ -5680,9 +5688,57 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!kmInput || !minuteInput || !result || !label || !price || !basis || !note1 || !note2 || !longDistance) return;
 
     const calculatorInputs = [kmInput, minuteInput];
+    let fareNumberBlurToken = 0;
     const clearPreservedEditSpace = () => {
       result.classList.remove('gc-preserve-edit-space');
       result.style.removeProperty('--gc-fare-preserved-height');
+    };
+    const clearPreservedEditSpaceAfterNativeDismiss = input => {
+      const token = ++fareNumberBlurToken;
+      const viewport = window.visualViewport;
+      const startedAt = performance.now();
+      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
+      let lastOffsetTop = Number(viewport?.offsetTop || 0);
+      let stableFrames = 0;
+      let raf = 0;
+      let maxTimer = 0;
+      let done = false;
+      const cleanup = () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        clearTimeout(maxTimer);
+        maxTimer = 0;
+      };
+      const finish = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        done = true;
+        cleanup();
+        if (calculatorInputs.includes(document.activeElement)) return;
+        clearPreservedEditSpace();
+      };
+      const cancelForRefocus = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        done = true;
+        cleanup();
+      };
+      const poll = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        if (document.activeElement === input || calculatorInputs.includes(document.activeElement)) {
+          cancelForRefocus();
+          return;
+        }
+        const height = Number(viewport?.height || window.innerHeight || 0);
+        const offsetTop = Number(viewport?.offsetTop || 0);
+        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
+        stableFrames = viewportStable ? stableFrames + 1 : 0;
+        lastHeight = height;
+        lastOffsetTop = offsetTop;
+        const elapsed = performance.now() - startedAt;
+        if ((elapsed >= 240 && stableFrames >= 3) || elapsed >= 900) { finish(); return; }
+        raf = requestAnimationFrame(poll);
+      };
+      raf = requestAnimationFrame(poll);
+      maxTimer = setTimeout(finish, 940);
     };
     const preserveEditSpace = () => {
       if (!calculatorInputs.includes(document.activeElement)) return;
@@ -5745,15 +5801,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     minuteInput.addEventListener('input', () => update(minuteInput));
     kmInput.addEventListener('change', () => update(kmInput));
     minuteInput.addEventListener('change', () => update(minuteInput));
-    calculatorInputs.forEach(input => input.addEventListener('blur', () => {
-      // Keep the result area's edit-space until the virtual keyboard has finished dismissing.
-      // Removing it on the first blur frame races iOS/Android viewport restoration and causes
-      // the page to jump. The generic blur-grace anchor above absorbs the delayed height change.
-      setTimeout(() => {
-        if (calculatorInputs.includes(document.activeElement)) return;
-        mutateRideAddressUiStable(input, clearPreservedEditSpace);
-      }, 360);
-    }));
+    calculatorInputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        // Cancel a pending Done cleanup when the passenger immediately re-enters either number field.
+        fareNumberBlurToken += 1;
+      });
+      input.addEventListener('blur', () => {
+        // F22: keep the result area's reserved height until the native virtual-keyboard viewport
+        // finishes settling. No body position:fixed, no scrollTo/scrollBy, and no fare-number
+        // viewport anchor are involved, so Done and immediate refocus remain native and stable.
+        clearPreservedEditSpaceAfterNativeDismiss(input);
+      });
+    });
     reset();
   }
 
