@@ -6,6 +6,7 @@
   // GC_MASTER_STABLE_2026_08R10Z9W_SERVICE_SCOPED_SCHEDULE_VISIBILITY
   // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F20_RIDE_PROGRESSIVE_DONE_STABILITY
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -111,11 +112,92 @@
       if (favorite) setCollapsed(favorite, !serviceReady);
     }
 
-    [...radios, document.getElementById('date'), document.getElementById('time'), pickup, destination].filter(Boolean).forEach(control => {
+    // F20: call/driver address fields have progressive-flow layout changes that fare mode does not.
+    // When iOS "Done" dismisses the keyboard, a synchronous blur/change update races WebKit's
+    // visualViewport restoration and the smart-suggestion collapse, producing a one-frame shake.
+    // Keep the already-visible ride layout frozen during that dismissal window, then commit the
+    // progressive state exactly once after the viewport and suggestion surface have settled.
+    let rideBlurRevision = 0;
+    let rideBlurRaf = 0;
+    let rideBlurTimer = 0;
+    const addressControls = new Set([pickup, destination].filter(Boolean));
+
+    function cancelRideBlurUpdate() {
+      rideBlurRevision += 1;
+      if (rideBlurRaf) cancelAnimationFrame(rideBlurRaf);
+      rideBlurRaf = 0;
+      clearTimeout(rideBlurTimer);
+      rideBlurTimer = 0;
+    }
+
+    function anotherInteractiveTargetHasFocus(control) {
+      const active = document.activeElement;
+      if (!active || active === control || active === document.body || active === document.documentElement) return false;
+      return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName || '');
+    }
+
+    function scheduleRideBlurUpdate(control) {
+      if (!addressControls.has(control)) { update(); return; }
+      cancelRideBlurUpdate();
+      const revision = rideBlurRevision;
+      const startedAt = performance.now();
+      const viewport = window.visualViewport;
+      const suggest = document.getElementById(`${control.id}Suggest`);
+      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
+      let lastOffsetTop = Number(viewport?.offsetTop || 0);
+      let stableFrames = 0;
+
+      const finish = () => {
+        if (revision !== rideBlurRevision) return;
+        if (anotherInteractiveTargetHasFocus(control)) return;
+        if (rideBlurRaf) cancelAnimationFrame(rideBlurRaf);
+        rideBlurRaf = 0;
+        clearTimeout(rideBlurTimer);
+        rideBlurTimer = 0;
+        update();
+      };
+
+      const poll = () => {
+        if (revision !== rideBlurRevision) return;
+        if (anotherInteractiveTargetHasFocus(control)) return;
+        const height = Number(viewport?.height || window.innerHeight || 0);
+        const offsetTop = Number(viewport?.offsetTop || 0);
+        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
+        stableFrames = viewportStable ? stableFrames + 1 : 0;
+        lastHeight = height;
+        lastOffsetTop = offsetTop;
+        const elapsed = performance.now() - startedAt;
+        const suggestionsClosed = !suggest || suggest.classList.contains('hidden');
+        const bodyReleased = document.body?.style.position !== 'fixed';
+        if ((elapsed >= 380 && stableFrames >= 3 && suggestionsClosed && bodyReleased) || elapsed >= 820) {
+          finish();
+          return;
+        }
+        rideBlurRaf = requestAnimationFrame(poll);
+      };
+
+      rideBlurRaf = requestAnimationFrame(poll);
+      rideBlurTimer = setTimeout(finish, 860);
+    }
+
+    [...radios, document.getElementById('date'), document.getElementById('time')].filter(Boolean).forEach(control => {
       control.addEventListener('input', update, { passive: true });
       control.addEventListener('change', update, { passive: true });
       control.addEventListener('focus', update, { passive: true });
       control.addEventListener('blur', update, { passive: true });
+    });
+    [pickup, destination].filter(Boolean).forEach(control => {
+      control.addEventListener('input', () => { cancelRideBlurUpdate(); update(); }, { passive: true });
+      // Programmatic address fills already emit input before change. Avoid a second synchronous
+      // progressive update on the native change event that accompanies keyboard Done.
+      control.addEventListener('change', event => {
+        // Native change is part of the Done/blur sequence and must share the deferred commit.
+        // Programmatic fills already emit input first, so keep their established immediate behavior.
+        if (event.isTrusted) scheduleRideBlurUpdate(control);
+        else update();
+      }, { passive: true });
+      control.addEventListener('focus', () => { cancelRideBlurUpdate(); update(); }, { passive: true });
+      control.addEventListener('blur', () => scheduleRideBlurUpdate(control), { passive: true });
     });
     form.addEventListener('gc:address-verified', () => { commitPickup(); update(); });
     form.addEventListener('gc:schedule-state', update);
