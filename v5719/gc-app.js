@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f22';
+  const GC_BUILD_VERSION = 'master202608r10z14f23';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -17,6 +17,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_AND_DRIVER_DESTINATION_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F22_FARE_NUMBER_NATIVE_VIEWPORT_RELEASE
+  // GC_MASTER_STABLE_2026_08R10Z14F23_LOCATION_BINDING_INVALIDATION
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -745,9 +746,17 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (normalized && normalized !== before) {
       input.value = normalized;
     }
-    if (id === 'pickup' && attachedLocation && attachedLocation.manualAddress && normalized) {
-      attachedLocation.manualAddress = normalized;
-      attachedLocation.address = normalized;
+    if (id === 'pickup' && attachedLocation && normalized) {
+      // F23: formatter-only cleanup may preserve a valid GPS binding, but only when the
+      // visible value still matches the address that owns the current map pin. Passenger
+      // edits fire input and detach first, so they can never silently rebind an old pin.
+      const beforeKey = addressConfidenceKey(before);
+      const boundKey = attachedLocation.boundAddressKey || addressConfidenceKey(attachedLocation.address || attachedLocation.generatedAddress || '');
+      if (beforeKey && boundKey && beforeKey === boundKey) {
+        attachedLocation.address = normalized;
+        if (attachedLocation.manualAddress) attachedLocation.manualAddress = normalized;
+        attachedLocation.boundAddressKey = addressConfidenceKey(normalized);
+      }
     }
     return normalized;
   }
@@ -3378,6 +3387,32 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     }
   }
 
+  // GC_R10Z14F23_LOCATION_BINDING_INVALIDATION
+  // A LINE map pin is valid only while the visible pickup/driver address is still owned by
+  // the same current-location session. Any passenger-driven change (typing/deleting, smart
+  // suggestion, recent address, favorite trip, admin-area choice) detaches the old pin.
+  // Formatter-only normalization does not fire input and therefore keeps a matching binding.
+  function hasCurrentLocationSession() {
+    const status = document.getElementById('locationStatus');
+    const button = document.getElementById('locationBtn');
+    return Boolean(attachedLocation || button?.disabled || status?.dataset.gcStatusOwner === 'location');
+  }
+
+  function detachCurrentLocationForPassengerEdit() {
+    if (attachedLocation?.settingInput || !hasCurrentLocationSession()) return false;
+    clearAttachedLocation(false);
+    return true;
+  }
+
+  function dispatchableAttachedLocation() {
+    if (!attachedLocation || attachedLocation.sendMap === false) return null;
+    const pickupInput = document.getElementById('pickup');
+    const visibleKey = addressConfidenceKey(pickupInput?.value || '');
+    const boundKey = attachedLocation.boundAddressKey || addressConfidenceKey(attachedLocation.address || attachedLocation.generatedAddress || '');
+    if (!visibleKey || !boundKey || visibleKey !== boundKey) return null;
+    return attachedLocation;
+  }
+
   function setLocationStatus(message, state = '') {
     const status = document.getElementById('locationStatus');
     if (!status) return;
@@ -3539,25 +3574,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const locationAddressLabel = mode === 'driver' ? '代駕地址' : '上車地址';
 
     pickupInput.addEventListener('input', () => {
-      if (!attachedLocation || attachedLocation.settingInput) return;
-      const current = normalizeAddress(pickupInput.value);
-      if (!current || current === LOCATION_MARKER) {
-        attachedLocation.confirmed = false;
-        return;
-      }
-      const generatedAddress = normalizeAddress(attachedLocation.generatedAddress || '');
-      if (!generatedAddress || current !== generatedAddress) {
-        attachedLocation.address = String(pickupInput.value || '').trim();
-        attachedLocation.manualAddress = attachedLocation.address;
-        attachedLocation.confirmed = false;
-        attachedLocation.requiresConfirmation = false;
-        const keepMap = generatedAddress && manualAddressLikelyMatchesGenerated(current, generatedAddress) && attachedLocation.accuracy <= LOCATION_REVIEW_ACCURACY_M;
-        attachedLocation.sendMap = Boolean(keepMap);
-        setLocationReview('', false);
-        setLocationStatus(keepMap
-          ? '已修正文字地址，定位仍會一併附上。'
-          : `已改用你輸入的文字${locationAddressLabel}，避免舊定位與地址不一致。`, 'success');
-      }
+      // F23: the passenger changed the address after requesting/receiving GPS. Detach the
+      // map pin immediately instead of trying to guess whether the new text is "close enough".
+      // This also cancels a still-running geolocation/reverse-geocode request via request token.
+      if (attachedLocation?.settingInput) return;
+      detachCurrentLocationForPassengerEdit();
     });
 
     confirmButton?.addEventListener('click', () => {
@@ -3565,6 +3586,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       attachedLocation.confirmed = true;
       attachedLocation.requiresConfirmation = false;
       attachedLocation.address = String(pickupInput.value || '').trim();
+      attachedLocation.boundAddressKey = addressConfidenceKey(pickupInput.value);
       markAddressVerified(pickupInput, 'location-confirmed');
       setLocationReview('', false);
       setLocationStatus('地址已確認，定位會一併附上。', 'success');
@@ -3604,6 +3626,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           requiresConfirmation: false,
           sendMap: canSendMap,
           settingInput: false,
+          boundAddressKey: '',
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
@@ -3650,6 +3673,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             // rider confirmation instead of forcing a fake door number.
             attachedLocation.address = LOCATION_PIN_ONLY_LABEL;
             attachedLocation.generatedAddress = LOCATION_PIN_ONLY_LABEL;
+            attachedLocation.boundAddressKey = addressConfidenceKey(LOCATION_PIN_ONLY_LABEL);
             attachedLocation.settingInput = true;
             pickupInput._gcCancelSmartSuggestions?.();
             pickupInput.dataset.gcSkipSuggestOnce = '1';
@@ -3667,6 +3691,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
         attachedLocation.address = address;
         attachedLocation.generatedAddress = address;
+        attachedLocation.boundAddressKey = addressConfidenceKey(address);
         attachedLocation.settingInput = true;
         pickupInput._gcCancelSmartSuggestions?.();
         pickupInput.dataset.gcSkipSuggestOnce = '1';
@@ -5580,6 +5605,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
 
+      // F23 final safety gate: even if an external/programmatic write bypassed the normal
+      // input listener, never attach a map pin unless the visible address still matches the
+      // address bound to that current-location session.
+      const dispatchLocation = dispatchableAttachedLocation();
+
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
@@ -5615,7 +5645,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         vehicle: value('vehicle'),
         parking: value('parking'),
         notes: value('notes'),
-        location: attachedLocation?.sendMap !== false && attachedLocation ? [attachedLocation.latitude.toFixed(5), attachedLocation.longitude.toFixed(5)] : null
+        location: dispatchLocation ? [dispatchLocation.latitude.toFixed(5), dispatchLocation.longitude.toFixed(5)] : null
       });
       if (isDuplicateSubmission(signature)) {
         showGlobalError(duplicateMessage());
@@ -5634,7 +5664,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(destinationAdminSoftReminder ? [{ label: '', value: destinationAdminSoftReminder, note: true }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
-        ...(attachedLocation?.sendMap !== false && attachedLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+        ...(dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
 
       if (mode === 'driver') {
@@ -5655,7 +5685,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         setSending(true, cfg);
         try {
           if (isDuplicateSubmission(signature)) throw new Error(duplicateMessage());
-          await sendFormMessages(lines.join('\n'), serviceType === 'instant' && attachedLocation?.sendMap !== false ? attachedLocation : null);
+          await sendFormMessages(lines.join('\n'), serviceType === 'instant' ? dispatchLocation : null);
           if (!preview) markSubmission(signature);
           const generatedLocationAddress = attachedLocation?.generatedAddress || '';
           rememberRecentAddresses([destination, pickup].filter(address => address && address !== LOCATION_MARKER && address !== generatedLocationAddress));
