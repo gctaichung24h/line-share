@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f18';
+  const GC_BUILD_VERSION = 'master202608r10z14f19';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -752,6 +752,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F19_SUGGESTION_DONE_STABILITY
   // While a control is actively edited, keep its on-screen top stable against suggestion/guidance
   // DOM mutations. When the virtual keyboard is dismissed (iOS Done / Android hide), preserve the
   // document scroll position rather than repeatedly re-anchoring against visualViewport.offsetTop.
@@ -764,6 +765,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let gcKeyboardDismissSession = null;
   let gcKeyboardDismissReleaseTimer = 0;
   let gcKeyboardDismissMaxTimer = 0;
+  // R10Z14F19: when a visible smart-suggestion list disappears at the exact same moment
+  // the mobile keyboard closes, WebKit can clamp scrollY because document height shrinks
+  // mid-animation. A hidden tail spacer temporarily carries only that removed height, then
+  // shrinks to the minimum still required to preserve the current viewport.
+  let gcSuggestionCollapseSpacer = null;
+  let gcSuggestionCollapseSettleTimer = 0;
   let gcKeyboardViewportBaseline = Number(
     window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
   );
@@ -772,6 +779,74 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!gcViewportTailSpacer) return;
     gcViewportTailSpacer.remove();
     gcViewportTailSpacer = null;
+  }
+
+  function ensureSuggestionCollapseSpacer() {
+    if (gcSuggestionCollapseSpacer?.isConnected) return gcSuggestionCollapseSpacer;
+    gcSuggestionCollapseSpacer = document.createElement('div');
+    gcSuggestionCollapseSpacer.id = 'gcSuggestionCollapseSpacer';
+    gcSuggestionCollapseSpacer.setAttribute('aria-hidden', 'true');
+    gcSuggestionCollapseSpacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(gcSuggestionCollapseSpacer);
+    return gcSuggestionCollapseSpacer;
+  }
+
+  function reserveSuggestionCollapseCapacity(box) {
+    if (!box || box.classList.contains('hidden')) return false;
+    const rect = box.getBoundingClientRect();
+    if (rect.height <= 1) return false;
+    const style = getComputedStyle(box);
+    const outerHeight = Math.ceil(
+      rect.height +
+      (Number.parseFloat(style.marginTop) || 0) +
+      (Number.parseFloat(style.marginBottom) || 0)
+    );
+    if (outerHeight <= 1) return false;
+    const spacer = ensureSuggestionCollapseSpacer();
+    const current = Number.parseFloat(spacer.style.height) || 0;
+    spacer.style.height = `${Math.ceil(current + outerHeight)}px`;
+    return true;
+  }
+
+  function settleSuggestionCollapseSpacer({ force = false } = {}) {
+    const spacer = gcSuggestionCollapseSpacer;
+    if (!spacer?.isConnected) return;
+    if (!force && (gcKeyboardDismissSession || document.body?.style.position === 'fixed')) return;
+    clearTimeout(gcSuggestionCollapseSettleTimer);
+    gcSuggestionCollapseSettleTimer = 0;
+    if (force) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    const spacerHeight = Math.max(0, spacer.getBoundingClientRect().height);
+    if (spacerHeight <= 2) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    const layoutHeight = Math.max(1, window.innerHeight || document.documentElement?.clientHeight || 0);
+    const naturalScrollHeight = Math.max(0, document.documentElement.scrollHeight - spacerHeight);
+    const minimumNeeded = Math.max(0, Math.ceil(scrollY + layoutHeight - naturalScrollHeight + 2));
+    if (minimumNeeded <= 2) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    spacer.style.height = `${Math.min(Math.ceil(spacerHeight), minimumNeeded)}px`;
+  }
+
+  function scheduleSuggestionCollapseSettle(delay = 90) {
+    if (!gcSuggestionCollapseSpacer?.isConnected) return;
+    clearTimeout(gcSuggestionCollapseSettleTimer);
+    gcSuggestionCollapseSettleTimer = setTimeout(() => {
+      if (gcKeyboardDismissSession || document.body?.style.position === 'fixed') {
+        scheduleSuggestionCollapseSettle(90);
+        return;
+      }
+      settleSuggestionCollapseSpacer();
+    }, delay);
   }
 
   function ensureFareNumberViewportCapacity(session) {
@@ -863,6 +938,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       }
     }
     captureKeyboardViewportBaseline();
+    scheduleSuggestionCollapseSettle(72);
   }
 
   function scheduleKeyboardDismissRelease(session, delay = 135) {
@@ -956,6 +1032,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!keyboardDismissInputEligible(input)) return;
     if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
+    settleSuggestionCollapseSpacer();
     gcBlurViewportSession = null;
     clearTimeout(gcBlurViewportTimer);
     captureKeyboardViewportBaseline();
@@ -975,6 +1052,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   };
   window.visualViewport?.addEventListener('resize', restoreBlurViewportOnVisualChange, { passive: true });
   window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
+  window.addEventListener('scroll', () => scheduleSuggestionCollapseSettle(72), { passive: true });
 
   function mutateRideAddressUiStable(input, mutator) {
     if (!viewportStableInputEligible(input)) return mutator();
@@ -1000,6 +1078,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   window.addEventListener('pagehide', () => {
     if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
+    settleSuggestionCollapseSpacer({ force: true });
   }, { passive: true });
 
   function hideAddressSuggestions(id) {
@@ -2693,11 +2772,15 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
       input.addEventListener('blur', () => {
         // GC_R10Z3_BLUR_FORMAT_ONLY: restore R10Q's safe tidy-up after typing is finished.
-        // This is format sanitation only (postal prefix / comma / whitespace / floor), not geocoder replacement.
+        // R10Z14F19: if smart suggestions are visible, reserve their exact layout contribution
+        // before WebKit starts closing the keyboard. The list still closes on the same 180ms
+        // schedule, but document height no longer collapses during the keyboard animation.
+        const suggestionCapacityReserved = reserveSuggestionCollapseCapacity(box);
         setTimeout(() => {
           normalizeAddressInput(id);
           queuePickupAdminAmbiguity(input, 0);
           hideAddressSuggestions(id);
+          if (suggestionCapacityReserved) scheduleSuggestionCollapseSettle(120);
         }, 180);
       });
 
