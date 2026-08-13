@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f23';
+  const GC_BUILD_VERSION = 'master202608r10z14f24';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -18,6 +18,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F22_FARE_NUMBER_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F23_LOCATION_BINDING_INVALIDATION
+  // GC_MASTER_STABLE_2026_08R10Z14F24_RESERVE_CURRENT_LOCATION_ADDRESS_ONLY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -184,6 +185,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let confirmationBusy = false;
   let pendingRecentClearAction = null;
   let attachedLocation = null;
+  let currentLocationUsed = false;
   let locationRequestToken = 0;
   let addressSuggestRequestToken = 0;
   let modalScrollY = 0;
@@ -3383,7 +3385,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const button = document.getElementById('locationBtn');
     if (button) {
       button.disabled = false;
-      button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+      button.textContent = currentLocationUsed
+        ? (COMMON['定位重新取得'] || '📍 重新取得位置')
+        : (COMMON['定位按鈕'] || '📍 使用目前位置');
     }
   }
 
@@ -3424,9 +3428,24 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function updateLocationVisibility() {
     const action = document.getElementById('locationAction');
     if (!action) return;
-    const instant = checked('serviceType') === 'instant';
-    action.classList.toggle('hidden', !instant);
-    if (!instant) clearAttachedLocation(true);
+    const serviceType = checked('serviceType');
+    const supported = serviceType === 'instant' || serviceType === 'reserve';
+    action.classList.toggle('hidden', !supported);
+    if (!supported) {
+      if (attachedLocation) clearAttachedLocation(false);
+      return;
+    }
+    // A GPS session belongs to the service type in which it was requested. Switching between
+    // instant and reservation keeps the visible text address, but drops any old GPS binding.
+    if (attachedLocation?.serviceType && attachedLocation.serviceType !== serviceType) {
+      clearAttachedLocation(false);
+    }
+    const button = document.getElementById('locationBtn');
+    if (button && !button.disabled) {
+      button.textContent = currentLocationUsed
+        ? (COMMON['定位重新取得'] || '📍 重新取得位置')
+        : (COMMON['定位按鈕'] || '📍 使用目前位置');
+    }
   }
 
   function compactReverseAddressPart(value) {
@@ -3582,6 +3601,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     });
 
     confirmButton?.addEventListener('click', () => {
+      if (checked('serviceType') !== 'instant') return;
       if (!attachedLocation || !normalizeAddress(pickupInput.value)) return;
       attachedLocation.confirmed = true;
       attachedLocation.requiresConfirmation = false;
@@ -3593,6 +3613,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     });
 
     button.addEventListener('click', async () => {
+      const requestedServiceType = checked('serviceType');
+      if (requestedServiceType !== 'instant' && requestedServiceType !== 'reserve') return;
+      const reserveAddressOnly = requestedServiceType === 'reserve';
+      const reserveLocationLabel = mode === 'driver' ? '代駕地點' : '上車地點';
       if (!navigator.geolocation) {
         setLocationStatus(COMMON['定位不支援'] || '此裝置不支援定位，請直接輸入地址。', 'error');
         return;
@@ -3608,13 +3632,15 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
       try {
         const position = await getBestCurrentPosition();
-        if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
+        if (requestToken !== locationRequestToken || checked('serviceType') !== requestedServiceType) return;
         const latitude = Number(position.coords.latitude);
         const longitude = Number(position.coords.longitude);
         const accuracy = Number(position.coords.accuracy);
         const finiteAccuracy = Number.isFinite(accuracy) ? accuracy : null;
-        const canSendMap = finiteAccuracy !== null && finiteAccuracy <= LOCATION_REVIEW_ACCURACY_M;
+        const preciseEnough = finiteAccuracy !== null && finiteAccuracy <= LOCATION_REVIEW_ACCURACY_M;
+        const canSendMap = !reserveAddressOnly && preciseEnough;
 
+        currentLocationUsed = true;
         attachedLocation = {
           latitude,
           longitude,
@@ -3622,17 +3648,32 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           address: '',
           generatedAddress: '',
           manualAddress: '',
-          confirmed: false,
+          confirmed: reserveAddressOnly,
           requiresConfirmation: false,
           sendMap: canSendMap,
           settingInput: false,
           boundAddressKey: '',
+          serviceType: requestedServiceType,
+          addressOnly: reserveAddressOnly,
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
         button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
 
-        if (!canSendMap) {
+        if (!preciseEnough) {
+          if (reserveAddressOnly) {
+            attachedLocation = null;
+            pickupInput.value = previousPickup || '';
+            if (previousPickup) {
+              if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
+              else clearAddressVerified(pickupInput);
+            }
+            setLocationStatus(previousPickup
+              ? `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，已保留原本輸入的地址；請直接確認或重新取得位置。`
+              : `定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請再按一次重新取得；若仍無法辨識，再手動輸入${locationAddressLabel}。`, 'error');
+            return;
+          }
+          // Keep the original instant-ride weak-GPS behavior unchanged.
           attachedLocation.settingInput = true;
           pickupInput.value = previousPickup || '';
           attachedLocation.settingInput = false;
@@ -3651,10 +3692,23 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
         setLocationStatus('定位已取得，正在辨識文字地址…', 'success');
         const address = await reverseGeocodeCurrentLocation(latitude, longitude);
-        if (requestToken !== locationRequestToken || checked('serviceType') !== 'instant') return;
+        if (requestToken !== locationRequestToken || checked('serviceType') !== requestedServiceType) return;
         if (!attachedLocation || attachedLocation.latitude !== latitude || attachedLocation.longitude !== longitude) return;
 
         if (!address) {
+          if (reserveAddressOnly) {
+            attachedLocation = null;
+            pickupInput.value = previousPickup || '';
+            if (previousPickup) {
+              if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
+              else clearAddressVerified(pickupInput);
+              setLocationStatus('定位已取得但無法辨識文字地址，已保留原本輸入的地址；請直接確認或重新取得位置。', 'success');
+            } else {
+              setLocationStatus(`定位已取得但無法辨識文字地址，請手動輸入預約${reserveLocationLabel}，或再按一次重新取得位置。`, 'error');
+            }
+            setLocationReview('', false);
+            return;
+          }
           attachedLocation.settingInput = true;
           pickupInput.value = previousPickup || '';
           attachedLocation.settingInput = false;
@@ -3703,6 +3757,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
         attachedLocation.settingInput = false;
 
+        if (reserveAddressOnly) {
+          // Reservation GPS is address-entry assistance only. It never attaches the current map pin
+          // to a future booking. A later passenger edit clears this hint but keeps the button as
+          // “重新取得位置”, so the rider can explicitly fetch the address again if desired.
+          attachedLocation.sendMap = false;
+          attachedLocation.confirmed = true;
+          attachedLocation.requiresConfirmation = false;
+          setLocationReview('', false);
+          setLocationStatus(`已帶入目前地址，請確認預約${reserveLocationLabel}。`, 'success');
+          return;
+        }
+
         // V9.5.3 safety: GPS-generated text is always shown to the rider for one-tap confirmation.
         // This keeps current-location convenient while preventing a plausible-but-wrong door number
         // from becoming the dispatch address without the rider seeing it first.
@@ -3719,7 +3785,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           ? (COMMON['定位拒絕'] || '定位權限未開啟，請改輸入完整地址。')
           : (COMMON['定位失敗'] || '無法取得目前位置，請改輸入完整地址。'), 'error');
         button.disabled = false;
-        button.textContent = COMMON['定位按鈕'] || '📍 使用目前位置';
+        button.textContent = currentLocationUsed
+          ? (COMMON['定位重新取得'] || '📍 重新取得位置')
+          : (COMMON['定位按鈕'] || '📍 使用目前位置');
       }
     });
     updateLocationVisibility();
@@ -5608,7 +5676,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // F23 final safety gate: even if an external/programmatic write bypassed the normal
       // input listener, never attach a map pin unless the visible address still matches the
       // address bound to that current-location session.
-      const dispatchLocation = dispatchableAttachedLocation();
+      const dispatchLocation = serviceType === 'instant' ? dispatchableAttachedLocation() : null;
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
