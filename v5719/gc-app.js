@@ -21,6 +21,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F24_RESERVE_CURRENT_LOCATION_ADDRESS_ONLY
   // GC_MASTER_STABLE_2026_08R10Z14F25_NO_DOOR_LOCATION_COORDINATE_FALLBACK
   // GC_MASTER_STABLE_2026_08R10Z14F25R4_LOCATION_MODE_ISOLATION_AND_NO_DOOR_SUPPLEMENT
+  // GC_MASTER_STABLE_2026_08R10Z14F25R5_FAVORITE_COMPACT_AND_FIRST_EDIT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -3409,9 +3410,48 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return Boolean(attachedLocation || button?.disabled || status?.dataset.gcStatusOwner === 'location');
   }
 
-  function detachCurrentLocationForPassengerEdit() {
+  let locationEditLayoutLock = null;
+  let locationEditLayoutRevision = 0;
+
+  function clearLocationEditLayoutLock(lock = locationEditLayoutLock) {
+    if (!lock) return;
+    if (locationEditLayoutLock === lock) locationEditLayoutLock = null;
+    const field = lock.field;
+    if (!field?.isConnected) return;
+    field.classList.remove('gc-location-edit-layout-lock');
+    field.style.removeProperty('--gc-location-edit-lock-height');
+  }
+
+  function preserveCurrentLocationEditLayout(input) {
+    if (!input || document.activeElement !== input) return;
+    const field = input.closest('.address-field');
+    if (!field || locationEditLayoutLock?.field === field) return;
+    clearLocationEditLayoutLock();
+    const height = Math.ceil(field.getBoundingClientRect().height);
+    if (!Number.isFinite(height) || height <= 0) return;
+    const revision = ++locationEditLayoutRevision;
+    field.style.setProperty('--gc-location-edit-lock-height', `${height}px`);
+    field.classList.add('gc-location-edit-layout-lock');
+    const lock = { field, input, revision };
+    locationEditLayoutLock = lock;
+    input.addEventListener('blur', () => {
+      runAfterRideKeyboardDismissSettles(input, () => {
+        if (locationEditLayoutLock !== lock || revision !== locationEditLayoutRevision) return;
+        requestAnimationFrame(() => clearLocationEditLayoutLock(lock));
+      }, { minDelay: 280, maxDelay: 900 });
+    }, { once: true, passive: true });
+  }
+
+  function detachCurrentLocationForPassengerEdit({ preserveLayout = false } = {}) {
     if (attachedLocation?.settingInput || !hasCurrentLocationSession()) return false;
-    clearAttachedLocation(false);
+    const pickupInput = document.getElementById('pickup');
+    if (preserveLayout) preserveCurrentLocationEditLayout(pickupInput);
+    const detach = () => clearAttachedLocation(false);
+    if (preserveLayout && typeof window.GC_mutateInputViewportStable === 'function') {
+      window.GC_mutateInputViewportStable(pickupInput, detach);
+    } else {
+      detach();
+    }
     return true;
   }
 
@@ -3695,12 +3735,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     // GC_MASTER_STABLE_2026_08R10O_LOCATION_CONFIRMATION_COPY
     const locationAddressLabel = mode === 'driver' ? '代駕地址' : '上車地址';
 
-    pickupInput.addEventListener('input', () => {
+    pickupInput.addEventListener('input', event => {
       // F23: the passenger changed the address after requesting/receiving GPS. Detach the
       // map pin immediately instead of trying to guess whether the new text is "close enough".
       // This also cancels a still-running geolocation/reverse-geocode request via request token.
+      // F25R5: a real first keystroke keeps the active input at the same visual position while
+      // the location review/status UI is removed. Programmatic input events keep legacy behavior.
       if (attachedLocation?.settingInput) return;
-      detachCurrentLocationForPassengerEdit();
+      detachCurrentLocationForPassengerEdit({
+        preserveLayout: Boolean(event?.isTrusted && document.activeElement === pickupInput)
+      });
     });
 
     confirmButton?.addEventListener('click', () => {
