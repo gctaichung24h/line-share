@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f20';
+  const GC_BUILD_VERSION = 'master202608r10z14f21';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -13,6 +13,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_AND_DRIVER_DESTINATION_NORMALIZATION
+  // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -751,6 +752,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F19_SUGGESTION_DONE_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
   // While a control is actively edited, keep its on-screen top stable against suggestion/guidance
   // DOM mutations. When the virtual keyboard is dismissed (iOS Done / Android hide), preserve the
   // document scroll position rather than repeatedly re-anchoring against visualViewport.offsetTop.
@@ -809,7 +811,7 @@
   function settleSuggestionCollapseSpacer({ force = false } = {}) {
     const spacer = gcSuggestionCollapseSpacer;
     if (!spacer?.isConnected) return;
-    if (!force && (gcKeyboardDismissSession || document.body?.style.position === 'fixed')) return;
+    if (!force && (gcKeyboardDismissSession || rideKeyboardDismissPending() || document.body?.style.position === 'fixed')) return;
     clearTimeout(gcSuggestionCollapseSettleTimer);
     gcSuggestionCollapseSettleTimer = 0;
     if (force) {
@@ -839,7 +841,7 @@
     if (!gcSuggestionCollapseSpacer?.isConnected) return;
     clearTimeout(gcSuggestionCollapseSettleTimer);
     gcSuggestionCollapseSettleTimer = setTimeout(() => {
-      if (gcKeyboardDismissSession || document.body?.style.position === 'fixed') {
+      if (gcKeyboardDismissSession || rideKeyboardDismissPending() || document.body?.style.position === 'fixed') {
         scheduleSuggestionCollapseSettle(90);
         return;
       }
@@ -874,6 +876,21 @@
     const activeMode = activeModeForViewportStability();
     if (activeMode === 'fare') return true;
     return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+  }
+
+  function rideAddressKeyboardDismissInputEligible(input) {
+    if (!input || !input.isConnected || !input.closest?.('#serviceForm')) return false;
+    const activeMode = activeModeForViewportStability();
+    return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+  }
+
+  function rideKeyboardDismissPending() {
+    const session = gcBlurViewportSession;
+    return Boolean(
+      session?.passiveRideDismiss &&
+      !session.viewportSettled &&
+      performance.now() <= session.expiresAt
+    );
   }
 
   function keyboardDismissInputEligible(input) {
@@ -978,6 +995,9 @@
   function restoreViewportStableSession(session) {
     if (!session || !session.input?.isConnected) return;
     if (otherEditorHasFocus(session.input)) return;
+    // F21: call/driver address Done uses a passive dismissal session. Let WebKit restore the
+    // visual viewport natively; do not fix body position and do not issue scroll corrections.
+    if (session.passiveRideDismiss) return;
     // During keyboard dismissal the desired invariant is document scrollY. visualViewport.offsetTop
     // changes as the keyboard closes, so using it as an anchor creates the visible one-frame bounce.
     if (session.blurPhase) {
@@ -999,17 +1019,34 @@
 
   function beginBlurViewportStability(input) {
     if (!keyboardDismissInputEligible(input)) return;
+    const passiveRideDismiss = rideAddressKeyboardDismissInputEligible(input);
     const session = {
       input,
       anchorTop: viewportStableTop(input),
       scrollY: window.scrollY || window.pageYOffset || 0,
       docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0),
       blurPhase: true,
-      expiresAt: performance.now() + 980,
-      frozen: false
+      expiresAt: performance.now() + (passiveRideDismiss ? 1200 : 980),
+      frozen: false,
+      passiveRideDismiss,
+      viewportSettled: !passiveRideDismiss
     };
     gcBlurViewportSession = session;
     clearTimeout(gcBlurViewportTimer);
+
+    if (passiveRideDismiss) {
+      // F21: call/driver address fields must not compete with iOS keyboard dismissal.
+      // No body position:fixed, no scrollTo/scrollBy, and no top re-anchoring during blur.
+      gcBlurViewportTimer = setTimeout(() => {
+        if (gcBlurViewportSession === session) {
+          session.viewportSettled = true;
+          gcBlurViewportSession = null;
+          scheduleSuggestionCollapseSettle(72);
+        }
+      }, 1220);
+      return;
+    }
+
     // Preserve enough document height for fare number fields before the body is temporarily frozen.
     ensureFareNumberViewportCapacity(session);
     // A same-gesture focus transfer completes before this microtask; otherwise the keyboard is
@@ -1040,6 +1077,7 @@
   const restoreBlurViewportOnVisualChange = () => {
     const session = gcBlurViewportSession;
     if (!session || performance.now() > session.expiresAt) return;
+    if (session.passiveRideDismiss) return;
     if (gcKeyboardDismissSession === session) {
       // Release only after resize/scroll events have stopped, so the keyboard close is one continuous
       // transition rather than a tug-of-war between WebKit and JavaScript scroll corrections.
@@ -1051,6 +1089,61 @@
   window.visualViewport?.addEventListener('resize', restoreBlurViewportOnVisualChange, { passive: true });
   window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
   window.addEventListener('scroll', () => scheduleSuggestionCollapseSettle(72), { passive: true });
+
+  function runAfterRideKeyboardDismissSettles(input, callback, { minDelay = 260, maxDelay = 780 } = {}) {
+    if (!rideAddressKeyboardDismissInputEligible(input)) {
+      setTimeout(callback, 180);
+      return;
+    }
+    const viewport = window.visualViewport;
+    const startedAt = performance.now();
+    let lastHeight = Number(viewport?.height || window.innerHeight || 0);
+    let lastOffsetTop = Number(viewport?.offsetTop || 0);
+    let stableFrames = 0;
+    let raf = 0;
+    let maxTimer = 0;
+    let done = false;
+
+    const cleanup = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      clearTimeout(maxTimer);
+      maxTimer = 0;
+    };
+    const finish = () => {
+      if (done) return;
+      done = true;
+      cleanup();
+      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
+      if (session?.passiveRideDismiss) session.viewportSettled = true;
+      callback();
+      scheduleSuggestionCollapseSettle(72);
+    };
+    const cancelForRefocus = () => {
+      if (done) return;
+      done = true;
+      cleanup();
+      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
+      if (session?.passiveRideDismiss) session.viewportSettled = true;
+      scheduleSuggestionCollapseSettle(72);
+    };
+    const poll = () => {
+      if (done) return;
+      if (document.activeElement === input) { cancelForRefocus(); return; }
+      if (otherEditorHasFocus(input)) { finish(); return; }
+      const height = Number(viewport?.height || window.innerHeight || 0);
+      const offsetTop = Number(viewport?.offsetTop || 0);
+      const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
+      stableFrames = viewportStable ? stableFrames + 1 : 0;
+      lastHeight = height;
+      lastOffsetTop = offsetTop;
+      const elapsed = performance.now() - startedAt;
+      if ((elapsed >= minDelay && stableFrames >= 3) || elapsed >= maxDelay) { finish(); return; }
+      raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+    maxTimer = setTimeout(finish, maxDelay + 40);
+  }
 
   function mutateRideAddressUiStable(input, mutator) {
     if (!viewportStableInputEligible(input)) return mutator();
@@ -2770,16 +2863,17 @@
 
       input.addEventListener('blur', () => {
         // GC_R10Z3_BLUR_FORMAT_ONLY: restore R10Q's safe tidy-up after typing is finished.
-        // R10Z14F19: if smart suggestions are visible, reserve their exact layout contribution
-        // before WebKit starts closing the keyboard. The list still closes on the same 180ms
-        // schedule, but document height no longer collapses during the keyboard animation.
+        // F21: call/driver address suggestions stay structurally present while iOS dismisses the
+        // keyboard. Let WebKit finish its native viewport animation first, then close the suggestion
+        // surface once and allow progressive-flow to commit. Fare mode keeps its existing timing.
         const suggestionCapacityReserved = reserveSuggestionCollapseCapacity(box);
-        setTimeout(() => {
+        const finishAddressBlur = () => {
           normalizeAddressInput(id);
           queuePickupAdminAmbiguity(input, 0);
           hideAddressSuggestions(id);
           if (suggestionCapacityReserved) scheduleSuggestionCollapseSettle(120);
-        }, 180);
+        };
+        runAfterRideKeyboardDismissSettles(input, finishAddressBlur);
       });
 
       box.addEventListener('mousedown', event => event.preventDefault());
