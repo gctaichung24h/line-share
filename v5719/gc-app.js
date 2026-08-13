@@ -3666,6 +3666,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       attachedLocation.address = String(pickupInput.value || '').trim();
       attachedLocation.boundAddressKey = addressConfidenceKey(pickupInput.value);
       markAddressVerified(pickupInput, 'location-confirmed');
+      // GC_R10Z14F25R3_LOCATION_CONFIRM_VALIDATION_CLEAR
+      // A successful location confirmation must clear the full validation state, not only hide
+      // the review card. This keeps the field border, error copy and aria-invalid in one state.
+      clearFieldValidation('pickup');
       setLocationReview('', false);
       setLocationStatus(attachedLocation.noDoor === true
         ? '定位已確認；若知道門牌、附近店家或路口，建議補充，可加快媒合。'
@@ -3811,6 +3815,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             attachedLocation.sendMap = false;
             attachedLocation.confirmed = true;
             attachedLocation.requiresConfirmation = false;
+            clearFieldValidation('pickup');
             setLocationReview('', false);
             setLocationStatus('目前位置無法辨識門牌；若知道門牌、附近店家或路口，建議補充，可加快媒合。', 'success');
           } else {
@@ -3843,6 +3848,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           attachedLocation.sendMap = false;
           attachedLocation.confirmed = true;
           attachedLocation.requiresConfirmation = false;
+          clearFieldValidation('pickup');
           setLocationReview('', false);
           setLocationStatus(`已帶入目前地址，請確認預約${reserveLocationLabel}。`, 'success');
           return;
