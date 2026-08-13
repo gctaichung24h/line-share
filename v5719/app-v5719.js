@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f24';
+  const GC_BUILD_VERSION = 'master202608r10z14f25';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -17,6 +17,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F22_FARE_NUMBER_NATIVE_VIEWPORT_RELEASE
   // GC_MASTER_STABLE_2026_08R10Z14F23_LOCATION_BINDING_INVALIDATION
   // GC_MASTER_STABLE_2026_08R10Z14F24_RESERVE_CURRENT_LOCATION_ADDRESS_ONLY
+  // GC_MASTER_STABLE_2026_08R10Z14F25_NO_DOOR_LOCATION_COORDINATE_FALLBACK
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -135,7 +136,7 @@
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
-  const LOCATION_PIN_ONLY_LABEL = '📍 目前定位（無門牌）';
+  const LOCATION_PIN_ONLY_LABEL = '📍 目前位置（無法辨識門牌）';
   const LOCATION_AUTO_ACCEPT_ACCURACY_M = 35;
   const LOCATION_REVIEW_ACCURACY_M = 100;
   const LOCATION_SAMPLE_WINDOW_MS = 3200;
@@ -3406,13 +3407,31 @@
     return true;
   }
 
-  function dispatchableAttachedLocation() {
-    if (!attachedLocation || attachedLocation.sendMap === false) return null;
+  function boundAttachedLocation() {
+    if (!attachedLocation) return null;
     const pickupInput = document.getElementById('pickup');
     const visibleKey = addressConfidenceKey(pickupInput?.value || '');
     const boundKey = attachedLocation.boundAddressKey || addressConfidenceKey(attachedLocation.address || attachedLocation.generatedAddress || '');
     if (!visibleKey || !boundKey || visibleKey !== boundKey) return null;
     return attachedLocation;
+  }
+
+  function dispatchableAttachedLocation() {
+    const location = boundAttachedLocation();
+    if (!location || location.sendMap === false) return null;
+    return location;
+  }
+
+  function noDoorBoundLocation() {
+    const location = boundAttachedLocation();
+    if (!location || location.noDoor !== true) return null;
+    if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return null;
+    return location;
+  }
+
+  function formatLocationCoordinate(location) {
+    if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return '';
+    return `${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`;
   }
 
   function setLocationStatus(message, state = '') {
@@ -3460,8 +3479,10 @@
     const type = compactReverseAddressPart(rawAddress.Addr_type);
     const street = compactReverseAddressPart(rawAddress.Address || rawAddress.ShortLabel);
     const addNum = compactReverseAddressPart(rawAddress.AddNum);
-    const hasHouseNumber = Boolean(addNum || /\d/.test(street));
-    const exactEnough = type === 'PointAddress' || type === 'Subaddress' || (type === 'StreetAddress' && hasHouseNumber);
+    // A lane/section number is not a door number. Treat the result as exact only when ArcGIS
+    // explicitly returns AddNum or the visible street label itself contains a house-number suffix.
+    const hasHouseNumber = Boolean(addNum || /(?:[0-9０-９]+(?:[-－之][0-9０-９]+)?|[一二三四五六七八九十百零〇兩]+)號/.test(street));
+    const exactEnough = (type === 'PointAddress' || type === 'Subaddress' || type === 'StreetAddress') && hasHouseNumber;
     if (!exactEnough || !street) return '';
 
     const region = compactReverseAddressPart(rawAddress.Region);
@@ -3488,6 +3509,40 @@
     if (unique.length >= 2) return cleanLocatedTaiwanAddress(unique.join(' '));
 
     return cleanLocatedTaiwanAddress(compactReverseAddressPart(rawAddress.Match_addr || rawAddress.LongLabel).replace(/,\s*/g, ' '));
+  }
+
+  // F25: when GPS is precise but the reverse geocoder cannot provide a reliable door number,
+  // keep the most useful human-readable road/area text for dispatch. The raw GPS coordinates
+  // remain the source of truth and are carried separately; this formatter never invents a door.
+  function formatReverseGeocodedNoDoorAddress(rawAddress) {
+    if (!rawAddress || typeof rawAddress !== 'object') return '';
+    const region = compactReverseAddressPart(rawAddress.Region);
+    const city = compactReverseAddressPart(rawAddress.City);
+    const district = compactReverseAddressPart(rawAddress.District);
+    const subregion = compactReverseAddressPart(rawAddress.Subregion);
+    const street = compactReverseAddressPart(rawAddress.Address || rawAddress.ShortLabel);
+
+    let topAdmin = '';
+    if (/[市縣]$/.test(region) && !/台灣省|臺灣省/.test(region)) topAdmin = region;
+    if (!topAdmin && /[市縣]$/.test(city)) topAdmin = city;
+    if (!topAdmin && /[市縣]$/.test(subregion)) topAdmin = subregion;
+
+    let localAdmin = '';
+    for (const candidate of [district, city, subregion]) {
+      if (!candidate || sameAddressPart(candidate, topAdmin)) continue;
+      if (/[區鄉鎮市]$/.test(candidate)) {
+        localAdmin = candidate;
+        break;
+      }
+    }
+
+    const parts = [topAdmin, localAdmin, street].filter(Boolean);
+    const unique = parts.filter((part, index, list) => !list.slice(0, index).some(prev => sameAddressPart(prev, part)));
+    let candidate = cleanLocatedTaiwanAddress(unique.join(' '));
+    if (!candidate) {
+      candidate = cleanLocatedTaiwanAddress(compactReverseAddressPart(rawAddress.Match_addr || rawAddress.LongLabel).replace(/,\s*/g, ' '));
+    }
+    return candidate || '';
   }
 
   function getBestCurrentPosition() {
@@ -3557,12 +3612,15 @@
         cache: 'no-store',
         signal: controller?.signal
       });
-      if (!response.ok) return '';
+      if (!response.ok) return { address: '', noDoorAddress: '' };
       const data = await response.json();
-      if (!data || data.error) return '';
-      return formatReverseGeocodedAddress(data.address);
+      if (!data || data.error) return { address: '', noDoorAddress: '' };
+      return {
+        address: formatReverseGeocodedAddress(data.address),
+        noDoorAddress: formatReverseGeocodedNoDoorAddress(data.address)
+      };
     } catch (_) {
-      return '';
+      return { address: '', noDoorAddress: '' };
     } finally {
       clearTimeout(timeoutId);
     }
@@ -3607,7 +3665,9 @@
       attachedLocation.boundAddressKey = addressConfidenceKey(pickupInput.value);
       markAddressVerified(pickupInput, 'location-confirmed');
       setLocationReview('', false);
-      setLocationStatus('地址已確認，定位會一併附上。', 'success');
+      setLocationStatus(attachedLocation.noDoor === true
+        ? '定位已確認；若知道門牌、附近店家或路口，建議補充，可加快媒合。'
+        : '地址已確認，定位會一併附上。', 'success');
     });
 
     button.addEventListener('click', async () => {
@@ -3622,6 +3682,7 @@
       const requestToken = ++locationRequestToken;
       const previousPickup = String(pickupInput.value || '').trim();
       const previousPickupVerified = isAddressVerified(pickupInput);
+      const previousPickupOwnedByLocation = Boolean(boundAttachedLocation());
       pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
@@ -3653,6 +3714,7 @@
           boundAddressKey: '',
           serviceType: requestedServiceType,
           addressOnly: reserveAddressOnly,
+          noDoor: false,
           title: mode === 'driver' ? '代駕車輛目前位置' : '即時叫車上車位置'
         };
         button.disabled = false;
@@ -3689,58 +3751,75 @@
         }
 
         setLocationStatus('定位已取得，正在辨識文字地址…', 'success');
-        const address = await reverseGeocodeCurrentLocation(latitude, longitude);
+        const reverseResult = await reverseGeocodeCurrentLocation(latitude, longitude);
         if (requestToken !== locationRequestToken || checked('serviceType') !== requestedServiceType) return;
         if (!attachedLocation || attachedLocation.latitude !== latitude || attachedLocation.longitude !== longitude) return;
+        const address = String(reverseResult?.address || '').trim();
+        const noDoorAddress = String(reverseResult?.noDoorAddress || '').trim();
 
         if (!address) {
-          if (reserveAddressOnly) {
-            attachedLocation = null;
-            pickupInput.value = previousPickup || '';
-            if (previousPickup) {
+          // A pre-existing passenger-entered address stays authoritative. Never pair a new GPS
+          // coordinate with unrelated manual text just because reverse geocoding lacks a door.
+          if (previousPickup && !previousPickupOwnedByLocation) {
+            if (reserveAddressOnly) {
+              attachedLocation = null;
+              pickupInput.value = previousPickup;
               if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
               else clearAddressVerified(pickupInput);
-              setLocationStatus('定位已取得但無法辨識文字地址，已保留原本輸入的地址；請直接確認或重新取得位置。', 'success');
-            } else {
-              setLocationStatus(`定位已取得但無法辨識文字地址，請手動輸入預約${reserveLocationLabel}，或再按一次重新取得位置。`, 'error');
+              setLocationStatus('定位已取得但無法辨識正確門牌，已保留原本輸入的地址；請直接確認或重新取得位置。', 'success');
+              setLocationReview('', false);
+              return;
             }
-            setLocationReview('', false);
-            return;
-          }
-          attachedLocation.settingInput = true;
-          pickupInput.value = previousPickup || '';
-          attachedLocation.settingInput = false;
-          if (previousPickup) {
+            attachedLocation.settingInput = true;
+            pickupInput.value = previousPickup;
+            attachedLocation.settingInput = false;
             attachedLocation.address = previousPickup;
             attachedLocation.manualAddress = previousPickup;
             attachedLocation.confirmed = previousPickupVerified;
             if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
             else clearAddressVerified(pickupInput);
             attachedLocation.sendMap = false;
+            attachedLocation.noDoor = false;
             setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
+            return;
+          }
+
+          // F25: precise GPS without a reliable door number is a fallback, not the normal shortcut.
+          // Keep any road/area text that ArcGIS can safely identify, mark it clearly as no-door,
+          // and preserve the ORIGINAL phone GPS coordinate for confirmation/LINE dispatch context.
+          const fallbackAddress = noDoorAddress
+            ? `${noDoorAddress.replace(/（無門牌）$/,'')}（無門牌）`
+            : LOCATION_PIN_ONLY_LABEL;
+          attachedLocation.address = fallbackAddress;
+          attachedLocation.generatedAddress = fallbackAddress;
+          attachedLocation.boundAddressKey = addressConfidenceKey(fallbackAddress);
+          attachedLocation.noDoor = true;
+          attachedLocation.settingInput = true;
+          pickupInput._gcCancelSmartSuggestions?.();
+          pickupInput.dataset.gcSkipSuggestOnce = '1';
+          pickupInput.value = fallbackAddress;
+          markAddressVerified(pickupInput, 'location-no-door');
+          pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+          pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
+          attachedLocation.settingInput = false;
+          pickupInput.classList.remove('invalid');
+          document.getElementById('pickupError')?.classList.remove('show');
+
+          if (reserveAddressOnly) {
+            attachedLocation.sendMap = false;
+            attachedLocation.confirmed = true;
+            attachedLocation.requiresConfirmation = false;
+            setLocationReview('', false);
+            setLocationStatus('目前位置無法辨識門牌；若知道門牌、附近店家或路口，建議補充，可加快媒合。', 'success');
           } else {
-            // GC_MASTER_STABLE_2026_08R10S_PRECISE_PIN_FALLBACK
-            // R10S: a precise GPS pin is itself a dispatchable pickup point even when no formal
-            // street number exists. Keep the map pin, show a neutral label, and require one-tap
-            // rider confirmation instead of forcing a fake door number.
-            attachedLocation.address = LOCATION_PIN_ONLY_LABEL;
-            attachedLocation.generatedAddress = LOCATION_PIN_ONLY_LABEL;
-            attachedLocation.boundAddressKey = addressConfidenceKey(LOCATION_PIN_ONLY_LABEL);
-            attachedLocation.settingInput = true;
-            pickupInput._gcCancelSmartSuggestions?.();
-            pickupInput.dataset.gcSkipSuggestOnce = '1';
-            pickupInput.value = LOCATION_PIN_ONLY_LABEL;
-            markAddressVerified(pickupInput, 'location-pin-only');
-            pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
-            pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
-            attachedLocation.settingInput = false;
             attachedLocation.requiresConfirmation = true;
             setLocationStatus('', 'success');
-            setLocationReview('已取得精準定位；此位置沒有明確門牌，請確認定位點是否正確。', true);
+            setLocationReview('目前位置無法辨識門牌；若知道門牌、附近店家或路口，建議補充，可加快媒合。', true);
           }
           return;
         }
 
+        attachedLocation.noDoor = false;
         attachedLocation.address = address;
         attachedLocation.generatedAddress = address;
         attachedLocation.boundAddressKey = addressConfidenceKey(address);
@@ -5671,10 +5750,12 @@
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
 
-      // F23 final safety gate: even if an external/programmatic write bypassed the normal
-      // input listener, never attach a map pin unless the visible address still matches the
-      // address bound to that current-location session.
+      // F23/F25 final safety gate: the visible address must still match the current-location
+      // session. Instant service may attach the LINE map pin; all four service variants may carry
+      // a text coordinate ONLY for a precise current-location result that has no reliable door.
       const dispatchLocation = serviceType === 'instant' ? dispatchableAttachedLocation() : null;
+      const noDoorLocation = noDoorBoundLocation();
+      const noDoorCoordinate = formatLocationCoordinate(noDoorLocation);
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
@@ -5685,6 +5766,7 @@
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       appendLine(lines, cfg['訊息欄位_上車'], reviewedPickup);
+      appendLine(lines, '定位座標', noDoorCoordinate);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
@@ -5711,7 +5793,9 @@
         vehicle: value('vehicle'),
         parking: value('parking'),
         notes: value('notes'),
-        location: dispatchLocation ? [dispatchLocation.latitude.toFixed(5), dispatchLocation.longitude.toFixed(5)] : null
+        location: dispatchLocation
+          ? [dispatchLocation.latitude.toFixed(5), dispatchLocation.longitude.toFixed(5)]
+          : (noDoorLocation ? [noDoorLocation.latitude.toFixed(6), noDoorLocation.longitude.toFixed(6)] : null)
       });
       if (isDuplicateSubmission(signature)) {
         showGlobalError(duplicateMessage());
@@ -5725,6 +5809,7 @@
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         { label: cfg['訊息欄位_上車'], value: reviewedPickup, emphasis: true },
+        ...(noDoorCoordinate ? [{ label: '定位座標', value: noDoorCoordinate }] : []),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
