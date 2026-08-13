@@ -18,6 +18,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F23_LOCATION_BINDING_INVALIDATION
   // GC_MASTER_STABLE_2026_08R10Z14F24_RESERVE_CURRENT_LOCATION_ADDRESS_ONLY
   // GC_MASTER_STABLE_2026_08R10Z14F25_NO_DOOR_LOCATION_COORDINATE_FALLBACK
+  // GC_MASTER_STABLE_2026_08R10Z14F25R4_LOCATION_MODE_ISOLATION_AND_NO_DOOR_SUPPLEMENT
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -136,7 +137,7 @@
   const LAST_SUBMISSION_STORAGE_KEY = 'gc_last_submission_v1';
   const DUPLICATE_WINDOW_MS = 60 * 1000;
   const LOCATION_MARKER = '📍 已附上目前定位';
-  const LOCATION_PIN_ONLY_LABEL = '📍 目前位置（無法辨識門牌）';
+  const LOCATION_PIN_ONLY_LABEL = '📍 已取得目前定位（無法辨識門牌）';
   const LOCATION_AUTO_ACCEPT_ACCURACY_M = 35;
   const LOCATION_REVIEW_ACCURACY_M = 100;
   const LOCATION_SAMPLE_WINDOW_MS = 3200;
@@ -355,6 +356,10 @@
               <span id="locationReviewText"></span>
             </div>
             <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 確認地址</button>
+          </div>
+          <div class="field hidden" id="locationSupplementField">
+            <label for="locationSupplement">附近位置（選填）</label>
+            <input class="input" id="locationSupplement" name="locationSupplement" type="text" maxlength="80" placeholder="例如：路口、店家、社區、地標" autocomplete="off">
           </div>` : ''}
         ${showRecent ? `
         <div class="recent-address-control hidden" data-target="${id}">
@@ -3367,6 +3372,7 @@
 
   function clearAttachedLocation(clearMarker = false) {
     locationRequestToken += 1;
+    resetLocationSupplement();
     const pickupInput = document.getElementById('pickup');
     const generatedAddress = attachedLocation?.address || '';
     if (clearMarker && pickupInput && (pickupInput.value === LOCATION_MARKER || (generatedAddress && pickupInput.value === generatedAddress))) {
@@ -3434,6 +3440,22 @@
     return `${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`;
   }
 
+  function resetLocationSupplement() {
+    const field = document.getElementById('locationSupplementField');
+    const input = document.getElementById('locationSupplement');
+    if (input) input.value = '';
+    if (field) field.classList.add('hidden');
+  }
+
+  function showLocationSupplement() {
+    const field = document.getElementById('locationSupplementField');
+    if (field) field.classList.remove('hidden');
+  }
+
+  function currentLocationSupplement() {
+    return meaningfulOptionalText(document.getElementById('locationSupplement')?.value || '');
+  }
+
   function setLocationStatus(message, state = '') {
     const status = document.getElementById('locationStatus');
     if (!status) return;
@@ -3442,7 +3464,7 @@
     status.dataset.gcStatusOwner = 'location';
   }
 
-  function updateLocationVisibility() {
+  function updateLocationVisibility(mode = 'call') {
     const action = document.getElementById('locationAction');
     if (!action) return;
     const serviceType = checked('serviceType');
@@ -3452,10 +3474,33 @@
       if (attachedLocation) clearAttachedLocation(false);
       return;
     }
-    // A GPS session belongs to the service type in which it was requested. Switching between
-    // instant and reservation keeps the visible text address, but drops any old GPS binding.
+    // F25R4: only a reliable full address may cross instant/reservation as plain text.
+    // GPS/map-pin/no-door-coordinate state always belongs to the service type that requested it.
     if (attachedLocation?.serviceType && attachedLocation.serviceType !== serviceType) {
-      clearAttachedLocation(false);
+      const pickupInput = document.getElementById('pickup');
+      const previousServiceType = attachedLocation.serviceType;
+      const noDoor = attachedLocation.noDoor === true;
+      if (noDoor) {
+        clearAttachedLocation(true);
+        if (pickupInput) {
+          pickupInput._gcCancelSmartSuggestions?.();
+          clearAddressVerified(pickupInput);
+          clearFieldValidation('pickup');
+          pickupInput.dispatchEvent(new Event('input', { bubbles: true }));
+          pickupInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } else {
+        clearAttachedLocation(false);
+        const retained = String(pickupInput?.value || '').trim();
+        if (retained) {
+          if (previousServiceType === 'instant' && serviceType === 'reserve') {
+            const label = mode === 'driver' ? '代駕地址' : '上車地址';
+            setLocationStatus(`已沿用${label}，請確認是否為本次預約地點。`, 'success');
+          } else if (previousServiceType === 'reserve' && serviceType === 'instant') {
+            setLocationStatus('已沿用地址；如需附上目前定位，請重新取得位置。', 'success');
+          }
+        }
+      }
     }
     const button = document.getElementById('locationBtn');
     if (button && !button.disabled) {
@@ -3670,7 +3715,7 @@
       clearFieldValidation('pickup');
       setLocationReview('', false);
       setLocationStatus(attachedLocation.noDoor === true
-        ? '定位已確認；若知道門牌、附近店家或路口，建議補充，可加快媒合。'
+        ? '定位已確認；可於下方補充附近位置，加快媒合。'
         : '地址已確認，定位會一併附上。', 'success');
     });
 
@@ -3687,6 +3732,7 @@
       const previousPickup = String(pickupInput.value || '').trim();
       const previousPickupVerified = isAddressVerified(pickupInput);
       const previousPickupOwnedByLocation = Boolean(boundAttachedLocation());
+      resetLocationSupplement();
       pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
       button.textContent = COMMON['定位取得中'] || '正在取得定位…';
@@ -3809,21 +3855,23 @@
           pickupInput.classList.remove('invalid');
           document.getElementById('pickupError')?.classList.remove('show');
 
+          showLocationSupplement();
           if (reserveAddressOnly) {
             attachedLocation.sendMap = false;
             attachedLocation.confirmed = true;
             attachedLocation.requiresConfirmation = false;
             clearFieldValidation('pickup');
             setLocationReview('', false);
-            setLocationStatus('目前位置無法辨識門牌；若知道門牌、附近店家或路口，建議補充，可加快媒合。', 'success');
+            setLocationStatus('目前位置無法辨識完整門牌，可於下方補充附近位置。', 'success');
           } else {
             attachedLocation.requiresConfirmation = true;
             setLocationStatus('', 'success');
-            setLocationReview('目前位置無法辨識門牌；若知道門牌、附近店家或路口，建議補充，可加快媒合。', true);
+            setLocationReview('目前位置無法辨識完整門牌，可於下方補充附近位置。', true);
           }
           return;
         }
 
+        resetLocationSupplement();
         attachedLocation.noDoor = false;
         attachedLocation.address = address;
         attachedLocation.generatedAddress = address;
@@ -3873,7 +3921,7 @@
           : (COMMON['定位按鈕'] || '📍 使用目前位置');
       }
     });
-    updateLocationVisibility();
+    updateLocationVisibility(mode);
   }
 
   function submissionSignature(payload) {
@@ -5636,7 +5684,7 @@
         } else {
           emitScheduleState();
         }
-        updateLocationVisibility();
+        updateLocationVisibility(mode);
       });
     });
     ['date', 'time', 'pickup'].forEach(id => {
@@ -5762,6 +5810,7 @@
       const dispatchLocation = serviceType === 'instant' ? dispatchableAttachedLocation() : null;
       const noDoorLocation = noDoorBoundLocation();
       const noDoorCoordinate = formatLocationCoordinate(noDoorLocation);
+      const noDoorSupplement = noDoorLocation ? currentLocationSupplement() : '';
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
@@ -5772,6 +5821,7 @@
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       appendLine(lines, cfg['訊息欄位_上車'], reviewedPickup);
+      appendLine(lines, '位置補充', noDoorSupplement);
       appendLine(lines, '定位座標', noDoorCoordinate);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
@@ -5799,6 +5849,7 @@
         vehicle: value('vehicle'),
         parking: value('parking'),
         notes: value('notes'),
+        locationSupplement: noDoorSupplement,
         location: dispatchLocation
           ? [dispatchLocation.latitude.toFixed(5), dispatchLocation.longitude.toFixed(5)]
           : (noDoorLocation ? [noDoorLocation.latitude.toFixed(6), noDoorLocation.longitude.toFixed(6)] : null)
@@ -5815,6 +5866,7 @@
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         { label: cfg['訊息欄位_上車'], value: reviewedPickup, emphasis: true },
+        ...(noDoorSupplement ? [{ label: '位置補充', value: noDoorSupplement }] : []),
         ...(noDoorCoordinate ? [{ label: '定位座標', value: noDoorCoordinate }] : []),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
