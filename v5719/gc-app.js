@@ -4059,6 +4059,145 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let activeRecentPanel = null;
   let recentManagementOpen = false;
 
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6_RECENT_SHEET_SWIPE_DISMISS
+  // Management-sheet only: the handle/header can be dragged downward to dismiss.
+  // Address rows, delete/clear controls and all existing recent-address data behavior remain unchanged.
+  let recentSheetDragPointerId = null;
+  let recentSheetDragStartY = 0;
+  let recentSheetDragLastY = 0;
+  let recentSheetDragLastTime = 0;
+  let recentSheetDragOffsetY = 0;
+  let recentSheetDragVelocityY = 0;
+  let recentSheetDragTimer = 0;
+  let recentSheetSuppressClickUntil = 0;
+
+  function recentSheetElements() {
+    const overlay = document.getElementById('gcRecentSheet');
+    return { overlay, sheet: overlay?.querySelector('.gc-recent-sheet') || null };
+  }
+
+  function clearRecentSheetDragState() {
+    const { overlay, sheet } = recentSheetElements();
+    if (recentSheetDragTimer) {
+      window.clearTimeout(recentSheetDragTimer);
+      recentSheetDragTimer = 0;
+    }
+    recentSheetDragPointerId = null;
+    recentSheetDragStartY = 0;
+    recentSheetDragLastY = 0;
+    recentSheetDragLastTime = 0;
+    recentSheetDragOffsetY = 0;
+    recentSheetDragVelocityY = 0;
+    overlay?.classList.remove('is-dragging', 'is-restoring', 'is-dismissing');
+    sheet?.classList.remove('is-dragging', 'is-restoring', 'is-dismissing');
+    overlay?.style.removeProperty('--gc-recent-sheet-backdrop-alpha');
+    sheet?.style.removeProperty('transform');
+  }
+
+  function applyRecentSheetDrag(offsetY) {
+    const { overlay, sheet } = recentSheetElements();
+    if (!overlay || !sheet) return;
+    const offset = Math.max(0, Number(offsetY) || 0);
+    const progress = Math.min(1, offset / Math.max(180, sheet.getBoundingClientRect().height * 0.55));
+    recentSheetDragOffsetY = offset;
+    overlay.classList.add('is-dragging');
+    sheet.classList.add('is-dragging');
+    sheet.style.setProperty('transform', `translate3d(0, ${Math.round(offset)}px, 0)`);
+    overlay.style.setProperty('--gc-recent-sheet-backdrop-alpha', String((0.34 - 0.20 * progress).toFixed(3)));
+  }
+
+  function restoreRecentSheetAfterDrag() {
+    const { overlay, sheet } = recentSheetElements();
+    if (!overlay || !sheet) {
+      clearRecentSheetDragState();
+      return;
+    }
+    recentSheetDragPointerId = null;
+    overlay.classList.remove('is-dragging');
+    sheet.classList.remove('is-dragging');
+    overlay.classList.add('is-restoring');
+    sheet.classList.add('is-restoring');
+    sheet.style.setProperty('transform', 'translate3d(0, 0, 0)');
+    overlay.style.setProperty('--gc-recent-sheet-backdrop-alpha', '0.34');
+    if (recentSheetDragTimer) window.clearTimeout(recentSheetDragTimer);
+    recentSheetDragTimer = window.setTimeout(clearRecentSheetDragState, 230);
+  }
+
+  function dismissRecentSheetAfterDrag() {
+    const { overlay, sheet } = recentSheetElements();
+    if (!overlay || !sheet) {
+      closeRecentAddressSheet();
+      return;
+    }
+    recentSheetDragPointerId = null;
+    overlay.classList.remove('is-dragging');
+    sheet.classList.remove('is-dragging');
+    overlay.classList.add('is-dismissing');
+    sheet.classList.add('is-dismissing');
+    sheet.style.setProperty('transform', 'translate3d(0, calc(100% + 32px), 0)');
+    overlay.style.setProperty('--gc-recent-sheet-backdrop-alpha', '0');
+    if (recentSheetDragTimer) window.clearTimeout(recentSheetDragTimer);
+    recentSheetDragTimer = window.setTimeout(() => closeRecentAddressSheet(), 190);
+  }
+
+  function beginRecentSheetDrag(event) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const { overlay, sheet } = recentSheetElements();
+    if (!overlay || !sheet || overlay.hidden || overlay.classList.contains('hidden')) return;
+    if (event.target.closest('button')) return;
+    recentSheetDragPointerId = event.pointerId;
+    recentSheetDragStartY = event.clientY;
+    recentSheetDragLastY = event.clientY;
+    recentSheetDragLastTime = event.timeStamp || performance.now();
+    recentSheetDragOffsetY = 0;
+    recentSheetDragVelocityY = 0;
+    overlay.classList.remove('is-restoring', 'is-dismissing');
+    sheet.classList.remove('is-restoring', 'is-dismissing');
+    try { sheet.setPointerCapture?.(event.pointerId); } catch (_) {}
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function moveRecentSheetDrag(event) {
+    if (recentSheetDragPointerId === null || event.pointerId !== recentSheetDragPointerId) return;
+    const offset = Math.max(0, event.clientY - recentSheetDragStartY);
+    const now = event.timeStamp || performance.now();
+    const elapsed = Math.max(1, now - recentSheetDragLastTime);
+    const instantVelocity = (event.clientY - recentSheetDragLastY) / elapsed;
+    recentSheetDragVelocityY = recentSheetDragVelocityY * 0.45 + instantVelocity * 0.55;
+    recentSheetDragLastY = event.clientY;
+    recentSheetDragLastTime = now;
+    applyRecentSheetDrag(offset);
+    if (offset > 0 && event.cancelable) event.preventDefault();
+  }
+
+  function endRecentSheetDrag(event, cancelled = false) {
+    if (recentSheetDragPointerId === null || event.pointerId !== recentSheetDragPointerId) return;
+    const { sheet } = recentSheetElements();
+    try { sheet?.releasePointerCapture?.(event.pointerId); } catch (_) {}
+    if (recentSheetDragOffsetY > 6) recentSheetSuppressClickUntil = performance.now() + 420;
+    if (cancelled || !sheet) {
+      restoreRecentSheetAfterDrag();
+      return;
+    }
+    const sheetHeight = Math.max(1, sheet.getBoundingClientRect().height);
+    const distanceThreshold = Math.min(132, Math.max(88, sheetHeight * 0.22));
+    const fastDownwardFling = recentSheetDragOffsetY >= 24 && recentSheetDragVelocityY >= 0.58;
+    if (recentSheetDragOffsetY >= distanceThreshold || fastDownwardFling) dismissRecentSheetAfterDrag();
+    else restoreRecentSheetAfterDrag();
+  }
+
+  function bindRecentSheetDrag(overlay) {
+    if (!overlay || overlay.dataset.gcSwipeDismissBound === '1') return;
+    overlay.dataset.gcSwipeDismissBound = '1';
+    overlay.addEventListener('pointerdown', event => {
+      if (!event.target.closest('.gc-recent-sheet-handle, .gc-recent-sheet-head')) return;
+      beginRecentSheetDrag(event);
+    });
+    overlay.addEventListener('pointermove', moveRecentSheetDrag, { passive: false });
+    overlay.addEventListener('pointerup', event => endRecentSheetDrag(event, false));
+    overlay.addEventListener('pointercancel', event => endRecentSheetDrag(event, true));
+  }
+
   // GC_MASTER_STABLE_2026_08R10M_RECENT_QUICK_PICKER
   // Normal selection is a lightweight anchored popover. Destructive management remains
   // separated in a locked sheet so choosing a recent address never feels like a new flow.
@@ -4250,8 +4389,14 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         <button class="gc-recent-sheet-clear" type="button">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>
       </section>`;
     document.body.appendChild(overlay);
+    bindRecentSheetDrag(overlay);
 
     overlay.addEventListener('click', event => {
+      if (performance.now() < recentSheetSuppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (event.target === overlay || event.target.closest('.gc-recent-sheet-close')) {
         closeRecentAddressSheet();
         return;
@@ -4309,6 +4454,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     }
     activeRecentControl = null;
     activeRecentTargetId = '';
+    clearRecentSheetDragState();
   }
 
   function openRecentAddressManagement(control, targetId) {
@@ -4322,6 +4468,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     control.querySelector('.recent-panel')?.classList.add('hidden');
     const overlay = ensureRecentAddressSheet();
     renderRecentAddressSheetList();
+    clearRecentSheetDragState();
+    recentSheetSuppressClickUntil = 0;
     recentManagementOpen = true;
     lockViewport();
     overlay.hidden = false;
