@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r12';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r13';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -32,6 +32,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R10_SAFE_PICKUP_OUTPUT_CANONICALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R11_NO_DOOR_DISPATCH_CLUSTER_AND_SURROUNDING_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -6260,6 +6261,136 @@
     });
   }
 
+  // M2R13: a user-initiated collapse of the tall "其他需求" section can remove more
+  // document height than remains below the current viewport. iOS/LINE WebView then clamps
+  // scrollY immediately and the page appears to jump a large distance upward. Reserve the
+  // disappearing height BEFORE the native <details> toggle, then reduce that reserve to the
+  // exact minimum tail capacity required to keep the clicked row at the same visual position.
+  // No global scrollTo/scrollBy is used; M2R12 remains the sole owner of address-keyboard scrolling.
+  let gcUserDisclosureCollapseSpacer = null;
+  let gcUserDisclosureCollapseState = null;
+  let gcUserDisclosureCollapseScrollRaf = 0;
+
+  function rideOptionalDisclosureEligible(details) {
+    if (!(details instanceof HTMLDetailsElement)) return false;
+    if (!details.matches('details.optional-box:not(.favorite-box)')) return false;
+    if (!details.closest('#serviceForm') || !details.querySelector(':scope > .optional-content')) return false;
+    return ['call', 'driver'].includes(activeModeForViewportStability());
+  }
+
+  function ensureUserDisclosureCollapseSpacer() {
+    if (gcUserDisclosureCollapseSpacer?.isConnected) return gcUserDisclosureCollapseSpacer;
+    const spacer = document.createElement('div');
+    spacer.id = 'gcUserDisclosureCollapseSpacer';
+    spacer.setAttribute('aria-hidden', 'true');
+    spacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(spacer);
+    gcUserDisclosureCollapseSpacer = spacer;
+    return spacer;
+  }
+
+  function userDisclosureViewportHeight() {
+    return Math.max(1, Number(
+      window.visualViewport?.height ||
+      window.innerHeight ||
+      document.documentElement?.clientHeight ||
+      0
+    ));
+  }
+
+  function userDisclosureSpacerHeight() {
+    const spacer = gcUserDisclosureCollapseSpacer;
+    if (!spacer?.isConnected) return 0;
+    return Math.max(0, Number.parseFloat(spacer.style.height) || spacer.getBoundingClientRect().height || 0);
+  }
+
+  function removeUserDisclosureCollapseSpacer() {
+    gcUserDisclosureCollapseState = null;
+    if (!gcUserDisclosureCollapseSpacer) return;
+    gcUserDisclosureCollapseSpacer.remove();
+    gcUserDisclosureCollapseSpacer = null;
+  }
+
+  function settleUserDisclosureCollapseSpacerToCurrentScroll() {
+    const spacer = gcUserDisclosureCollapseSpacer;
+    if (!spacer?.isConnected) return;
+    const reserve = userDisclosureSpacerHeight();
+    if (reserve <= 0) {
+      removeUserDisclosureCollapseSpacer();
+      return;
+    }
+    const viewportHeight = userDisclosureViewportHeight();
+    const naturalHeight = Math.max(0, document.documentElement.scrollHeight - reserve);
+    const currentScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    // Keep maxScrollY just beyond the current scroll position. This is the minimum invisible
+    // tail needed to prevent WebKit's clamp; scrolling upward naturally shrinks it to zero.
+    const needed = Math.max(0, Math.ceil(currentScrollY + viewportHeight - naturalHeight + 3));
+    if (needed <= 3) {
+      removeUserDisclosureCollapseSpacer();
+      return;
+    }
+    if (needed < reserve - 0.5) spacer.style.height = `${needed}px`;
+  }
+
+  function prepareUserDisclosureCollapseAnchor(details, summary) {
+    if (!rideOptionalDisclosureEligible(details) || !details.open || !summary?.isConnected) return;
+    const detailsRect = details.getBoundingClientRect();
+    const summaryRect = summary.getBoundingClientRect();
+    const removableHeight = Math.max(0, detailsRect.height - summaryRect.height);
+    if (removableHeight <= 2) return;
+
+    const spacer = ensureUserDisclosureCollapseSpacer();
+    const existingReserve = userDisclosureSpacerHeight();
+    // Reserve before the native <summary> default action closes the details. The reserve lives
+    // at BODY tail only; it never changes form geometry or the location of the clicked summary.
+    spacer.style.height = `${Math.ceil(existingReserve + removableHeight + 4)}px`;
+
+    const active = document.activeElement;
+    gcUserDisclosureCollapseState = {
+      details,
+      keyboardInput: rideAddressKeyboardDismissInputEligible(active) ? active : null
+    };
+  }
+
+  function finishUserDisclosureCollapseAnchor(details) {
+    const state = gcUserDisclosureCollapseState;
+    const spacer = gcUserDisclosureCollapseSpacer;
+    if (!state || state.details !== details || !spacer?.isConnected || details.open) return;
+
+    const finalize = () => {
+      if (!spacer.isConnected || details.open) return;
+      settleUserDisclosureCollapseSpacerToCurrentScroll();
+      gcUserDisclosureCollapseState = null;
+    };
+
+    // If the same tap also dismissed an address keyboard, wait for the existing M2R12 viewport
+    // transaction. Otherwise use two paint frames so native <details> geometry is final first.
+    if (state.keyboardInput && typeof runAfterRideKeyboardDismissSettles === 'function') {
+      runAfterRideKeyboardDismissSettles(state.keyboardInput, finalize, { minDelay: 280, maxDelay: 1180 });
+    } else {
+      requestAnimationFrame(() => requestAnimationFrame(finalize));
+    }
+  }
+
+  function handleUserDisclosureAnchorScroll() {
+    if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
+    cancelAnimationFrame(gcUserDisclosureCollapseScrollRaf);
+    gcUserDisclosureCollapseScrollRaf = requestAnimationFrame(() => {
+      gcUserDisclosureCollapseScrollRaf = 0;
+      settleUserDisclosureCollapseSpacerToCurrentScroll();
+    });
+  }
+
+  window.addEventListener('scroll', handleUserDisclosureAnchorScroll, { passive: true });
+  window.addEventListener('resize', () => {
+    if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
+    requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
+  }, { passive: true });
+
+  window.GC_prepareUserDisclosureCollapseAnchor = prepareUserDisclosureCollapseAnchor;
+  window.GC_finishUserDisclosureCollapseAnchor = finishUserDisclosureCollapseAnchor;
+  window.GC_settleUserDisclosureCollapseSpacer = settleUserDisclosureCollapseSpacerToCurrentScroll;
+
   function installManagedDisclosureBehavior() {
     if (document.documentElement.dataset.gcDisclosureManager === '1') return;
     document.documentElement.dataset.gcDisclosureManager = '1';
@@ -6315,7 +6446,20 @@
       sync();
       if (summary.dataset.gcSmallTriggerBound !== '1') {
         summary.dataset.gcSmallTriggerBound = '1';
-        details.addEventListener('toggle', sync);
+        summary.addEventListener('click', event => {
+          if (event.defaultPrevented || !details.open) return;
+          if (typeof event.button === 'number' && event.button !== 0) return;
+          prepareUserDisclosureCollapseAnchor(details, summary);
+        }, true);
+        details.addEventListener('toggle', () => {
+          sync();
+          if (details.open) {
+            // Re-opening restores document height, so any tail reserve is no longer needed.
+            requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
+          } else {
+            finishUserDisclosureCollapseAnchor(details);
+          }
+        });
       }
     });
   }
