@@ -7088,3 +7088,22 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .gc-recent-sheet-overlay,
   .gc-recent-sheet{transition:none!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R2_CONFIRMATION_PREMIUM_AND_LOCATION_EDIT_COMPACT_STABILITY
+   Named scope only: location-first-edit compact stability and all send-before-confirmation surfaces. */
+.confirm-card{width:min(calc(100% - 12px),540px)!important;padding:21px 18px 18px!important;border-radius:22px!important;border:1px solid #d9e4eb!important;box-shadow:0 26px 66px rgba(15,47,72,.22)!important}
+.confirm-card h2{margin:0 0 11px!important;color:#123f60!important;font-size:21.5px!important;line-height:1.28!important;font-weight:800!important;letter-spacing:-.018em!important}
+.confirm-purpose{margin:0 0 13px!important;padding:11px 12px!important;border:1px solid #c9ddea!important;border-radius:14px!important;background:linear-gradient(180deg,#f2f8fc 0%,#edf5fa 100%)!important;box-shadow:inset 3px 0 0 #3f82ad!important}
+.confirm-purpose-title{display:block!important;margin:0!important;color:#1b5478!important;font-size:14.5px!important;line-height:1.35!important;font-weight:790!important;letter-spacing:-.008em!important}
+.confirm-purpose .confirm-intro,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro{display:grid!important;gap:3px!important;margin:5px 0 0!important;color:#586f80!important;font-size:13.35px!important;line-height:1.5!important;font-weight:540!important;text-align:left!important}
+.confirm-purpose .confirm-intro .confirm-intro-primary,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-primary,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-primary{display:block!important;color:#405f75!important;font-size:13.45px!important;line-height:1.48!important;font-weight:650!important}
+.confirm-purpose .confirm-intro .confirm-intro-secondary,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-secondary,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-secondary{display:block!important;color:#718594!important;font-size:12.75px!important;line-height:1.5!important;font-weight:520!important}
+.confirm-summary{gap:7px!important}
+.confirm-row{grid-template-columns:88px minmax(0,1fr)!important;gap:9px!important;padding:9px 11px!important;border-radius:12px!important;border-color:#dce6ed!important;background:#fbfdff!important}
+.confirm-row-emphasis{border-color:#bfd8e8!important;background:#f1f8fc!important}
+.confirm-row span{font-size:12.8px!important;line-height:1.42!important;font-weight:700!important}
+.confirm-row strong{font-size:14.35px!important;line-height:1.46!important;font-weight:710!important}
+.confirm-actions{gap:8px!important;margin-top:14px!important}
+.confirm-back,.confirm-send{min-height:50px!important;border-radius:13px!important;padding:10px 11px!important;font-size:15px!important;line-height:1.3!important;font-weight:800!important}
+@media(max-width:360px){.confirm-card{width:min(calc(100% - 6px),540px)!important;padding:18px 14px 15px!important;border-radius:20px!important}.confirm-card h2{font-size:20.5px!important;margin-bottom:9px!important}.confirm-purpose{padding:10px 11px!important;margin-bottom:11px!important}.confirm-purpose-title{font-size:14.15px!important}.confirm-purpose .confirm-intro,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro{font-size:13px!important}.confirm-row{grid-template-columns:82px minmax(0,1fr)!important;padding:9px 10px!important}.confirm-row span{font-size:12.4px!important}.confirm-row strong{font-size:14px!important}.confirm-back,.confirm-send{min-height:48px!important;font-size:14.5px!important}}
+@media(max-width:320px){.confirm-row{grid-template-columns:76px minmax(0,1fr)!important;gap:7px!important}.confirm-actions{grid-template-columns:1fr 1.2fr!important;gap:7px!important}}

@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r1';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r2';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -23,6 +23,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R4_LOCATION_MODE_ISOLATION_AND_NO_DOOR_SUPPLEMENT
   // GC_MASTER_STABLE_2026_08R10Z14F25R5_FAVORITE_COMPACT_AND_FIRST_EDIT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R2_CONFIRMATION_PREMIUM_AND_LOCATION_EDIT_COMPACT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -3424,12 +3425,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   }
 
   function preserveCurrentLocationEditLayout(input) {
-    if (!input || document.activeElement !== input) return;
+    if (!input || document.activeElement !== input) return null;
     const field = input.closest('.address-field');
-    if (!field || locationEditLayoutLock?.field === field) return;
+    if (!field || locationEditLayoutLock?.field === field) return locationEditLayoutLock || null;
     clearLocationEditLayoutLock();
     const height = Math.ceil(field.getBoundingClientRect().height);
-    if (!Number.isFinite(height) || height <= 0) return;
+    if (!Number.isFinite(height) || height <= 0) return null;
     const revision = ++locationEditLayoutRevision;
     field.style.setProperty('--gc-location-edit-lock-height', `${height}px`);
     field.classList.add('gc-location-edit-layout-lock');
@@ -3441,17 +3442,35 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         requestAnimationFrame(() => clearLocationEditLayoutLock(lock));
       }, { minDelay: 280, maxDelay: 900 });
     }, { once: true, passive: true });
+    return lock;
+  }
+
+  function releaseCurrentLocationEditLayoutCompact(lock, input) {
+    if (!lock || locationEditLayoutLock !== lock) return;
+    const release = () => {
+      if (locationEditLayoutLock !== lock) return;
+      const clear = () => clearLocationEditLayoutLock(lock);
+      if (document.activeElement === input && typeof window.GC_mutateInputViewportStable === 'function') {
+        window.GC_mutateInputViewportStable(input, clear);
+      } else {
+        clear();
+      }
+    };
+    requestAnimationFrame(release);
+    setTimeout(release, 96);
   }
 
   function detachCurrentLocationForPassengerEdit({ preserveLayout = false } = {}) {
     if (attachedLocation?.settingInput || !hasCurrentLocationSession()) return false;
     const pickupInput = document.getElementById('pickup');
-    if (preserveLayout) preserveCurrentLocationEditLayout(pickupInput);
+    const layoutLock = preserveLayout ? preserveCurrentLocationEditLayout(pickupInput) : null;
     const detach = () => clearAttachedLocation(false);
     if (preserveLayout && typeof window.GC_mutateInputViewportStable === 'function') {
       window.GC_mutateInputViewportStable(pickupInput, detach);
+      releaseCurrentLocationEditLayoutCompact(layoutLock, pickupInput);
     } else {
       detach();
+      if (layoutLock) releaseCurrentLocationEditLayoutCompact(layoutLock, pickupInput);
     }
     return true;
   }
@@ -4581,7 +4600,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       <div class="confirm-overlay hidden" id="confirmOverlay">
         <section class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
           <h2 id="confirmTitle"></h2>
-          <p class="confirm-intro" id="confirmIntro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
+          <div class="confirm-purpose" id="confirmPurpose" role="note">
+            <strong class="confirm-purpose-title" id="confirmPurposeTitle">✓ 送出前最後確認</strong>
+            <p class="confirm-intro" id="confirmIntro">${escapeHtml(COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。')}</p>
+          </div>
           <div class="confirm-summary" id="confirmSummary"></div>
           <div class="confirm-actions">
             <button class="confirm-back" id="confirmBackBtn" type="button">${escapeHtml(COMMON['確認返回按鈕'] || '返回修改')}</button>
@@ -4652,9 +4674,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const overlay = document.getElementById('confirmOverlay');
     const titleElement = document.getElementById('confirmTitle');
     const introElement = document.getElementById('confirmIntro');
+    const purposeTitleElement = document.getElementById('confirmPurposeTitle');
+    const sendButton = document.getElementById('confirmSendBtn');
     const summary = document.getElementById('confirmSummary');
     const introPrimary = String(options.introPrimary || '').trim();
     const introSecondary = String(options.introSecondary || '').trim();
+    const purposeTitle = String(options.purposeTitle || '✓ 送出前最後確認').trim();
+    const sendLabel = String(options.sendLabel || COMMON['確認送出按鈕'] || '確認送出').trim();
     const hasCustomIntro = Boolean(introPrimary || introSecondary);
     const defaultIntro = COMMON['確認提醒'] || '請確認上、下車地點與資料是否正確。';
     if (!overlay || !titleElement || !summary) {
@@ -4674,6 +4700,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       return;
     }
     titleElement.textContent = title;
+    if (purposeTitleElement) purposeTitleElement.textContent = purposeTitle;
+    if (sendButton) {
+      sendButton.textContent = sendLabel;
+      sendButton.dataset.confirmLabel = sendLabel;
+    }
     if (introElement) {
       introElement.classList.toggle('gc-call-review-intro', hasCustomIntro);
       introElement.replaceChildren();
@@ -4734,7 +4765,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         const currentBackButton = document.getElementById('confirmBackBtn');
         if (currentSendButton) {
           currentSendButton.disabled = false;
-          currentSendButton.textContent = COMMON['確認送出按鈕'] || '確認送出';
+          currentSendButton.textContent = currentSendButton.dataset.confirmLabel || COMMON['確認送出按鈕'] || '確認送出';
         }
         if (currentBackButton) currentBackButton.disabled = false;
         confirmationBusy = false;
@@ -6082,6 +6113,24 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         ? (COMMON['確認標題_代駕'] || '請確認代駕資料')
         : (COMMON['確認標題_叫車'] || '請確認叫車資料');
 
+      const hasReviewedDestination = Boolean(String(reviewedDestination || '').trim());
+      const isReservationConfirmation = serviceType === 'reserve';
+      const confirmationIntroPrimary = mode === 'driver'
+        ? (isReservationConfirmation
+          ? (hasReviewedDestination
+            ? '請確認預約日期、時間、代駕地點及送達地點是否正確。'
+            : '請確認預約日期、時間及代駕地點是否正確。')
+          : (hasReviewedDestination
+            ? '請確認本次代駕地點、送達地點與資料是否正確。'
+            : '請確認本次代駕地點與資料是否正確。'))
+        : (isReservationConfirmation
+          ? (hasReviewedDestination
+            ? '請確認預約日期、時間及上、下車地點是否正確。'
+            : '請確認預約日期、時間及上車地點是否正確。')
+          : (hasReviewedDestination
+            ? '請確認本次上、下車地點與資料是否正確。'
+            : '請確認本次上車地點與資料是否正確。'));
+
       openConfirmation(confirmTitle, rows, async () => {
         sending = true;
         setSending(true, cfg);
@@ -6097,13 +6146,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           setSending(false, cfg);
           throw error;
         }
-      }, mode === 'call' ? {
-        introPrimary: '請再次確認上、下車地點是否正確。',
-        introSecondary: '確認無誤後再送出。'
-      } : mode === 'driver' ? {
-        introPrimary: '請再次確認代駕地點是否正確。',
-        introSecondary: '確認無誤後再送出。'
-      } : {});
+      }, {
+        purposeTitle: '✓ 送出前最後確認',
+        introPrimary: confirmationIntroPrimary,
+        introSecondary: '確認後按下「確認送出」，資料才會正式送出。'
+      });
     });
   }
 
@@ -6341,6 +6388,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           setSending(false, cfg);
           throw error;
         }
+      }, {
+        purposeTitle: 'ⓘ 送出前最後確認',
+        introPrimary: '請確認本次估價起點、終點是否正確。',
+        introSecondary: '送出後由小編於 LINE 聊天室協助估價，本次不會成立叫車訂單。',
+        sendLabel: '確認送出估價'
       });
     });
   }
