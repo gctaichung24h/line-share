@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r14';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -34,6 +34,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R14_FARE_DISCLOSURE_COLLAPSE_VISUAL_ANCHOR_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15_RECENT_QUICK_PICKER_BACKGROUND_SCROLL_OWNERSHIP
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -4467,6 +4468,49 @@
   let recentQuickPickerOrientationKey = '';
   let recentQuickPickerTouchLastY = 0;
   let recentQuickPickerTouchActive = false;
+  // M2R15: the quick recent-address picker is a viewport-owned surface. While it is open,
+  // vertical gestures outside the picker belong to the picker interaction, not to the page behind it.
+  // Do not body-fix or alter page layout: the M2R3-M2R5 picker stability work remains intact.
+  let recentQuickPickerBackgroundScrollLocked = false;
+  let recentQuickPickerBackgroundScrollY = 0;
+
+  function lockRecentQuickPickerBackgroundScroll() {
+    if (recentQuickPickerBackgroundScrollLocked) return;
+    recentQuickPickerBackgroundScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    recentQuickPickerBackgroundScrollLocked = true;
+  }
+
+  function unlockRecentQuickPickerBackgroundScroll() {
+    recentQuickPickerBackgroundScrollLocked = false;
+    recentQuickPickerBackgroundScrollY = 0;
+  }
+
+  function recentQuickPickerEventInsidePanel(target) {
+    return Boolean(activeRecentPanel && target instanceof Node && activeRecentPanel.contains(target));
+  }
+
+  function guardRecentQuickPickerBackgroundTouchMove(event) {
+    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
+    if (recentQuickPickerEventInsidePanel(event.target)) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function guardRecentQuickPickerBackgroundWheel(event) {
+    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
+    const panel = activeRecentPanel;
+    if (panel && panel.contains(event.target)) {
+      const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      const deltaY = Number(event.deltaY || 0);
+      const atTop = panel.scrollTop <= 0.5;
+      const atBottom = panel.scrollTop >= maxScrollTop - 0.5;
+      const wouldChainToPage = maxScrollTop <= 1 || (deltaY < 0 && atTop) || (deltaY > 0 && atBottom);
+      if (wouldChainToPage && event.cancelable) event.preventDefault();
+      return;
+    }
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+  }
 
   function getRecentQuickPickerLayoutWidth() {
     return Math.round(document.documentElement?.clientWidth || window.innerWidth || 0);
@@ -4798,6 +4842,7 @@
     recentQuickPickerOrientationKey = '';
     recentQuickPickerTouchActive = false;
     recentQuickPickerTouchLastY = 0;
+    unlockRecentQuickPickerBackgroundScroll();
   }
 
   function openRecentQuickPicker(control, targetId) {
@@ -4819,6 +4864,7 @@
     if (!panel) return;
     bindRecentPortalPanel(panel);
     activeRecentPanel = panel;
+    lockRecentQuickPickerBackgroundScroll();
     document.body.appendChild(panel);
     panel.classList.remove('hidden');
     requestAnimationFrame(() => positionRecentQuickPanel(control));
@@ -5020,6 +5066,11 @@
         if (activeRecentControl.contains(event.target) || activeRecentPanel?.contains(event.target)) return;
         closeRecentQuickPicker();
       });
+      // M2R15: background scroll ownership is locked only while the quick picker is open.
+      // Touches inside the picker keep using its native/internal pan-y logic; touches outside it
+      // cannot move the page behind the fixed popover. Wheel edge chaining is blocked as well.
+      document.addEventListener('touchmove', guardRecentQuickPickerBackgroundTouchMove, { passive: false, capture: true });
+      document.addEventListener('wheel', guardRecentQuickPickerBackgroundWheel, { passive: false, capture: true });
       // M2R5: once opened, the recent-address popover is a fixed viewport surface. Ordinary page
       // scroll, LINE/Safari chrome movement and visualViewport scroll/resize must NOT continuously
       // re-anchor it; that feedback loop is what made the iPhone 13 popover follow the finger/shake.
