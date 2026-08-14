@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r14';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r1';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -36,6 +36,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R14_FARE_DISCLOSURE_COLLAPSE_VISUAL_ANCHOR_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15_RECENT_QUICK_PICKER_BACKGROUND_SCROLL_OWNERSHIP
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R1_IOS_NATIVE_KEYBOARD_PRIORITY_AND_SAFE_LAYOUT_COMMIT
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -881,6 +883,33 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     gcViewportTailSpacer = null;
   }
 
+  function ensureViewportTailSpacer() {
+    if (gcViewportTailSpacer?.isConnected) return gcViewportTailSpacer;
+    gcViewportTailSpacer = document.createElement('div');
+    gcViewportTailSpacer.id = 'gcViewportTailSpacer';
+    gcViewportTailSpacer.setAttribute('aria-hidden', 'true');
+    gcViewportTailSpacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(gcViewportTailSpacer);
+    return gcViewportTailSpacer;
+  }
+
+  function settleViewportTailSpacerToCurrentScroll() {
+    const spacer = gcViewportTailSpacer;
+    if (!spacer?.isConnected) return;
+    const reserve = Math.max(0, spacer.getBoundingClientRect().height);
+    const viewportHeight = Math.max(1, Number(
+      window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
+    ));
+    const currentScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    const naturalHeight = Math.max(0, document.documentElement.scrollHeight - reserve);
+    const minimumNeeded = Math.max(0, Math.ceil(currentScrollY + viewportHeight - naturalHeight + 2));
+    if (minimumNeeded <= 2) {
+      clearViewportTailSpacer();
+      return;
+    }
+    if (minimumNeeded < reserve - 0.5) spacer.style.height = `${Math.ceil(minimumNeeded)}px`;
+  }
+
   function ensureSuggestionCollapseSpacer() {
     if (gcSuggestionCollapseSpacer?.isConnected) return gcSuggestionCollapseSpacer;
     gcSuggestionCollapseSpacer = document.createElement('div');
@@ -957,22 +986,30 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const maxScrollY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
     const missing = Math.ceil(desiredScrollY - maxScrollY);
     if (missing <= 1) return;
-    if (!gcViewportTailSpacer) {
-      gcViewportTailSpacer = document.createElement('div');
-      gcViewportTailSpacer.id = 'gcViewportTailSpacer';
-      gcViewportTailSpacer.setAttribute('aria-hidden', 'true');
-      gcViewportTailSpacer.style.cssText = 'display:block;width:1px;min-width:1px;pointer-events:none;visibility:hidden;';
-      document.body.appendChild(gcViewportTailSpacer);
-    }
-    gcViewportTailSpacer.style.height = `${missing + 2}px`;
+    const spacer = ensureViewportTailSpacer();
+    spacer.style.height = `${Math.max(Number.parseFloat(spacer.style.height) || 0, missing + 2)}px`;
   }
 
   function activeModeForViewportStability() {
     return new URLSearchParams(location.search).get('mode');
   }
 
+  // M2R15R1: keep iOS/LINE WebView as the sole scroll owner while the virtual keyboard
+  // opens, transfers focus, or dismisses. These are the exact customer-editable controls
+  // reported in the real-device regressions. UI work may be deferred around them, but no
+  // legacy body-freeze / repeated scrollTo / scrollBy anchor is allowed to compete with WebKit.
+  function nativeKeyboardPriorityInput(input) {
+    if (!input || !input.isConnected || !input.closest?.('#app')) return false;
+    const mode = activeModeForViewportStability();
+    if (!['call', 'driver', 'fare'].includes(mode)) return false;
+    if (input.disabled || input.readOnly) return false;
+    if (['call', 'driver'].includes(mode)) return input.id === 'pickup' || input.id === 'destination';
+    return mode === 'fare' && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(input.id);
+  }
+
   function viewportStableInputEligible(input) {
     if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
+    if (nativeKeyboardPriorityInput(input)) return false;
     const activeMode = activeModeForViewportStability();
     // F22: fare number fields sit above the result area, so their own UI updates do not need
     // JavaScript scroll anchoring. Let the mobile browser position them natively; the address
@@ -984,7 +1021,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function rideAddressKeyboardDismissInputEligible(input) {
     if (!input || !input.isConnected || !input.closest?.('#serviceForm')) return false;
     const activeMode = activeModeForViewportStability();
-    return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+    return ['call', 'driver', 'fare'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
   }
 
   function rideKeyboardDismissPending() {
@@ -1001,9 +1038,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const activeMode = activeModeForViewportStability();
     if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
     if (input.disabled || input.readOnly) return false;
-    // F22: do not body-freeze or re-anchor fareMinutes/fareKm on Done/refocus. Native mobile
-    // viewport behavior is smoother here; result-height release is handled separately below.
-    if (activeMode === 'fare' && (input.id === 'fareKm' || input.id === 'fareMinutes')) return false;
+    // M2R15R1: customer address / fare-number editors stay native during keyboard motion.
+    // The legacy body-freeze/scroll restore path is retained for unrelated legacy controls only.
+    if (nativeKeyboardPriorityInput(input)) return false;
     if (input.tagName === 'TEXTAREA') return true;
     if (input.tagName !== 'INPUT') return false;
     return GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase());
@@ -1017,7 +1054,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function otherEditorHasFocus(input) {
     const active = document.activeElement;
     if (!active || active === input) return false;
-    return keyboardDismissInputEligible(active);
+    return nativeKeyboardPriorityInput(active) || keyboardDismissInputEligible(active);
   }
 
   function captureKeyboardViewportBaseline() {
@@ -1195,7 +1232,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   };
   window.visualViewport?.addEventListener('resize', restoreBlurViewportOnVisualChange, { passive: true });
   window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
-  window.addEventListener('scroll', () => scheduleSuggestionCollapseSettle(72), { passive: true });
+  window.addEventListener('scroll', () => {
+    scheduleSuggestionCollapseSettle(72);
+    settleViewportTailSpacerToCurrentScroll();
+  }, { passive: true });
 
   function runAfterRideKeyboardDismissSettles(input, callback, { minDelay = 320, maxDelay = 1180 } = {}) {
     if (typeof callback !== 'function') return;
@@ -4469,6 +4509,49 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let recentQuickPickerOrientationKey = '';
   let recentQuickPickerTouchLastY = 0;
   let recentQuickPickerTouchActive = false;
+  // M2R15: the quick recent-address picker is a viewport-owned surface. While it is open,
+  // vertical gestures outside the picker belong to the picker interaction, not to the page behind it.
+  // Do not body-fix or alter page layout: the M2R3-M2R5 picker stability work remains intact.
+  let recentQuickPickerBackgroundScrollLocked = false;
+  let recentQuickPickerBackgroundScrollY = 0;
+
+  function lockRecentQuickPickerBackgroundScroll() {
+    if (recentQuickPickerBackgroundScrollLocked) return;
+    recentQuickPickerBackgroundScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    recentQuickPickerBackgroundScrollLocked = true;
+  }
+
+  function unlockRecentQuickPickerBackgroundScroll() {
+    recentQuickPickerBackgroundScrollLocked = false;
+    recentQuickPickerBackgroundScrollY = 0;
+  }
+
+  function recentQuickPickerEventInsidePanel(target) {
+    return Boolean(activeRecentPanel && target instanceof Node && activeRecentPanel.contains(target));
+  }
+
+  function guardRecentQuickPickerBackgroundTouchMove(event) {
+    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
+    if (recentQuickPickerEventInsidePanel(event.target)) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function guardRecentQuickPickerBackgroundWheel(event) {
+    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
+    const panel = activeRecentPanel;
+    if (panel && panel.contains(event.target)) {
+      const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      const deltaY = Number(event.deltaY || 0);
+      const atTop = panel.scrollTop <= 0.5;
+      const atBottom = panel.scrollTop >= maxScrollTop - 0.5;
+      const wouldChainToPage = maxScrollTop <= 1 || (deltaY < 0 && atTop) || (deltaY > 0 && atBottom);
+      if (wouldChainToPage && event.cancelable) event.preventDefault();
+      return;
+    }
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+  }
 
   function getRecentQuickPickerLayoutWidth() {
     return Math.round(document.documentElement?.clientWidth || window.innerWidth || 0);
@@ -4800,6 +4883,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     recentQuickPickerOrientationKey = '';
     recentQuickPickerTouchActive = false;
     recentQuickPickerTouchLastY = 0;
+    unlockRecentQuickPickerBackgroundScroll();
   }
 
   function openRecentQuickPicker(control, targetId) {
@@ -4821,6 +4905,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!panel) return;
     bindRecentPortalPanel(panel);
     activeRecentPanel = panel;
+    lockRecentQuickPickerBackgroundScroll();
     document.body.appendChild(panel);
     panel.classList.remove('hidden');
     requestAnimationFrame(() => positionRecentQuickPanel(control));
@@ -5022,6 +5107,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         if (activeRecentControl.contains(event.target) || activeRecentPanel?.contains(event.target)) return;
         closeRecentQuickPicker();
       });
+      // M2R15: background scroll ownership is locked only while the quick picker is open.
+      // Touches inside the picker keep using its native/internal pan-y logic; touches outside it
+      // cannot move the page behind the fixed popover. Wheel edge chaining is blocked as well.
+      document.addEventListener('touchmove', guardRecentQuickPickerBackgroundTouchMove, { passive: false, capture: true });
+      document.addEventListener('wheel', guardRecentQuickPickerBackgroundWheel, { passive: false, capture: true });
       // M2R5: once opened, the recent-address popover is a fixed viewport surface. Ordinary page
       // scroll, LINE/Safari chrome movement and visualViewport scroll/resize must NOT continuously
       // re-anchor it; that feedback loop is what made the iPhone 13 popover follow the finger/shake.
@@ -6851,7 +6941,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const token = ++fareNumberBlurToken;
       const viewport = window.visualViewport;
       const startedAt = performance.now();
-      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
+      const initialHeight = Number(viewport?.height || window.innerHeight || 0);
+      const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), initialHeight);
+      const keyboardWasOpen = Boolean(
+        viewport && baselineHeight > 0 && initialHeight > 0 &&
+        ((baselineHeight - initialHeight) >= 72 || keyboardAppearsOpen())
+      );
+      let lastHeight = initialHeight;
       let lastOffsetTop = Number(viewport?.offsetTop || 0);
       let stableFrames = 0;
       let raf = 0;
@@ -6863,12 +6959,35 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         clearTimeout(maxTimer);
         maxTimer = 0;
       };
+      const transferPreservedHeightToTail = () => {
+        if (!result.classList.contains('gc-preserve-edit-space')) return;
+        const preservedHeight = Math.max(
+          0,
+          Number.parseFloat(result.style.getPropertyValue('--gc-fare-preserved-height')) || 0
+        );
+        if (preservedHeight <= 1) return;
+        const viewportHeight = Math.max(1, Number(
+          viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
+        ));
+        const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+        const currentDocHeight = Math.max(0, document.documentElement.scrollHeight);
+        const expectedNaturalHeight = Math.max(0, currentDocHeight - preservedHeight);
+        const minimumTail = Math.max(0, Math.ceil(scrollY + viewportHeight - expectedNaturalHeight + 3));
+        if (minimumTail > 1) {
+          const spacer = ensureViewportTailSpacer();
+          const currentTail = Number.parseFloat(spacer.style.height) || spacer.getBoundingClientRect().height || 0;
+          spacer.style.height = `${Math.max(currentTail, minimumTail)}px`;
+        }
+      };
       const finish = () => {
         if (done || token !== fareNumberBlurToken) return;
         done = true;
         cleanup();
         if (calculatorInputs.includes(document.activeElement)) return;
+        transferPreservedHeightToTail();
         clearPreservedEditSpace();
+        requestAnimationFrame(settleViewportTailSpacerToCurrentScroll);
+        setTimeout(settleViewportTailSpacerToCurrentScroll, 120);
       };
       const cancelForRefocus = () => {
         if (done || token !== fareNumberBlurToken) return;
@@ -6888,11 +7007,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         lastHeight = height;
         lastOffsetTop = offsetTop;
         const elapsed = performance.now() - startedAt;
-        if ((elapsed >= 240 && stableFrames >= 3) || elapsed >= 900) { finish(); return; }
+        const recovered = !keyboardWasOpen ||
+          height >= baselineHeight - 48 ||
+          height >= initialHeight + 64 ||
+          !keyboardAppearsOpen();
+        if (elapsed >= 260 && stableFrames >= 4 && recovered) { finish(); return; }
+        if (elapsed >= 1180) { finish(); return; }
         raf = requestAnimationFrame(poll);
       };
       raf = requestAnimationFrame(poll);
-      maxTimer = setTimeout(finish, 940);
+      maxTimer = setTimeout(finish, 1220);
     };
     const preserveEditSpace = () => {
       if (!calculatorInputs.includes(document.activeElement)) return;
