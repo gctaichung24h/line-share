@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r16';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -37,6 +37,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R14_FARE_DISCLOSURE_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15_RECENT_QUICK_PICKER_BACKGROUND_SCROLL_OWNERSHIP
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R16_UNIFIED_IOS_KEYBOARD_VIEWPORT_COORDINATOR
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -866,6 +867,34 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // Smart-suggestion collapse and progressive-flow updates join the same viewport-settle barrier
   // instead of racing each other while iOS/LINE WebView is still restoring the keyboard viewport.
   let gcRideKeyboardSettleCoordinator = null;
+  // M2R16: one viewport coordinator now owns the full editable-input keyboard lifecycle:
+  // focus/open, focus-transfer, Done/blur and full-height recovery. It never loops scroll
+  // corrections against WebKit; opening gets at most one minimal settle correction after the
+  // keyboard viewport is stable, while dismissal reserves BODY-tail capacity before the viewport
+  // grows so WebKit has no reason to clamp the document downward.
+  const GC_M2R16_KEYBOARD_INPUT_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
+  let gcKeyboardFocusIntent = null;
+  let gcKeyboardFocusSettleSession = null;
+  // M2R16: every editor focus/blur lifecycle receives a monotonic per-input generation.
+  // Delayed RAF/timer restores captured by an older lifecycle must become permanent no-ops, even
+  // if the same input is focused again before that older callback fires. activeElement alone cannot
+  // distinguish those two lifecycles and was the final intermittent stale-scroll owner.
+  const gcViewportStableEditGeneration = new WeakMap();
+  let gcViewportStableEditGenerationSeed = 0;
+  function bumpViewportStableEditGeneration(input) {
+    if (!input || (typeof input !== 'object' && typeof input !== 'function')) return 0;
+    const next = ++gcViewportStableEditGenerationSeed;
+    gcViewportStableEditGeneration.set(input, next);
+    return next;
+  }
+  function viewportStableEditGeneration(input) {
+    return Number(gcViewportStableEditGeneration.get(input) || 0);
+  }
+  let gcKeyboardDismissTailSpacer = null;
+  let gcKeyboardDismissTailScrollRaf = 0;
+  let gcKeyboardDismissTailFinalizeTimer = 0;
+  let gcKeyboardDismissTailHoldUntil = 0;
+  let gcUnifiedKeyboardDismissSettle = null;
   // R10Z14F19: when a visible smart-suggestion list disappears at the exact same moment
   // the mobile keyboard closes, WebKit can clamp scrollY because document height shrinks
   // mid-animation. A hidden tail spacer temporarily carries only that removed height, then
@@ -985,13 +1014,23 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function rideAddressKeyboardDismissInputEligible(input) {
     if (!input || !input.isConnected || !input.closest?.('#serviceForm')) return false;
     const activeMode = activeModeForViewportStability();
-    return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+    // M2R16: fare route addresses share the same address blur/suggestion barrier as ride/driver.
+    return ['call', 'driver', 'fare'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
+  }
+
+  function unifiedKeyboardViewportInputEligible(input) {
+    if (!input || !input.isConnected || !input.closest?.('#app')) return false;
+    const activeMode = activeModeForViewportStability();
+    if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
+    if (input.disabled || input.readOnly || !GC_M2R16_KEYBOARD_INPUT_IDS.has(input.id)) return false;
+    if (['call', 'driver'].includes(activeMode)) return input.id === 'pickup' || input.id === 'destination';
+    return activeMode === 'fare' && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(input.id);
   }
 
   function rideKeyboardDismissPending() {
     const session = gcBlurViewportSession;
     return Boolean(
-      session?.passiveRideDismiss &&
+      (session?.passiveRideDismiss || session?.passiveUnifiedDismiss) &&
       !session.viewportSettled &&
       performance.now() <= session.expiresAt
     );
@@ -1002,9 +1041,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const activeMode = activeModeForViewportStability();
     if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
     if (input.disabled || input.readOnly) return false;
-    // F22: do not body-freeze or re-anchor fareMinutes/fareKm on Done/refocus. Native mobile
-    // viewport behavior is smoother here; result-height release is handled separately below.
-    if (activeMode === 'fare' && (input.id === 'fareKm' || input.id === 'fareMinutes')) return false;
     if (input.tagName === 'TEXTAREA') return true;
     if (input.tagName !== 'INPUT') return false;
     return GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase());
@@ -1035,6 +1071,380 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!current) return false;
     return gcKeyboardViewportBaseline - current >= 72;
   }
+
+  function ensureKeyboardDismissTailSpacer() {
+    if (gcKeyboardDismissTailSpacer?.isConnected) return gcKeyboardDismissTailSpacer;
+    const spacer = document.createElement('div');
+    spacer.id = 'gcKeyboardDismissTailSpacer';
+    spacer.setAttribute('aria-hidden', 'true');
+    spacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(spacer);
+    gcKeyboardDismissTailSpacer = spacer;
+    return spacer;
+  }
+
+  function keyboardDismissTailHeight() {
+    const spacer = gcKeyboardDismissTailSpacer;
+    if (!spacer?.isConnected) return 0;
+    return Math.max(0, Number.parseFloat(spacer.style.height) || spacer.getBoundingClientRect().height || 0);
+  }
+
+  function removeKeyboardDismissTailSpacer() {
+    if (!gcKeyboardDismissTailSpacer) return;
+    gcKeyboardDismissTailSpacer.remove();
+    gcKeyboardDismissTailSpacer = null;
+    gcKeyboardDismissTailHoldUntil = 0;
+  }
+
+  function reserveKeyboardDismissTailCapacity(session) {
+    if (!session || !unifiedKeyboardViewportInputEligible(session.input)) return;
+    const currentReserve = keyboardDismissTailHeight();
+    // Keep the hidden clamp reserve through every known deferred address/progressive timer. The
+    // hold is bounded by the blur session itself and prevents late DOM height changes from
+    // reintroducing a jump after visualViewport has already recovered.
+    gcKeyboardDismissTailHoldUntil = Math.max(gcKeyboardDismissTailHoldUntil, Number(session.expiresAt || 0) + 80);
+    const fullViewportHeight = Math.max(
+      Number(gcKeyboardViewportBaseline || 0),
+      Number(window.innerHeight || 0),
+      Number(window.visualViewport?.height || 0),
+      1
+    );
+    const naturalHeight = Math.max(0, document.documentElement.scrollHeight - currentReserve);
+    const activeViewportHeight = Math.max(1, Number(
+      window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
+    ));
+    // M2R16: blur can synchronously collapse a suggestion/guidance surface before the first
+    // visualViewport recovery event. Reserve one keyboard-height transient budget up front so
+    // an immediate iOS Done cannot clamp scrollY in that tiny race window. The reserve is hidden
+    // at BODY tail and is reduced to the exact minimum after the viewport/UI transaction settles.
+    const keyboardViewportDelta = Math.max(0, fullViewportHeight - activeViewportHeight);
+    const keyboardRecoveryBudget = keyboardViewportDelta >= 72
+      ? Math.min(480, Math.ceil(keyboardViewportDelta + 24))
+      : 0;
+    const needed = Math.max(0, Math.ceil(session.scrollY + fullViewportHeight - naturalHeight + 6 + keyboardRecoveryBudget));
+    if (needed <= currentReserve + 0.5) return;
+    ensureKeyboardDismissTailSpacer().style.height = `${needed}px`;
+  }
+
+  function settleKeyboardDismissTailToCurrentScroll({ force = false } = {}) {
+    const spacer = gcKeyboardDismissTailSpacer;
+    if (!spacer?.isConnected) return;
+    if (!force && performance.now() < gcKeyboardDismissTailHoldUntil) return;
+    if (!force && gcUnifiedKeyboardDismissSettle && !gcUnifiedKeyboardDismissSettle.done) return;
+    // M2R16: the M2R12 ride-address coordinator may still have a deferred progressive/suggestion
+    // commit waiting after unified viewport recovery. Keep the hidden tail until that final DOM
+    // mutation lands; shrinking it earlier recreated the intermittent 78px Done clamp.
+    if (!force && gcRideKeyboardSettleCoordinator && !gcRideKeyboardSettleCoordinator.done) return;
+    const reserve = keyboardDismissTailHeight();
+    if (reserve <= 2 || force) {
+      removeKeyboardDismissTailSpacer();
+      return;
+    }
+    const viewportHeight = Math.max(1, Number(
+      window.visualViewport?.height ||
+      window.innerHeight ||
+      document.documentElement?.clientHeight ||
+      0
+    ));
+    const naturalHeight = Math.max(0, document.documentElement.scrollHeight - reserve);
+    const currentScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    const needed = Math.max(0, Math.ceil(currentScrollY + viewportHeight - naturalHeight + 3));
+    if (needed <= 3) {
+      removeKeyboardDismissTailSpacer();
+      return;
+    }
+    if (needed < reserve - 0.5) spacer.style.height = `${needed}px`;
+  }
+
+  function scheduleKeyboardDismissTailFinalSettle(session) {
+    clearTimeout(gcKeyboardDismissTailFinalizeTimer);
+    gcKeyboardDismissTailFinalizeTimer = 0;
+    const startedAt = performance.now();
+    const check = () => {
+      const now = performance.now();
+      const holdRemaining = gcKeyboardDismissTailHoldUntil - now;
+      if (holdRemaining > 0) {
+        gcKeyboardDismissTailFinalizeTimer = setTimeout(check, Math.min(80, Math.max(16, holdRemaining)));
+        return;
+      }
+      const ridePending = Boolean(
+        gcRideKeyboardSettleCoordinator &&
+        !gcRideKeyboardSettleCoordinator.done &&
+        gcRideKeyboardSettleCoordinator.input === session?.input
+      );
+      if (ridePending && now - startedAt < 1500) {
+        gcKeyboardDismissTailFinalizeTimer = setTimeout(check, 32);
+        return;
+      }
+      gcKeyboardDismissTailFinalizeTimer = 0;
+      requestAnimationFrame(() => settleKeyboardDismissTailToCurrentScroll());
+    };
+    gcKeyboardDismissTailFinalizeTimer = setTimeout(check, 0);
+  }
+
+  function cancelKeyboardFocusSettleSession() {
+    const session = gcKeyboardFocusSettleSession;
+    if (!session) return;
+    session.done = true;
+    if (session.raf) cancelAnimationFrame(session.raf);
+    if (session.maxTimer) clearTimeout(session.maxTimer);
+    gcKeyboardFocusSettleSession = null;
+  }
+
+  function captureKeyboardFocusIntent(input) {
+    if (!unifiedKeyboardViewportInputEligible(input)) return;
+    // A new explicit editor tap starts a new keyboard transaction. Release the previous dismiss
+    // hold and reduce its invisible tail to only what the current full viewport still needs,
+    // preventing temporary reserve space from carrying into the next edit cycle.
+    if (gcKeyboardDismissTailSpacer?.isConnected && !gcUnifiedKeyboardDismissSettle) {
+      gcKeyboardDismissTailHoldUntil = 0;
+      settleKeyboardDismissTailToCurrentScroll();
+    }
+    const viewport = window.visualViewport;
+    const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    const rect = input.getBoundingClientRect();
+    gcKeyboardFocusIntent = {
+      input,
+      capturedAt: performance.now(),
+      scrollY,
+      docTop: rect.top + scrollY,
+      anchorTop: rect.top - Number(viewport?.offsetTop || 0),
+      height: rect.height,
+      viewportHeight: Number(viewport?.height || window.innerHeight || 0),
+      keyboardWasOpen: keyboardAppearsOpen()
+    };
+  }
+
+  function beginKeyboardFocusSettle(input) {
+    if (!unifiedKeyboardViewportInputEligible(input)) return;
+    cancelKeyboardFocusSettleSession();
+
+    const now = performance.now();
+    const intent = gcKeyboardFocusIntent?.input === input && now - gcKeyboardFocusIntent.capturedAt <= 900
+      ? gcKeyboardFocusIntent
+      : (() => {
+          const viewport = window.visualViewport;
+          const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+          const rect = input.getBoundingClientRect();
+          return {
+            input,
+            capturedAt: now,
+            scrollY,
+            docTop: rect.top + scrollY,
+            anchorTop: rect.top - Number(viewport?.offsetTop || 0),
+            height: rect.height,
+            viewportHeight: Number(viewport?.height || window.innerHeight || 0),
+            keyboardWasOpen: keyboardAppearsOpen()
+          };
+        })();
+    gcKeyboardFocusIntent = null;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), Number(intent.viewportHeight || 0), Number(viewport.height || 0));
+    const session = {
+      input,
+      intent,
+      baselineHeight,
+      startedAt: now,
+      lastHeight: Number(viewport.height || 0),
+      lastOffsetTop: Number(viewport.offsetTop || 0),
+      stableFrames: 0,
+      raf: 0,
+      maxTimer: 0,
+      done: false
+    };
+    gcKeyboardFocusSettleSession = session;
+
+    const finish = () => {
+      if (session.done) return;
+      session.done = true;
+      if (session.raf) cancelAnimationFrame(session.raf);
+      if (session.maxTimer) clearTimeout(session.maxTimer);
+      if (gcKeyboardFocusSettleSession === session) gcKeyboardFocusSettleSession = null;
+    };
+
+    const applyMinimalCorrection = () => {
+      if (session.done || document.activeElement !== input || !input.isConnected) { finish(); return; }
+      const height = Number(viewport.height || 0);
+      if (!height) { finish(); return; }
+      const rect = input.getBoundingClientRect();
+      const offsetTop = Number(viewport.offsetTop || 0);
+      const currentTop = rect.top - offsetTop;
+      const safeTop = 12;
+      const safeBottom = Math.max(safeTop + rect.height + 6, height - 18);
+      const maximumTop = Math.max(safeTop, safeBottom - rect.height);
+      const desiredTop = Math.min(Math.max(Number(intent.anchorTop || 0), safeTop), maximumTop);
+      const delta = currentTop - desiredTop;
+      if (Math.abs(delta) >= 8) {
+        const currentScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+        const maxScrollY = Math.max(0, document.documentElement.scrollHeight - Math.max(1, height));
+        const targetScrollY = Math.min(maxScrollY, Math.max(0, currentScrollY + delta));
+        if (Math.abs(targetScrollY - currentScrollY) >= 8) {
+          // Exactly one settle correction after the keyboard viewport is stable. There are no
+          // per-resize/per-frame scroll corrections, so WebKit never enters a scroll tug-of-war.
+          window.scrollTo({ top: targetScrollY, left: 0, behavior: 'auto' });
+        }
+      }
+      finish();
+    };
+
+    const poll = () => {
+      if (session.done) return;
+      if (document.activeElement !== input || !input.isConnected) { finish(); return; }
+      const height = Number(viewport.height || 0);
+      const offsetTop = Number(viewport.offsetTop || 0);
+      const stable = Math.abs(height - session.lastHeight) <= 0.5 && Math.abs(offsetTop - session.lastOffsetTop) <= 0.5;
+      session.stableFrames = stable ? session.stableFrames + 1 : 0;
+      session.lastHeight = height;
+      session.lastOffsetTop = offsetTop;
+      const elapsed = performance.now() - session.startedAt;
+      const openEnough = intent.keyboardWasOpen || baselineHeight - height >= 72 || keyboardAppearsOpen();
+      if (openEnough && elapsed >= 64 && session.stableFrames >= 3) {
+        applyMinimalCorrection();
+        return;
+      }
+      if (elapsed >= 760) { finish(); return; }
+      session.raf = requestAnimationFrame(poll);
+    };
+    session.maxTimer = setTimeout(finish, 820);
+    session.raf = requestAnimationFrame(poll);
+  }
+
+  function finishUnifiedKeyboardDismissSettle(session, { restoreScroll = true } = {}) {
+    const settle = gcUnifiedKeyboardDismissSettle;
+    if (!settle || settle.session !== session || settle.done) return;
+    settle.done = true;
+    if (settle.raf) cancelAnimationFrame(settle.raf);
+    if (settle.maxTimer) clearTimeout(settle.maxTimer);
+    gcUnifiedKeyboardDismissSettle = null;
+
+    const callbacks = settle.callbacks.splice(0);
+    callbacks.forEach(callback => {
+      try { callback(); } catch (error) { setTimeout(() => { throw error; }, 0); }
+    });
+    // A deferred callback may remove result/suggestion height. Re-evaluate tail capacity in the
+    // same task before paint so that post-keyboard UI cleanup cannot introduce a fresh clamp.
+    reserveKeyboardDismissTailCapacity(session);
+
+    if (restoreScroll && !unifiedKeyboardViewportInputEligible(document.activeElement)) {
+      const viewportHeight = Math.max(1, Number(
+        window.visualViewport?.height ||
+        window.innerHeight ||
+        document.documentElement?.clientHeight ||
+        0
+      ));
+      const maxScrollY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+      const targetScrollY = Math.min(maxScrollY, Math.max(0, Number(session.scrollY || 0)));
+      const currentScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+      if (Math.abs(currentScrollY - targetScrollY) >= 6) {
+        window.scrollTo({ top: targetScrollY, left: 0, behavior: 'auto' });
+      }
+    }
+
+    session.viewportSettled = true;
+    if (gcBlurViewportSession === session) gcBlurViewportSession = null;
+    // M2R16: do not shrink the clamp reserve until the older M2R12 address/progressive
+    // coordinator has committed its final DOM height. This keeps one scroll owner through Done.
+    scheduleKeyboardDismissTailFinalSettle(session);
+    scheduleSuggestionCollapseSettle(96);
+  }
+
+  function beginUnifiedKeyboardDismissSettle(session) {
+    if (!session || !session.passiveUnifiedDismiss) return;
+    const existing = gcUnifiedKeyboardDismissSettle;
+    if (existing && !existing.done) {
+      existing.done = true;
+      if (existing.raf) cancelAnimationFrame(existing.raf);
+      if (existing.maxTimer) clearTimeout(existing.maxTimer);
+    }
+
+    const viewport = window.visualViewport;
+    const initialHeight = Number(viewport?.height || window.innerHeight || 0);
+    const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), initialHeight);
+    const settle = {
+      session,
+      startedAt: performance.now(),
+      initialHeight,
+      baselineHeight,
+      lastHeight: initialHeight,
+      lastOffsetTop: Number(viewport?.offsetTop || 0),
+      stableFrames: 0,
+      raf: 0,
+      maxTimer: 0,
+      callbacks: [],
+      done: false
+    };
+    gcUnifiedKeyboardDismissSettle = settle;
+
+    const poll = () => {
+      if (settle.done || gcUnifiedKeyboardDismissSettle !== settle) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement && active !== session.input) {
+        finishUnifiedKeyboardDismissSettle(session, { restoreScroll: false });
+        return;
+      }
+      const height = Number(viewport?.height || window.innerHeight || 0);
+      const offsetTop = Number(viewport?.offsetTop || 0);
+      const stable = Math.abs(height - settle.lastHeight) <= 0.5 && Math.abs(offsetTop - settle.lastOffsetTop) <= 0.5;
+      settle.stableFrames = stable ? settle.stableFrames + 1 : 0;
+      settle.lastHeight = height;
+      settle.lastOffsetTop = offsetTop;
+      const elapsed = performance.now() - settle.startedAt;
+      const recovered = !viewport || height >= baselineHeight - 48 || !keyboardAppearsOpen();
+      if (elapsed >= 180 && settle.stableFrames >= 4 && recovered) {
+        finishUnifiedKeyboardDismissSettle(session);
+        return;
+      }
+      if (elapsed >= 1200) {
+        finishUnifiedKeyboardDismissSettle(session);
+        return;
+      }
+      settle.raf = requestAnimationFrame(poll);
+    };
+
+    settle.maxTimer = setTimeout(() => finishUnifiedKeyboardDismissSettle(session), 1260);
+    settle.raf = requestAnimationFrame(poll);
+  }
+
+  function runAfterUnifiedKeyboardDismissSettles(input, callback) {
+    if (typeof callback !== 'function') return;
+    const settle = gcUnifiedKeyboardDismissSettle;
+    if (settle && !settle.done && settle.session?.input === input) {
+      settle.callbacks.push(callback);
+      return;
+    }
+    const session = gcBlurViewportSession;
+    if (session && session.input === input && session.passiveUnifiedDismiss && !session.viewportSettled) {
+      // beginUnifiedKeyboardDismissSettle is installed synchronously from the capture-phase
+      // focusout handler; this branch is only a bounded safety net for engine event-order variance.
+      requestAnimationFrame(() => runAfterUnifiedKeyboardDismissSettles(input, callback));
+      return;
+    }
+    callback();
+  }
+  window.GC_runAfterUnifiedKeyboardDismissSettles = runAfterUnifiedKeyboardDismissSettles;
+
+  function handleKeyboardDismissTailScroll() {
+    if (!gcKeyboardDismissTailSpacer?.isConnected || gcUnifiedKeyboardDismissSettle) return;
+    if (gcRideKeyboardSettleCoordinator && !gcRideKeyboardSettleCoordinator.done) return;
+    cancelAnimationFrame(gcKeyboardDismissTailScrollRaf);
+    gcKeyboardDismissTailScrollRaf = requestAnimationFrame(() => {
+      gcKeyboardDismissTailScrollRaf = 0;
+      settleKeyboardDismissTailToCurrentScroll();
+    });
+  }
+
+  document.addEventListener('pointerdown', event => {
+    const input = event.target?.closest?.('input, textarea');
+    if (unifiedKeyboardViewportInputEligible(input)) captureKeyboardFocusIntent(input);
+  }, true);
+  document.addEventListener('touchstart', event => {
+    const input = event.target?.closest?.('input, textarea');
+    if (unifiedKeyboardViewportInputEligible(input)) captureKeyboardFocusIntent(input);
+  }, { passive: true, capture: true });
+  window.addEventListener('scroll', handleKeyboardDismissTailScroll, { passive: true });
 
   function restoreBodyInlineStyle(body, snapshot) {
     if (!body || !snapshot) return;
@@ -1103,9 +1513,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function restoreViewportStableSession(session) {
     if (!session || !session.input?.isConnected) return;
     if (otherEditorHasFocus(session.input)) return;
-    // F21: call/driver address Done uses a passive dismissal session. Let WebKit restore the
-    // visual viewport natively; do not fix body position and do not issue scroll corrections.
-    if (session.passiveRideDismiss) return;
+    // M2R16: targeted ride/driver/fare editors use the unified passive keyboard lifecycle.
+    // No repeated scroll correction is allowed during the native keyboard animation.
+    if (session.passiveUnifiedDismiss || session.passiveRideDismiss) return;
     // During keyboard dismissal the desired invariant is document scrollY. visualViewport.offsetTop
     // changes as the keyboard closes, so using it as an anchor creates the visible one-frame bounce.
     if (session.blurPhase) {
@@ -1127,38 +1537,43 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function beginBlurViewportStability(input) {
     if (!keyboardDismissInputEligible(input)) return;
+    const editGeneration = viewportStableInputEligible(input)
+      ? bumpViewportStableEditGeneration(input)
+      : viewportStableEditGeneration(input);
     const passiveRideDismiss = rideAddressKeyboardDismissInputEligible(input);
+    const passiveUnifiedDismiss = unifiedKeyboardViewportInputEligible(input);
     const session = {
       input,
+      editGeneration,
       anchorTop: viewportStableTop(input),
       scrollY: window.scrollY || window.pageYOffset || 0,
       docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0),
       blurPhase: true,
-      expiresAt: performance.now() + (passiveRideDismiss ? 1200 : 980),
+      expiresAt: performance.now() + (passiveUnifiedDismiss ? 1320 : 980),
       frozen: false,
       passiveRideDismiss,
-      viewportSettled: !passiveRideDismiss
+      passiveUnifiedDismiss,
+      viewportSettled: !passiveUnifiedDismiss
     };
     gcBlurViewportSession = session;
     clearTimeout(gcBlurViewportTimer);
 
-    if (passiveRideDismiss) {
-      // F21: call/driver address fields must not compete with iOS keyboard dismissal.
-      // No body position:fixed, no scrollTo/scrollBy, and no top re-anchoring during blur.
+    if (passiveUnifiedDismiss) {
+      // M2R16: reserve enough BODY-tail height synchronously, before iOS grows the visual
+      // viewport. This prevents max-scroll clamping on Done for ride/driver addresses, fare
+      // addresses, and the fare minute/km number fields. WebKit keeps native keyboard ownership.
+      reserveKeyboardDismissTailCapacity(session);
+      beginUnifiedKeyboardDismissSettle(session);
       gcBlurViewportTimer = setTimeout(() => {
-        if (gcBlurViewportSession === session) {
-          session.viewportSettled = true;
-          gcBlurViewportSession = null;
-          scheduleSuggestionCollapseSettle(72);
+        if (gcBlurViewportSession === session && !session.viewportSettled) {
+          finishUnifiedKeyboardDismissSettle(session);
         }
-      }, 1220);
+      }, 1300);
       return;
     }
 
-    // Preserve enough document height for fare number fields before the body is temporarily frozen.
+    // Legacy fallback only for unrelated editors outside the targeted M2R16 matrix.
     ensureFareNumberViewportCapacity(session);
-    // A same-gesture focus transfer completes before this microtask; otherwise the keyboard is
-    // dismissing and the current document position is frozen before the next painted frame.
     queueMicrotask(() => activateKeyboardDismissFreeze(session));
     const restore = () => {
       if (gcBlurViewportSession !== session || performance.now() > session.expiresAt) return;
@@ -1173,19 +1588,22 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   document.addEventListener('focusin', event => {
     const input = event.target;
     if (!keyboardDismissInputEligible(input)) return;
+    if (viewportStableInputEligible(input)) bumpViewportStableEditGeneration(input);
     if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
+    if (!gcUnifiedKeyboardDismissSettle) settleKeyboardDismissTailToCurrentScroll();
     settleSuggestionCollapseSpacer();
     gcBlurViewportSession = null;
     clearTimeout(gcBlurViewportTimer);
     captureKeyboardViewportBaseline();
+    if (unifiedKeyboardViewportInputEligible(input)) beginKeyboardFocusSettle(input);
   }, true);
   document.addEventListener('focusout', event => beginBlurViewportStability(event.target), true);
 
   const restoreBlurViewportOnVisualChange = () => {
     const session = gcBlurViewportSession;
     if (!session || performance.now() > session.expiresAt) return;
-    if (session.passiveRideDismiss) return;
+    if (session.passiveUnifiedDismiss || session.passiveRideDismiss) return;
     if (gcKeyboardDismissSession === session) {
       // Release only after resize/scroll events have stopped, so the keyboard close is one continuous
       // transition rather than a tug-of-war between WebKit and JavaScript scroll corrections.
@@ -1291,10 +1709,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const poll = () => {
       if (coordinator.done) return;
       if (document.activeElement === input) { cancelForRefocus(); return; }
-      // A direct tap into another editor is a focus transfer, not a keyboard dismissal. The new
-      // editor owns the keyboard, so finish the old field's queued mutations without waiting for
-      // a nonexistent close animation.
-      if (otherEditorHasFocus(input)) { finish(); return; }
+      // M2R16: a direct tap into another editor is a keyboard-preserving focus transfer.
+      // Do not commit the old field's suggestion/progressive DOM changes in the same frame that
+      // WebKit is panning to the new field. Wait until the shared visual viewport has been stable.
+      const transferInProgress = otherEditorHasFocus(input);
 
       const height = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
       const offsetTop = Number(viewport?.offsetTop || 0);
@@ -1312,7 +1730,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // Do not mistake the temporarily stable *keyboard-open* viewport for completion. That was
       // the intermittent race: suggestion/progressive DOM height changed first, then iOS restored
       // visualViewport and violently re-clamped scroll. Require real viewport recovery first.
-      if (elapsed >= coordinator.minDelay && coordinator.stableFrames >= 4 && viewportRecovered && bodyReleased) {
+      if (transferInProgress) {
+        if (elapsed >= 120 && coordinator.stableFrames >= 4 && bodyReleased) {
+          finish();
+          return;
+        }
+      } else if (elapsed >= coordinator.minDelay && coordinator.stableFrames >= 4 && viewportRecovered && bodyReleased) {
         finish();
         return;
       }
@@ -1331,16 +1754,27 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     // issue their own scroll correction; the outer transaction restores the anchor once.
     if (gcRideAddressStableTransaction?.input === input) return mutator();
     if (!viewportStableInputEligible(input)) return mutator();
+    // M2R16: the unified keyboard coordinator is the only scroll owner for all targeted
+    // ride/driver/fare address editors. Suggestion/status DOM changes still run immediately, but
+    // the legacy viewport-stable helper must not schedule any scroll restore for these inputs.
+    // This removes the final stale restore path that could fire after iOS Done/focus transfer.
+    if (unifiedKeyboardViewportInputEligible(input)) return mutator();
     const activeSession = document.activeElement === input
       ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
       : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
         ? gcBlurViewportSession
         : null);
     if (!activeSession) return mutator();
+    const editGeneration = Number(activeSession.editGeneration || viewportStableEditGeneration(input));
 
     const result = mutator();
     const restore = () => {
-      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      // M2R16: a focus-phase stabilization callback becomes stale the instant this editor blurs.
+      // Never let its delayed RAF/timer run inside a later keyboard lifecycle. A generation token
+      // also invalidates callbacks if the *same* input is refocused before an old timer fires.
+      if (viewportStableEditGeneration(input) !== editGeneration) return;
+      if (!activeSession.blurPhase && document.activeElement !== input) return;
+      if (activeSession.blurPhase && gcBlurViewportSession?.input !== input) return;
       restoreViewportStableSession(activeSession);
     };
     requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
@@ -1351,14 +1785,26 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function runRideAddressUiStableTransaction(input, mutator) {
     if (gcRideAddressStableTransaction?.input === input || !viewportStableInputEligible(input)) return mutator();
+    if (unifiedKeyboardViewportInputEligible(input)) {
+      // Keep nested suggestion/status mutations inside one logical transaction, but deliberately
+      // schedule zero legacy scroll restores. The unified focus/dismiss coordinator owns viewport.
+      const transaction = { input, activeSession: null, unifiedKeyboardOwner: true };
+      gcRideAddressStableTransaction = transaction;
+      try {
+        return mutator();
+      } finally {
+        if (gcRideAddressStableTransaction === transaction) gcRideAddressStableTransaction = null;
+      }
+    }
     const activeSession = document.activeElement === input
       ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
       : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
         ? gcBlurViewportSession
         : null);
     if (!activeSession) return mutator();
+    const editGeneration = Number(activeSession.editGeneration || viewportStableEditGeneration(input));
 
-    const transaction = { input, activeSession };
+    const transaction = { input, activeSession, editGeneration };
     gcRideAddressStableTransaction = transaction;
     let result;
     try {
@@ -1367,7 +1813,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       if (gcRideAddressStableTransaction === transaction) gcRideAddressStableTransaction = null;
     }
     const restore = () => {
-      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      // M2R16: explicit suggestion transactions obey the same single-owner rule. A restore
+      // captured by an older focus/blur generation must never fight a newer keyboard lifecycle.
+      if (viewportStableEditGeneration(input) !== editGeneration) return;
+      if (!activeSession.blurPhase && document.activeElement !== input) return;
+      if (activeSession.blurPhase && gcBlurViewportSession?.input !== input) return;
       restoreViewportStableSession(activeSession);
     };
     requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
@@ -6900,50 +7350,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     };
     const clearPreservedEditSpaceAfterNativeDismiss = input => {
       const token = ++fareNumberBlurToken;
-      const viewport = window.visualViewport;
-      const startedAt = performance.now();
-      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
-      let lastOffsetTop = Number(viewport?.offsetTop || 0);
-      let stableFrames = 0;
-      let raf = 0;
-      let maxTimer = 0;
-      let done = false;
-      const cleanup = () => {
-        if (raf) cancelAnimationFrame(raf);
-        raf = 0;
-        clearTimeout(maxTimer);
-        maxTimer = 0;
-      };
-      const finish = () => {
-        if (done || token !== fareNumberBlurToken) return;
-        done = true;
-        cleanup();
+      runAfterUnifiedKeyboardDismissSettles(input, () => {
+        if (token !== fareNumberBlurToken) return;
         if (calculatorInputs.includes(document.activeElement)) return;
         clearPreservedEditSpace();
-      };
-      const cancelForRefocus = () => {
-        if (done || token !== fareNumberBlurToken) return;
-        done = true;
-        cleanup();
-      };
-      const poll = () => {
-        if (done || token !== fareNumberBlurToken) return;
-        if (document.activeElement === input || calculatorInputs.includes(document.activeElement)) {
-          cancelForRefocus();
-          return;
-        }
-        const height = Number(viewport?.height || window.innerHeight || 0);
-        const offsetTop = Number(viewport?.offsetTop || 0);
-        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
-        stableFrames = viewportStable ? stableFrames + 1 : 0;
-        lastHeight = height;
-        lastOffsetTop = offsetTop;
-        const elapsed = performance.now() - startedAt;
-        if ((elapsed >= 240 && stableFrames >= 3) || elapsed >= 900) { finish(); return; }
-        raf = requestAnimationFrame(poll);
-      };
-      raf = requestAnimationFrame(poll);
-      maxTimer = setTimeout(finish, 940);
+      });
     };
     const preserveEditSpace = () => {
       if (!calculatorInputs.includes(document.activeElement)) return;
@@ -7012,9 +7423,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         fareNumberBlurToken += 1;
       });
       input.addEventListener('blur', () => {
-        // F22: keep the result area's reserved height until the native virtual-keyboard viewport
-        // finishes settling. No body position:fixed, no scrollTo/scrollBy, and no fare-number
-        // viewport anchor are involved, so Done and immediate refocus remain native and stable.
+        // M2R16: keep the result area's reserved height inside the same unified keyboard
+        // transaction used by addresses. Cleanup cannot race the iOS Done viewport recovery.
         clearPreservedEditSpaceAfterNativeDismiss(input);
       });
     });
