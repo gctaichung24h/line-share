@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r10';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r11';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -32,6 +32,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R8_EXPLICIT_RELOCATION_GPS_AUTHORITY_AND_MANUAL_DRAFT
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R9_DMS_COORDINATE_AND_DISPATCH_PICKUP_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R10_SAFE_PICKUP_OUTPUT_CANONICALIZATION
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R11_NO_DOOR_DISPATCH_CLUSTER_AND_SURROUNDING_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -375,7 +376,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             <button class="location-manual-address-btn" id="locationManualAddressBtn" type="button">改填地址</button>
           </div>
           <div class="field hidden" id="locationSupplementField">
-            <label for="locationSupplement">附近位置（選填）</label>
+            <label for="locationSupplement">周邊辨識點（選填）</label>
             <input class="input" id="locationSupplement" name="locationSupplement" type="text" maxlength="80" placeholder="例如：路口、店家、社區、地標" autocomplete="off">
           </div>` : ''}
         ${showRecent ? `
@@ -4084,7 +4085,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       clearFieldValidation('pickup');
       setLocationReview('', false);
       setLocationStatus(attachedLocation.noDoor === true
-        ? '定位已確認；可於下方補充附近位置，加快媒合。'
+        ? '定位已確認；可補充周邊辨識點，協助更快媒合。'
         : '地址已確認，定位會一併附上。', 'success');
     });
 
@@ -4226,11 +4227,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             attachedLocation.requiresConfirmation = false;
             clearFieldValidation('pickup');
             setLocationReview('', false);
-            setLocationStatus('目前位置無法辨識完整門牌，可於下方補充附近位置。', 'success');
+            setLocationStatus('目前位置無法辨識完整門牌，可補充周邊辨識點。', 'success');
           } else {
             attachedLocation.requiresConfirmation = true;
             setLocationStatus('', 'success');
-            setLocationReview('目前位置無法辨識完整門牌，可於下方補充附近位置。', true);
+            setLocationReview('目前位置無法辨識完整門牌，可補充周邊辨識點。', true);
           }
           return;
         }
@@ -6396,6 +6397,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const reviewedPickupLabel = noDoorLocation
         ? (mode === 'driver' ? '代駕位置' : '上車位置')
         : cfg['訊息欄位_上車'];
+      // M2R11: a precise GPS no-door state is not a human address. Keep the state text out of
+      // confirmation/dispatch and present the useful coordinate directly. Driver mode uses its
+      // own semantic label; raw GPS state, map pin and send validation remain unchanged.
+      const noDoorCoordinateLabel = mode === 'driver' ? '代駕座標' : '上車座標';
       // GC_R10Z14F18_DRIVER_DESTINATION_DISPLAY_NORMALIZATION
       // Call drop-off and driver delivery are both descriptive reference destinations. Use the
       // same non-blocking Taiwan display formatter; failures fall back to the original value.
@@ -6426,9 +6431,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
-      appendLine(lines, reviewedPickupLabel, reviewedPickup);
-      appendLine(lines, '定位座標', noDoorCoordinate);
-      appendLine(lines, '上車辨識點', noDoorSupplement);
+      if (noDoorLocation) {
+        appendLine(lines, noDoorCoordinateLabel, noDoorCoordinate);
+        appendLine(lines, '周邊辨識點', noDoorSupplement);
+        if (dispatchLocation) appendLine(lines, '目前定位', '已附上 LINE 地圖定位');
+      } else {
+        appendLine(lines, reviewedPickupLabel, reviewedPickup);
+      }
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
@@ -6471,15 +6480,19 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           { label: cfg['訊息欄位_日期'], value: value('date') },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
-        { label: reviewedPickupLabel, value: reviewedPickup, emphasis: true },
-        ...(noDoorCoordinate ? [{ label: '定位座標', value: noDoorCoordinate }] : []),
-        ...(noDoorSupplement ? [{ label: '附近位置', value: noDoorSupplement }] : []),
+        ...(noDoorLocation
+          ? [
+              ...(noDoorCoordinate ? [{ label: noDoorCoordinateLabel, value: noDoorCoordinate }] : []),
+              ...(noDoorSupplement ? [{ label: '周邊辨識點', value: noDoorSupplement }] : []),
+              ...(dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+            ]
+          : [{ label: reviewedPickupLabel, value: reviewedPickup, emphasis: true }]),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
         ...(destinationAdminSoftReminder ? [{ label: '', value: destinationAdminSoftReminder, note: true }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
-        ...(dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+        ...(!noDoorLocation && dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
 
       if (mode === 'driver') {
