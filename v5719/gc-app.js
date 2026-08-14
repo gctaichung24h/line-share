@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r6';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r7';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -28,6 +28,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R5_SMART_SUGGESTION_SINGLE_STABLE_TRANSACTION_AND_RECENT_GESTURE_LOCK
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R6_CONFIRMATION_COPY_OPTICAL_FINISH
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R7_LOCATION_STATE_MACHINE_NO_DOOR_MANUAL_SWITCH
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -365,6 +366,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
               <span id="locationReviewText"></span>
             </div>
             <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 確認地址</button>
+          </div>
+          <div class="location-manual-switch hidden" id="locationManualSwitch" aria-live="polite">
+            <span>已知道完整地址？</span>
+            <button class="location-manual-address-btn" id="locationManualAddressBtn" type="button">改填地址</button>
           </div>
           <div class="field hidden" id="locationSupplementField">
             <label for="locationSupplement">附近位置（選填）</label>
@@ -1235,6 +1240,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   window.addEventListener('pagehide', () => {
     if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
+    clearLocationManualSwitchSpacer();
     settleSuggestionCollapseSpacer({ force: true });
   }, { passive: true });
 
@@ -3063,7 +3069,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const pickup = smartNormalizeTaiwanAddress(item.pickup);
     const destination = smartNormalizeTaiwanAddress(item.destination);
     const name = String(item.name || '').trim().slice(0, 30);
-    if (!pickup || pickup === LOCATION_MARKER) return null;
+    if (!pickup || pickup === LOCATION_MARKER || isLocationStateDisplayText(pickup)) return null;
     return { name: name || '常用行程', pickup, destination };
   }
 
@@ -3233,7 +3239,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       setFavoriteStatus(COMMON['常用行程需地址'] || '請先填寫上車地址。', 'error');
       return;
     }
-    if (pickup === LOCATION_MARKER) {
+    if (pickup === LOCATION_MARKER || noDoorBoundLocation() || isLocationStateDisplayText(pickup)) {
       setFavoriteStatus(COMMON['常用行程定位限制'] || '目前定位無法直接儲存，請改填完整地址。', 'error');
       return;
     }
@@ -3430,8 +3436,118 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     refreshFavoriteTrips();
   }
 
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R7_LOCATION_STATE_MACHINE_NO_DOOR_MANUAL_SWITCH
+  // GPS no-door text is a location STATE, not a passenger-editable address.  The same pickup
+  // input is reused when the rider explicitly chooses "改填地址", so there is no duplicate field.
+  function isLocationStateDisplayText(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    return text.startsWith('📍 已取得目前定位') || /（無門牌）$/.test(text);
+  }
+
+  function setNoDoorLocationInputState(active) {
+    const input = document.getElementById('pickup');
+    const manualSwitch = document.getElementById('locationManualSwitch');
+    if (input) {
+      input.readOnly = Boolean(active);
+      input.classList.toggle('gc-location-no-door-state', Boolean(active));
+      if (active) {
+        input.setAttribute('aria-readonly', 'true');
+        input.dataset.gcLocationState = 'no-door';
+      } else {
+        input.removeAttribute('aria-readonly');
+        delete input.dataset.gcLocationState;
+      }
+    }
+    manualSwitch?.classList.toggle('hidden', !active);
+  }
+
+  let gcLocationManualSwitchSpacer = null;
+
+  function clearLocationManualSwitchSpacer() {
+    if (!gcLocationManualSwitchSpacer) return;
+    gcLocationManualSwitchSpacer.remove();
+    gcLocationManualSwitchSpacer = null;
+  }
+
+  function reserveLocationManualSwitchScrollCapacity() {
+    clearLocationManualSwitchSpacer();
+    const spacer = document.createElement('div');
+    spacer.id = 'gcLocationManualSwitchSpacer';
+    spacer.setAttribute('aria-hidden', 'true');
+    spacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    // Reserve generously before GPS-only rows disappear so a short iPhone viewport cannot clamp
+    // scrollY between synchronous DOM mutations. It is reduced to the exact minimum immediately.
+    spacer.style.height = `${Math.max(720, Math.ceil(window.innerHeight || 0))}px`;
+    document.body.appendChild(spacer);
+    gcLocationManualSwitchSpacer = spacer;
+    return spacer;
+  }
+
+  function settleLocationManualSwitchSpacer(scrollY) {
+    const spacer = gcLocationManualSwitchSpacer;
+    if (!spacer?.isConnected) return;
+    const reserve = Math.max(0, spacer.getBoundingClientRect().height);
+    const viewportHeight = Math.max(1, Number(window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0));
+    const naturalHeight = Math.max(0, document.documentElement.scrollHeight - reserve);
+    const needed = Math.max(0, Math.ceil(scrollY + viewportHeight - naturalHeight + 3));
+    if (needed <= 2) clearLocationManualSwitchSpacer();
+    else spacer.style.height = `${Math.min(reserve, needed)}px`;
+  }
+
+  function switchNoDoorLocationToManualAddress(mode = 'call') {
+    const input = document.getElementById('pickup');
+    const location = noDoorBoundLocation();
+    if (!input || !location) return false;
+
+    // This is an explicit mode switch.  Never leave the GPS status sentence as editable text and
+    // never keep an old coordinate/map binding behind a newly typed address.
+    const anchorTop = input.getBoundingClientRect().top;
+    const anchorScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    reserveLocationManualSwitchScrollCapacity();
+    currentLocationUsed = false;
+    clearAttachedLocation(false);
+    input._gcCancelSmartSuggestions?.();
+    input.value = '';
+    input.dataset.gcSkipSuggestOnce = '1';
+    clearAddressVerified(input);
+    clearFieldValidation('pickup');
+    clearPickupAdminReminder(input);
+
+    // Focus inside the user's tap gesture BEFORE notifying the progressive flow.  Its existing
+    // committed-pickup rule then keeps downstream sections structurally stable while the rider
+    // types the replacement address.  Avoid a synthetic change event here: change/blur is the
+    // deliberate commit boundary and would collapse the whole form on an empty value.
+    try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const end = input.value.length;
+    try { input.setSelectionRange(end, end); } catch (_) {}
+
+    // Reduce the temporary BODY tail capacity to only what is needed to preserve this viewport.
+    // It is never placed inside the form, so the customer never sees the old large blank block.
+    settleLocationManualSwitchSpacer(anchorScrollY);
+    window.scrollTo(0, anchorScrollY);
+    requestAnimationFrame(() => {
+      if (!input.isConnected || document.activeElement !== input) return;
+      const delta = input.getBoundingClientRect().top - anchorTop;
+      if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+    });
+
+    const releaseOnRealEdit = event => {
+      if (!event.isTrusted) return;
+      input.removeEventListener('input', releaseOnRealEdit, true);
+      requestAnimationFrame(() => settleLocationManualSwitchSpacer(window.scrollY || window.pageYOffset || 0));
+    };
+    input.addEventListener('input', releaseOnRealEdit, true);
+    input.addEventListener('blur', () => {
+      setTimeout(clearLocationManualSwitchSpacer, 420);
+    }, { once: true, passive: true });
+    return true;
+  }
+
   function clearAttachedLocation(clearMarker = false) {
     locationRequestToken += 1;
+    setNoDoorLocationInputState(false);
     resetLocationSupplement();
     const pickupInput = document.getElementById('pickup');
     const generatedAddress = attachedLocation?.address || '';
@@ -3837,9 +3953,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const button = document.getElementById('locationBtn');
     const pickupInput = document.getElementById('pickup');
     const confirmButton = document.getElementById('locationConfirmBtn');
+    const manualAddressButton = document.getElementById('locationManualAddressBtn');
     if (!button || !pickupInput) return;
     // GC_MASTER_STABLE_2026_08R10O_LOCATION_CONFIRMATION_COPY
     const locationAddressLabel = mode === 'driver' ? '代駕地址' : '上車地址';
+
+    manualAddressButton?.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      switchNoDoorLocationToManualAddress(mode);
+    });
 
     pickupInput.addEventListener('input', event => {
       // F23: the passenger changed the address after requesting/receiving GPS. Detach the
@@ -3923,6 +4046,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         button.textContent = COMMON['定位重新取得'] || '📍 重新取得位置';
 
         if (!preciseEnough) {
+          if (previousPickupOwnedByLocation && isLocationStateDisplayText(previousPickup)) {
+            attachedLocation = null;
+            setNoDoorLocationInputState(false);
+            pickupInput.value = '';
+            clearAddressVerified(pickupInput);
+            clearFieldValidation('pickup');
+            setLocationReview('', false);
+            setLocationStatus(`定位訊號較弱${finiteAccuracy ? `（約 ±${Math.round(finiteAccuracy)}m）` : ''}，請重新取得位置或直接改填地址。`, 'error');
+            return;
+          }
           if (reserveAddressOnly) {
             attachedLocation = null;
             pickupInput.value = previousPickup || '';
@@ -4007,6 +4140,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           pickupInput.classList.remove('invalid');
           document.getElementById('pickupError')?.classList.remove('show');
 
+          setNoDoorLocationInputState(true);
           showLocationSupplement();
           if (reserveAddressOnly) {
             attachedLocation.sendMap = false;
@@ -4023,6 +4157,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           return;
         }
 
+        setNoDoorLocationInputState(false);
         resetLocationSupplement();
         attachedLocation.noDoor = false;
         attachedLocation.address = address;
@@ -4062,6 +4197,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       } catch (error) {
         if (requestToken !== locationRequestToken) return;
         attachedLocation = null;
+        setNoDoorLocationInputState(false);
+        if (isLocationStateDisplayText(pickupInput.value)) {
+          pickupInput.value = '';
+          clearAddressVerified(pickupInput);
+          clearFieldValidation('pickup');
+        }
         const denied = error?.code === 1;
         setLocationReview('', false);
         setLocationStatus(denied
@@ -6095,8 +6236,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         showFieldError('time', cfg['錯誤_時間']);
         valid = false;
       }
+      const noDoorLocationForValidation = noDoorBoundLocation();
       if (!pickup || pickup === LOCATION_MARKER) {
         showFieldError('pickup', cfg['錯誤_上車地址']);
+        valid = false;
+      }
+      if ((attachedLocation?.noDoor === true && !noDoorLocationForValidation) || (isLocationStateDisplayText(pickup) && !noDoorLocationForValidation)) {
+        showFieldError('pickup', '定位狀態已失效，請重新取得位置或直接改填地址。');
         valid = false;
       }
       if (serviceType === 'instant' && attachedLocation?.requiresConfirmation && !attachedLocation.confirmed) {
@@ -6104,7 +6250,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         setLocationReview('請確認門牌是否正確；若不符，請直接修改地址。', true);
         valid = false;
       }
-      if (valid && pickup && !(attachedLocation?.requiresConfirmation && !attachedLocation.confirmed)) {
+      if (valid && pickup && !noDoorLocationForValidation && !(attachedLocation?.requiresConfirmation && !attachedLocation.confirmed)) {
         if (!(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) valid = false;
       }
       if (valid && destination) {
@@ -6124,8 +6270,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       if (latestPickup !== pickup || latestDestination !== destination) {
         pickup = latestPickup;
         destination = latestDestination;
-        let latestValid = Boolean(pickup && pickup !== LOCATION_MARKER);
-        if (latestValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
+        const latestNoDoorLocation = noDoorBoundLocation();
+        let latestValid = Boolean(pickup && pickup !== LOCATION_MARKER && (!(isLocationStateDisplayText(pickup) || attachedLocation?.noDoor === true) || latestNoDoorLocation));
+        if (latestValid && !latestNoDoorLocation && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
         if (latestValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) latestValid = false;
         if (!latestValid) {
           focusFirstValidationError();
@@ -6136,20 +6283,25 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // Best-effort only: the address remains sendable whether ArcGIS returns two matches,
       // one match, no match, or times out. A short bounded wait lets an in-flight typing check
       // reach the confirmation/LINE warning without turning provider availability into a gate.
-      let pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+      let pickupAdminAmbiguity = noDoorLocationForValidation
+        ? null
+        : await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
       const postAmbiguityPickup = value('pickup');
       const postAmbiguityDestination = value('destination');
       if (postAmbiguityPickup !== pickup || postAmbiguityDestination !== destination) {
         pickup = postAmbiguityPickup;
         destination = postAmbiguityDestination;
-        let postAmbiguityValid = Boolean(pickup && pickup !== LOCATION_MARKER);
-        if (postAmbiguityValid && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
+        const postAmbiguityNoDoorLocation = noDoorBoundLocation();
+        let postAmbiguityValid = Boolean(pickup && pickup !== LOCATION_MARKER && (!(isLocationStateDisplayText(pickup) || attachedLocation?.noDoor === true) || postAmbiguityNoDoorLocation));
+        if (postAmbiguityValid && !postAmbiguityNoDoorLocation && !(await verifyAddressField('pickup', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
         if (postAmbiguityValid && destination && !(await verifyAddressField('destination', { showError: true, policy: 'manual-authoritative' }))) postAmbiguityValid = false;
         if (!postAmbiguityValid) {
           focusFirstValidationError();
           return;
         }
-        pickupAdminAmbiguity = await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
+        pickupAdminAmbiguity = postAmbiguityNoDoorLocation
+          ? null
+          : await pickupAdminAmbiguityForSubmit(document.getElementById('pickup'));
       }
       const adminWarningLabel = mode === 'driver' ? '代駕行政區' : '上車行政區';
       const adminWarningValue = pickupAdminAmbiguity
@@ -6159,7 +6311,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // Call and driver share the same review/send address copy. The raw form value is preserved
       // for navigation, duplicate signatures and recent-address behavior; only the confirmation
       // and LINE message use this normalized display copy.
-      const reviewedPickup = normalizeDispatchAddressForReview(pickup);
+      const noDoorLocation = noDoorBoundLocation();
+      const reviewedPickup = noDoorLocation
+        ? (String(pickup || '').trim() || LOCATION_PIN_ONLY_LABEL)
+        : normalizeDispatchAddressForReview(pickup);
+      const reviewedPickupLabel = noDoorLocation
+        ? (mode === 'driver' ? '代駕位置' : '上車位置')
+        : cfg['訊息欄位_上車'];
       // GC_R10Z14F18_DRIVER_DESTINATION_DISPLAY_NORMALIZATION
       // Call drop-off and driver delivery are both descriptive reference destinations. Use the
       // same non-blocking Taiwan display formatter; failures fall back to the original value.
@@ -6168,7 +6326,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // The form-page hint still evaluates the passenger's visible raw input. The confirmation
       // hint must re-evaluate the normalized copy that the passenger is about to approve and send.
       const pickupAdminReminderSource = reviewedPickup;
-      const pickupAdminSoftReminder = !pickupAdminAmbiguity && isDoorAddressMissingReminderAdmin(pickupAdminReminderSource)
+      const pickupAdminSoftReminder = !noDoorLocation && !pickupAdminAmbiguity && isDoorAddressMissingReminderAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
       const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingReminderAdmin(reviewedDestination)
@@ -6179,7 +6337,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // session. Instant service may attach the LINE map pin; all four service variants may carry
       // a text coordinate ONLY for a precise current-location result that has no reliable door.
       const dispatchLocation = serviceType === 'instant' ? dispatchableAttachedLocation() : null;
-      const noDoorLocation = noDoorBoundLocation();
       const noDoorCoordinate = formatLocationCoordinate(noDoorLocation);
       const noDoorSupplement = noDoorLocation ? currentLocationSupplement() : '';
 
@@ -6191,8 +6348,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         appendLine(lines, cfg['訊息欄位_日期'], value('date'));
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
-      appendLine(lines, cfg['訊息欄位_上車'], reviewedPickup);
-      appendLine(lines, '位置補充', noDoorSupplement);
+      appendLine(lines, reviewedPickupLabel, reviewedPickup);
+      appendLine(lines, '附近位置', noDoorSupplement);
       appendLine(lines, '定位座標', noDoorCoordinate);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
@@ -6236,8 +6393,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           { label: cfg['訊息欄位_日期'], value: value('date') },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
-        { label: cfg['訊息欄位_上車'], value: reviewedPickup, emphasis: true },
-        ...(noDoorSupplement ? [{ label: '位置補充', value: noDoorSupplement }] : []),
+        { label: reviewedPickupLabel, value: reviewedPickup, emphasis: true },
+        ...(noDoorSupplement ? [{ label: '附近位置', value: noDoorSupplement }] : []),
         ...(noDoorCoordinate ? [{ label: '定位座標', value: noDoorCoordinate }] : []),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
