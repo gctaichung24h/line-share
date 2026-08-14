@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r5';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r6';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -25,6 +25,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R3_IOS_RECENT_VIEWPORT_AND_LOCATION_EDIT_NO_SHAKE
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R5_SMART_SUGGESTION_SINGLE_STABLE_TRANSACTION_AND_RECENT_GESTURE_LOCK
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R6_CONFIRMATION_COPY_OPTICAL_FINISH
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -6262,18 +6263,18 @@
       const confirmationIntroPrimary = mode === 'driver'
         ? (isReservationConfirmation
           ? (hasReviewedDestination
-            ? '請確認預約日期、時間、代駕地點及送達地點是否正確。'
-            : '請確認預約日期、時間及代駕地點是否正確。')
+            ? '請確認日期、時間、代駕地點與送達地點及資料，按下「確認送出」後才會正式送出。'
+            : '請確認日期、時間、代駕地點與資料，按下「確認送出」後才會正式送出。')
           : (hasReviewedDestination
-            ? '請確認本次代駕地點、送達地點與資料是否正確。'
-            : '請確認本次代駕地點與資料是否正確。'))
+            ? '請確認代駕地點、送達地點與資料，按下「確認送出」後才會正式送出。'
+            : '請確認代駕地點與資料，按下「確認送出」後才會正式送出。'))
         : (isReservationConfirmation
           ? (hasReviewedDestination
-            ? '請確認預約日期、時間及上、下車地點是否正確。'
-            : '請確認預約日期、時間及上車地點是否正確。')
+            ? '請確認日期、時間、上車地點與下車地點及資料，按下「確認送出」後才會正式送出。'
+            : '請確認日期、時間、上車地點與資料，按下「確認送出」後才會正式送出。')
           : (hasReviewedDestination
-            ? '請確認本次上、下車地點與資料是否正確。'
-            : '請確認本次上車地點與資料是否正確。'));
+            ? '請確認上、下車地點與資料，按下「確認送出」後才會正式送出。'
+            : '請確認上車地點與資料，按下「確認送出」後才會正式送出。'));
 
       openConfirmation(confirmTitle, rows, async () => {
         sending = true;
@@ -6292,8 +6293,7 @@
         }
       }, {
         purposeTitle: '✓ 送出前最後確認',
-        introPrimary: confirmationIntroPrimary,
-        introSecondary: '確認後按下「確認送出」，資料才會正式送出。'
+        introPrimary: confirmationIntroPrimary
       });
     });
   }
@@ -6534,8 +6534,7 @@
         }
       }, {
         purposeTitle: 'ⓘ 送出前最後確認',
-        introPrimary: '請確認本次估價起點、終點是否正確。',
-        introSecondary: '送出後由小編於 LINE 聊天室協助估價，本次不會成立叫車訂單。',
+        introPrimary: '請確認估價起點、終點；按下「確認送出估價」後由小編於 LINE 聊天室協助估價，本次不會成立叫車訂單。',
         sendLabel: '確認送出估價'
       });
     });

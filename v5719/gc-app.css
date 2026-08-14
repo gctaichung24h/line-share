@@ -7118,3 +7118,37 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 @media(prefers-reduced-motion:reduce){
   .address-field.gc-location-edit-layout-lock.gc-location-edit-layout-releasing{transition:none!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R6_CONFIRMATION_OPTICAL_COMPAT_FINISH
+   Named scope only: five send-before-confirmation surfaces. Copy is intentionally denser,
+   labels stay optically intact, and long values remain fluid on narrow / enlarged-text screens. */
+.confirm-purpose{margin-bottom:11px!important;padding:10px 12px!important}
+.confirm-purpose .confirm-intro,
+.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro,
+.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro{display:block!important;margin:4px 0 0!important;color:#49687e!important;font-size:13.25px!important;line-height:1.5!important;font-weight:590!important;text-align:left!important;overflow-wrap:anywhere!important}
+.confirm-purpose .confirm-intro .confirm-intro-primary,
+.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-primary,
+.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro .confirm-intro-primary{display:block!important;color:inherit!important;font-size:inherit!important;line-height:inherit!important;font-weight:inherit!important;text-wrap:pretty!important;overflow-wrap:anywhere!important}
+.confirm-summary{gap:6px!important}
+.confirm-row{grid-template-columns:max-content minmax(0,1fr)!important;gap:10px!important;padding:9px 11px!important}
+.confirm-row>span{min-width:0!important;max-width:none!important;white-space:nowrap!important;word-break:keep-all!important;letter-spacing:-.012em!important}
+.confirm-row>strong{min-width:0!important;overflow-wrap:anywhere!important}
+.confirm-actions{margin-top:12px!important}
+@media(max-width:360px){
+  .confirm-purpose{padding:9px 10px!important;margin-bottom:10px!important}
+  .confirm-purpose .confirm-intro,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro{font-size:12.8px!important;line-height:1.5!important}
+  .confirm-row{grid-template-columns:max-content minmax(0,1fr)!important;gap:8px!important;padding:8px 9px!important}
+  .confirm-row>span{font-size:12.15px!important}
+  .confirm-row>strong{font-size:13.9px!important}
+}
+@media(max-width:320px){
+  .confirm-card{padding-left:12px!important;padding-right:12px!important}
+  .confirm-purpose{padding:9px!important}
+  .confirm-row{gap:7px!important;padding-left:8px!important;padding-right:8px!important}
+  .confirm-row>span{font-size:11.85px!important;letter-spacing:-.018em!important}
+  .confirm-row>strong{font-size:13.6px!important}
+  .confirm-back,.confirm-send{padding-left:8px!important;padding-right:8px!important}
+}
+@media(max-height:720px){
+  .confirm-summary{padding-bottom:64px!important}
+}
