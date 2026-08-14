@@ -7107,3 +7107,14 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
 .confirm-back,.confirm-send{min-height:50px!important;border-radius:13px!important;padding:10px 11px!important;font-size:15px!important;line-height:1.3!important;font-weight:800!important}
 @media(max-width:360px){.confirm-card{width:min(calc(100% - 6px),540px)!important;padding:18px 14px 15px!important;border-radius:20px!important}.confirm-card h2{font-size:20.5px!important;margin-bottom:9px!important}.confirm-purpose{padding:10px 11px!important;margin-bottom:11px!important}.confirm-purpose-title{font-size:14.15px!important}.confirm-purpose .confirm-intro,.gc-call-card .confirm-purpose .confirm-intro.gc-call-review-intro,.gc-driver-card .confirm-purpose .confirm-intro.gc-call-review-intro{font-size:13px!important}.confirm-row{grid-template-columns:82px minmax(0,1fr)!important;padding:9px 10px!important}.confirm-row span{font-size:12.4px!important}.confirm-row strong{font-size:14px!important}.confirm-back,.confirm-send{min-height:48px!important;font-size:14.5px!important}}
 @media(max-width:320px){.confirm-row{grid-template-columns:76px minmax(0,1fr)!important;gap:7px!important}.confirm-actions{grid-template-columns:1fr 1.2fr!important;gap:7px!important}}
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R3_IOS_RECENT_VIEWPORT_AND_LOCATION_EDIT_NO_SHAKE
+   Named scope only: current-location first manual edit release. The original guard remains,
+   but its min-height collapses smoothly while JS keeps the focused input optically anchored. */
+.address-field.gc-location-edit-layout-lock.gc-location-edit-layout-releasing{
+  transition:min-height .132s cubic-bezier(.22,.78,.24,1)!important;
+  will-change:min-height!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .address-field.gc-location-edit-layout-lock.gc-location-edit-layout-releasing{transition:none!important}
+}

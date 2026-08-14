@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r2';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r3';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -22,6 +22,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F25R5_FAVORITE_COMPACT_AND_FIRST_EDIT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R2_CONFIRMATION_PREMIUM_AND_LOCATION_EDIT_COMPACT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R3_IOS_RECENT_VIEWPORT_AND_LOCATION_EDIT_NO_SHAKE
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -3415,9 +3416,14 @@
 
   function clearLocationEditLayoutLock(lock = locationEditLayoutLock) {
     if (!lock) return;
+    if (lock.releaseRaf) cancelAnimationFrame(lock.releaseRaf);
+    lock.releaseRaf = 0;
+    if (lock.releaseTimer) clearTimeout(lock.releaseTimer);
+    lock.releaseTimer = 0;
     if (locationEditLayoutLock === lock) locationEditLayoutLock = null;
     const field = lock.field;
     if (!field?.isConnected) return;
+    field.classList.remove('gc-location-edit-layout-releasing');
     field.classList.remove('gc-location-edit-layout-lock');
     field.style.removeProperty('--gc-location-edit-lock-height');
   }
@@ -3432,7 +3438,7 @@
     const revision = ++locationEditLayoutRevision;
     field.style.setProperty('--gc-location-edit-lock-height', `${height}px`);
     field.classList.add('gc-location-edit-layout-lock');
-    const lock = { field, input, revision };
+    const lock = { field, input, revision, releaseRaf: 0, releaseTimer: 0 };
     locationEditLayoutLock = lock;
     input.addEventListener('blur', () => {
       runAfterRideKeyboardDismissSettles(input, () => {
@@ -3445,17 +3451,43 @@
 
   function releaseCurrentLocationEditLayoutCompact(lock, input) {
     if (!lock || locationEditLayoutLock !== lock) return;
-    const release = () => {
-      if (locationEditLayoutLock !== lock) return;
-      const clear = () => clearLocationEditLayoutLock(lock);
-      if (document.activeElement === input && typeof window.GC_mutateInputViewportStable === 'function') {
-        window.GC_mutateInputViewportStable(input, clear);
-      } else {
-        clear();
+    const field = lock.field;
+    if (!field?.isConnected) { clearLocationEditLayoutLock(lock); return; }
+
+    // M2R3: do not remove the F25R5 height guard in one frame. iOS 13-class WebViews can
+    // re-pan the focused field when the location-review card disappears and the guarded field
+    // collapses instantly. Collapse the guard over a short deterministic interval and re-anchor
+    // only this focused input before each paint. This removes the old blank gap and the one-frame
+    // shake without changing keyboard/focus state or any other field logic.
+    const anchorTop = viewportStableTop(input);
+    const startedAt = performance.now();
+    const durationMs = 132;
+    let lastCorrectionAt = 0;
+
+    const stabilize = () => {
+      if (locationEditLayoutLock !== lock || !field.isConnected) return;
+      if (document.activeElement === input) {
+        const delta = viewportStableTop(input) - anchorTop;
+        if (Math.abs(delta) > 0.75 && performance.now() - lastCorrectionAt > 4) {
+          lastCorrectionAt = performance.now();
+          window.scrollBy(0, delta);
+        }
+      }
+      if (performance.now() - startedAt < durationMs + 34) {
+        lock.releaseRaf = requestAnimationFrame(stabilize);
       }
     };
-    requestAnimationFrame(release);
-    setTimeout(release, 96);
+
+    field.classList.add('gc-location-edit-layout-releasing');
+    void field.offsetHeight;
+    requestAnimationFrame(() => {
+      if (locationEditLayoutLock !== lock) return;
+      field.style.setProperty('--gc-location-edit-lock-height', '0px');
+      lock.releaseRaf = requestAnimationFrame(stabilize);
+    });
+    lock.releaseTimer = setTimeout(() => {
+      if (locationEditLayoutLock === lock) clearLocationEditLayoutLock(lock);
+    }, durationMs + 58);
   }
 
   function detachCurrentLocationForPassengerEdit({ preserveLayout = false } = {}) {
@@ -4581,15 +4613,25 @@
       });
       // R10Q: scrolling/dragging inside the recent list is a browse gesture, not a close gesture.
       // The anchored panel naturally moves with its control during page scroll, so keep it open.
-      window.addEventListener('scroll', () => {
-        if (!recentManagementOpen && activeRecentControl) requestAnimationFrame(() => positionRecentQuickPanel(activeRecentControl));
-      }, { passive: true });
+      let recentViewportSyncRaf = 0;
+      const syncRecentQuickPickerToViewport = () => {
+        if (recentManagementOpen || !activeRecentControl) return;
+        if (recentViewportSyncRaf) cancelAnimationFrame(recentViewportSyncRaf);
+        recentViewportSyncRaf = requestAnimationFrame(() => {
+          recentViewportSyncRaf = 0;
+          if (!recentManagementOpen && activeRecentControl) positionRecentQuickPanel(activeRecentControl);
+        });
+      };
+      window.addEventListener('scroll', syncRecentQuickPickerToViewport, { passive: true });
+      // A true layout-viewport resize/orientation change still closes the anchored picker.
       window.addEventListener('resize', () => {
         if (!recentManagementOpen) closeRecentQuickPicker();
       }, { passive: true });
-      window.visualViewport?.addEventListener('resize', () => {
-        if (!recentManagementOpen) closeRecentQuickPicker();
-      }, { passive: true });
+      // M2R3 iOS compatibility: collapsing/expanding LINE/Safari chrome on short iPhones emits
+      // visualViewport resize/scroll during an ordinary page swipe. Keep the picker open and
+      // re-anchor it instead of treating that browser-chrome movement as a dismiss gesture.
+      window.visualViewport?.addEventListener('resize', syncRecentQuickPickerToViewport, { passive: true });
+      window.visualViewport?.addEventListener('scroll', syncRecentQuickPickerToViewport, { passive: true });
     }
   }
 
