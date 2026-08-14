@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r1';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -22,6 +22,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25_NO_DOOR_LOCATION_COORDINATE_FALLBACK
   // GC_MASTER_STABLE_2026_08R10Z14F25R4_LOCATION_MODE_ISOLATION_AND_NO_DOOR_SUPPLEMENT
   // GC_MASTER_STABLE_2026_08R10Z14F25R5_FAVORITE_COMPACT_AND_FIRST_EDIT_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -4235,7 +4236,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         <button class="recent-use" type="button" data-index="${index}" title="${escapeHtml(address)}">
           <span>${escapeHtml(address)}</span>
         </button>`).join('')}</div>
-      <button class="recent-manage" type="button">管理地址紀錄</button>` : '';
+      <button class="recent-clear-all" type="button" aria-label="清除全部最近地址">${escapeHtml(COMMON['最近地址清除全部'] || '清除全部')}</button>` : '';
   }
 
   // GC_MASTER_STABLE_2026_08R10Z9D_RECENT_VIEWPORT_SAFE_POPOVER
@@ -4262,13 +4263,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         closeRecentQuickPicker();
         return;
       }
-      if (event.target.closest('.recent-manage')) {
+      if (event.target.closest('.recent-clear-all')) {
         event.preventDefault();
         event.stopPropagation();
-        const control = activeRecentControl;
-        const targetId = activeRecentTargetId;
         closeRecentQuickPicker();
-        if (control && targetId) openRecentAddressManagement(control, targetId);
+        openRecentClearModal(clearRecentAddresses);
       }
     });
   }
@@ -4512,9 +4511,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function bindRecentAddressControls() {
     // GC_R10J_RECENT_POPOVER_AUTO_CLOSE compatibility marker.
-    // GC_R10K_RECENT_BOTTOM_SHEET remains as the management-only sheet.
-    // GC_MASTER_STABLE_2026_08R10M_RECENT_QUICK_PICKER is the normal selection flow.
-    ensureRecentAddressSheet();
+    // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER: recent addresses are intentionally single-stage — quick select + clear-all only.
+    // Common trips remain the separate long-term, user-managed route feature.
     document.querySelectorAll('.recent-address-control').forEach(control => {
       if (control.dataset.gcRecentBound === '1') return;
       control.dataset.gcRecentBound = '1';
@@ -4542,10 +4540,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           closeRecentQuickPicker();
           return;
         }
-        if (event.target.closest('.recent-manage')) {
+        if (event.target.closest('.recent-clear-all')) {
           event.preventDefault();
           event.stopPropagation();
-          openRecentAddressManagement(control, targetId);
+          closeRecentQuickPicker();
+          openRecentClearModal(clearRecentAddresses);
         }
       });
     });

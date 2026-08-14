@@ -1718,4 +1718,133 @@ body.gc-recent-sheet-open{overscroll-behavior:none!important}
 }
 .recent-panel.gc-recent-portal.hidden{display:none!important}
 .recent-panel.gc-recent-portal .recent-use,
-.recent-panel.gc-recent-portal .recent-manage{position:relative!important;z-index:1!important}
+.recent-panel.gc-recent-portal .recent-clear-all{position:relative!important;z-index:1!important}
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
+   Named scope only: recent-address quick picker. It remains an automatic 5-item temporary
+   history, removes the second-stage management entry and single-item deletion, keeps clear-all,
+   and improves cross-device readability/reflow. Favorite/common-trip UI is intentionally untouched. */
+.recent-address-control.is-open .recent-panel,
+.recent-panel.gc-recent-portal{
+  padding:11px!important;
+  border:1px solid #c9dbe6!important;
+  border-radius:18px!important;
+  background:#fbfdff!important;
+  box-shadow:0 18px 44px rgba(14,43,66,.16),0 4px 12px rgba(14,43,66,.055)!important;
+  -webkit-text-size-adjust:100%!important;
+  text-size-adjust:100%!important;
+}
+.recent-helper{
+  margin:-11px -11px 10px!important;
+  padding:11px 13px 10px!important;
+  border-bottom:1px solid #d7e4ec!important;
+  border-radius:17px 17px 0 0!important;
+  background:linear-gradient(180deg,#edf5f9 0%,#e9f2f7 100%)!important;
+}
+.recent-helper strong{
+  display:block!important;
+  color:#294f68!important;
+  font-size:13.6px!important;
+  line-height:1.35!important;
+  font-weight:760!important;
+  letter-spacing:-.008em!important;
+}
+.recent-helper small{
+  display:block!important;
+  margin-top:2px!important;
+  color:#758b9a!important;
+  font-size:11.5px!important;
+  line-height:1.4!important;
+  font-weight:560!important;
+}
+.recent-list{
+  display:grid!important;
+  gap:8px!important;
+  min-width:0!important;
+}
+.recent-use{
+  display:flex!important;
+  align-items:center!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:50px!important;
+  max-height:none!important;
+  padding:11px 13px!important;
+  border:1px solid #d7e3ea!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  color:#153d5b!important;
+  box-shadow:0 2px 7px rgba(18,55,80,.035)!important;
+  text-align:left!important;
+  font-size:14.5px!important;
+  line-height:1.46!important;
+  font-weight:650!important;
+  letter-spacing:-.006em!important;
+  touch-action:manipulation!important;
+}
+.recent-use span{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:visible!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+  -webkit-box-orient:initial!important;
+  -webkit-line-clamp:unset!important;
+}
+.recent-use:active{
+  background:#f3f8fb!important;
+  border-color:#aac7d9!important;
+  transform:translateY(1px)!important;
+}
+.recent-clear-all{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:42px!important;
+  margin:9px 0 0!important;
+  padding:8px 12px!important;
+  border:1px solid #dce6ec!important;
+  border-radius:12px!important;
+  background:#f8fafc!important;
+  color:#718695!important;
+  font-size:12.5px!important;
+  line-height:1.35!important;
+  font-weight:650!important;
+  letter-spacing:.005em!important;
+  cursor:pointer!important;
+  touch-action:manipulation!important;
+}
+.recent-clear-all:active{
+  background:#f0f5f8!important;
+  color:#526d80!important;
+  transform:translateY(1px)!important;
+}
+.recent-panel.gc-recent-portal .recent-use,
+.recent-panel.gc-recent-portal .recent-clear-all{
+  position:relative!important;
+  z-index:1!important;
+}
+@media(max-width:360px){
+  .recent-address-control.is-open .recent-panel,
+  .recent-panel.gc-recent-portal{padding:10px!important;border-radius:17px!important}
+  .recent-helper{margin:-10px -10px 9px!important;padding:10px 12px 9px!important;border-radius:16px 16px 0 0!important}
+  .recent-helper strong{font-size:13.25px!important}
+  .recent-helper small{font-size:11.25px!important}
+  .recent-list{gap:7px!important}
+  .recent-use{min-height:49px!important;padding:10px 12px!important;font-size:14.15px!important;line-height:1.45!important}
+  .recent-clear-all{min-height:42px!important;margin-top:8px!important;font-size:12.25px!important}
+}
+@media(max-width:318px){
+  .recent-use{padding-left:11px!important;padding-right:11px!important;font-size:14px!important}
+  .recent-helper strong{font-size:13px!important}
+  .recent-helper small{font-size:11px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .recent-use,.recent-clear-all{transition:none!important}
+}
+
