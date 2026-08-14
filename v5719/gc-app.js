@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r4';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r5';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -26,6 +26,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R2_CONFIRMATION_PREMIUM_AND_LOCATION_EDIT_COMPACT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R3_IOS_RECENT_VIEWPORT_AND_LOCATION_EDIT_NO_SHAKE
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R5_SMART_SUGGESTION_SINGLE_STABLE_TRANSACTION_AND_RECENT_GESTURE_LOCK
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -790,6 +791,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let gcKeyboardDismissSession = null;
   let gcKeyboardDismissReleaseTimer = 0;
   let gcKeyboardDismissMaxTimer = 0;
+  let gcRideAddressStableTransaction = null;
   // R10Z14F19: when a visible smart-suggestion list disappears at the exact same moment
   // the mobile keyboard closes, WebKit can clamp scrollY because document height shrinks
   // mid-animation. A hidden tail spacer temporarily carries only that removed height, then
@@ -1178,6 +1180,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   }
 
   function mutateRideAddressUiStable(input, mutator) {
+    // M2R5: an explicit smart-suggestion tap is committed as one viewport-stable transaction.
+    // Nested UI mutations (suggestion collapse, admin hint, progressive reveal) must not each
+    // issue their own scroll correction; the outer transaction restores the anchor once.
+    if (gcRideAddressStableTransaction?.input === input) return mutator();
     if (!viewportStableInputEligible(input)) return mutator();
     const activeSession = document.activeElement === input
       ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
@@ -1194,6 +1200,33 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
     setTimeout(restore, 54);
     setTimeout(restore, 148);
+    return result;
+  }
+
+  function runRideAddressUiStableTransaction(input, mutator) {
+    if (gcRideAddressStableTransaction?.input === input || !viewportStableInputEligible(input)) return mutator();
+    const activeSession = document.activeElement === input
+      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
+      : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
+        ? gcBlurViewportSession
+        : null);
+    if (!activeSession) return mutator();
+
+    const transaction = { input, activeSession };
+    gcRideAddressStableTransaction = transaction;
+    let result;
+    try {
+      result = mutator();
+    } finally {
+      if (gcRideAddressStableTransaction === transaction) gcRideAddressStableTransaction = null;
+    }
+    const restore = () => {
+      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      restoreViewportStableSession(activeSession);
+    };
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
+    setTimeout(restore, 58);
+    setTimeout(restore, 150);
     return result;
   }
   window.GC_mutateInputViewportStable = mutateRideAddressUiStable;
@@ -2817,9 +2850,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       // GC_MASTER_STABLE_2026_08R10N_PROGRAMMATIC_ADDRESS_SUGGEST_GUARD
       // Recent/favorite/location fills are already confirmed choices. They must invalidate any
       // pending async lookup and must never reopen the smart-suggestion card. Manual edits still do.
-      const cancelSmartSuggestionSession = () => {
+      const invalidateSmartSuggestionRequest = () => {
         clearTimeout(timer);
         localToken = ++addressSuggestRequestToken;
+      };
+      const cancelSmartSuggestionSession = () => {
+        invalidateSmartSuggestionRequest();
         hideAddressSuggestions(id);
       };
       input._gcCancelSmartSuggestions = cancelSmartSuggestionSession;
@@ -2842,7 +2878,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         queuePickupAdminAmbiguity(input, skipSuggestOnce ? 0 : ADDRESS_SUGGEST_DEBOUNCE_MS);
         if (skipSuggestOnce) {
           delete input.dataset.gcSkipSuggestOnce;
-          cancelSmartSuggestionSession();
+          invalidateSmartSuggestionRequest();
+          // During an explicit suggestion-tap transaction the outer commit already owns the
+          // suggestion collapse. Avoid a second hide/stability correction from this input event.
+          if (input.dataset.gcSuggestionTapCommit !== '1') hideAddressSuggestions(id);
           return;
         }
         clearAddressVerified(input);
@@ -2930,15 +2969,28 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         // R10Y explicit-selection rule: only an explicit passenger tap may replace visible text.
         // The replacement is the cleaned canonical candidate; raw provider formatting never becomes UI text.
         const resolvedAddress = resolvedAddressForInput(selected, resolved, selected) || selected;
-        input.value = selected;
-        input.dataset.gcSkipSuggestOnce = '1';
-        input._gcCancelSmartSuggestions?.();
-        markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
-        input.classList.remove('invalid', 'gc-address-needs-choice');
-        document.getElementById(`${id}Error`)?.classList.remove('show');
-        hideAddressSuggestions(id);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        const suggestionCapacityReserved = reserveSuggestionCollapseCapacity(box);
+        runRideAddressUiStableTransaction(input, () => {
+          input.dataset.gcSuggestionTapCommit = '1';
+          try {
+            input.value = selected;
+            input.dataset.gcSkipSuggestOnce = '1';
+            invalidateSmartSuggestionRequest();
+            markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
+            input.classList.remove('invalid', 'gc-address-needs-choice');
+            document.getElementById(`${id}Error`)?.classList.remove('show');
+            // Collapse exactly once inside the same transaction. input/change listeners may update
+            // progressive sections, but nested viewport corrections are suppressed until commit ends.
+            box.innerHTML = '';
+            box._gcSuggestions = [];
+            box.classList.add('hidden');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          } finally {
+            delete input.dataset.gcSuggestionTapCommit;
+          }
+        });
+        if (suggestionCapacityReserved) scheduleSuggestionCollapseSettle(120);
       });
     });
   }
@@ -4115,6 +4167,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // height-only window.resize events. Only a real layout-width/orientation change dismisses it.
   let recentQuickPickerLayoutWidth = 0;
   let recentQuickPickerOrientationKey = '';
+  let recentQuickPickerTouchLastY = 0;
+  let recentQuickPickerTouchActive = false;
 
   function getRecentQuickPickerLayoutWidth() {
     return Math.round(document.documentElement?.clientWidth || window.innerWidth || 0);
@@ -4327,6 +4381,33 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function bindRecentPortalPanel(panel) {
     if (!panel || panel.dataset.gcPortalBound === '1') return;
     panel.dataset.gcPortalBound = '1';
+    // M2R5 iOS gesture lock: the body-level picker owns vertical gestures that begin inside it.
+    // If its own content can scroll, scroll only the panel; at its edges (or when not scrollable),
+    // prevent scroll chaining into the page so the fixed popover cannot visually chase the finger.
+    panel.addEventListener('touchstart', event => {
+      if (event.touches?.length !== 1) return;
+      recentQuickPickerTouchActive = true;
+      recentQuickPickerTouchLastY = Number(event.touches[0].clientY || 0);
+    }, { passive: true });
+    panel.addEventListener('touchmove', event => {
+      if (!recentQuickPickerTouchActive || event.touches?.length !== 1) return;
+      const y = Number(event.touches[0].clientY || 0);
+      const delta = recentQuickPickerTouchLastY - y;
+      recentQuickPickerTouchLastY = y;
+      const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      const canScroll = maxScrollTop > 1;
+      const atTop = panel.scrollTop <= 0.5;
+      const atBottom = panel.scrollTop >= maxScrollTop - 0.5;
+      const wouldChainToPage = !canScroll || (delta < 0 && atTop) || (delta > 0 && atBottom);
+      if (wouldChainToPage && event.cancelable) event.preventDefault();
+      event.stopPropagation();
+    }, { passive: false });
+    const endRecentPortalTouch = () => {
+      recentQuickPickerTouchActive = false;
+      recentQuickPickerTouchLastY = 0;
+    };
+    panel.addEventListener('touchend', endRecentPortalTouch, { passive: true });
+    panel.addEventListener('touchcancel', endRecentPortalTouch, { passive: true });
     panel.addEventListener('click', event => {
       const useButton = event.target.closest('.recent-use');
       if (useButton) {
@@ -4417,6 +4498,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     activeRecentTargetId = '';
     recentQuickPickerLayoutWidth = 0;
     recentQuickPickerOrientationKey = '';
+    recentQuickPickerTouchActive = false;
+    recentQuickPickerTouchLastY = 0;
   }
 
   function openRecentQuickPicker(control, targetId) {
@@ -4639,22 +4722,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         if (activeRecentControl.contains(event.target) || activeRecentPanel?.contains(event.target)) return;
         closeRecentQuickPicker();
       });
-      // R10Q: scrolling/dragging inside the recent list is a browse gesture, not a close gesture.
-      // The anchored panel naturally moves with its control during page scroll, so keep it open.
-      let recentViewportSyncRaf = 0;
-      const syncRecentQuickPickerToViewport = () => {
-        if (recentManagementOpen || !activeRecentControl) return;
-        if (recentViewportSyncRaf) cancelAnimationFrame(recentViewportSyncRaf);
-        recentViewportSyncRaf = requestAnimationFrame(() => {
-          recentViewportSyncRaf = 0;
-          if (!recentManagementOpen && activeRecentControl) positionRecentQuickPanel(activeRecentControl);
-        });
-      };
-      window.addEventListener('scroll', syncRecentQuickPickerToViewport, { passive: true });
-      // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
-      // iPhone 13 / short iOS WebViews can emit window.resize while the user merely scrolls and
-      // LINE/Safari chrome changes height. Height-only resize is NOT a dismiss gesture. A material
-      // layout-width or orientation change is structural and may safely close the anchored picker.
+      // M2R5: once opened, the recent-address popover is a fixed viewport surface. Ordinary page
+      // scroll, LINE/Safari chrome movement and visualViewport scroll/resize must NOT continuously
+      // re-anchor it; that feedback loop is what made the iPhone 13 popover follow the finger/shake.
+      // The touch guard above prevents gestures originating inside the panel from scrolling the page.
+      // Only a real layout-width/orientation change is structural enough to dismiss the popover.
       const handleRecentQuickPickerLayoutResize = () => {
         if (recentManagementOpen || !activeRecentControl) return;
         const currentLayoutWidth = getRecentQuickPickerLayoutWidth();
@@ -4663,20 +4735,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           && Math.abs(currentLayoutWidth - recentQuickPickerLayoutWidth) >= 8;
         const orientationChanged = Boolean(recentQuickPickerOrientationKey)
           && currentOrientationKey !== recentQuickPickerOrientationKey;
-        if (widthChanged || orientationChanged) {
-          closeRecentQuickPicker();
-          return;
-        }
-        // Dynamic browser chrome, keyboard settling and other height-only viewport changes:
-        // keep the picker open and re-anchor it to the current visual viewport.
-        syncRecentQuickPickerToViewport();
+        if (widthChanged || orientationChanged) closeRecentQuickPicker();
       };
       window.addEventListener('resize', handleRecentQuickPickerLayoutResize, { passive: true });
-      // M2R3 iOS compatibility: collapsing/expanding LINE/Safari chrome on short iPhones emits
-      // visualViewport resize/scroll during an ordinary page swipe. Keep the picker open and
-      // re-anchor it instead of treating that browser-chrome movement as a dismiss gesture.
-      window.visualViewport?.addEventListener('resize', syncRecentQuickPickerToViewport, { passive: true });
-      window.visualViewport?.addEventListener('scroll', syncRecentQuickPickerToViewport, { passive: true });
     }
   }
 
