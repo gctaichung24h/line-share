@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r8';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r9';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -30,6 +30,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R6_CONFIRMATION_COPY_OPTICAL_FINISH
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R7_LOCATION_STATE_MACHINE_NO_DOOR_MANUAL_SWITCH
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R8_EXPLICIT_RELOCATION_GPS_AUTHORITY_AND_MANUAL_DRAFT
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R9_DMS_COORDINATE_AND_DISPATCH_PICKUP_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -3704,9 +3705,26 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return location;
   }
 
+  function formatDmsCoordinateComponent(value, positiveHemisphere, negativeHemisphere) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '';
+    // Display only: keep the original decimal latitude/longitude untouched for GPS, map pins,
+    // signatures and all coordinate logic. Round the human/dispatch text to 0.1 arc-second.
+    const totalTenths = Math.round(Math.abs(numeric) * 36000);
+    const degrees = Math.floor(totalTenths / 36000);
+    const remainder = totalTenths - degrees * 36000;
+    const minutes = Math.floor(remainder / 600);
+    const secondsTenths = remainder - minutes * 600;
+    const seconds = (secondsTenths / 10).toFixed(1).padStart(4, '0');
+    const hemisphere = numeric < 0 ? negativeHemisphere : positiveHemisphere;
+    return `${degrees}°${String(minutes).padStart(2, '0')}'${seconds}"${hemisphere}`;
+  }
+
   function formatLocationCoordinate(location) {
     if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return '';
-    return `${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`;
+    const latitude = formatDmsCoordinateComponent(location.latitude, 'N', 'S');
+    const longitude = formatDmsCoordinateComponent(location.longitude, 'E', 'W');
+    return latitude && longitude ? `${latitude} ${longitude}` : '';
   }
 
   function resetLocationSupplement() {
@@ -6338,8 +6356,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       appendLine(lines, reviewedPickupLabel, reviewedPickup);
-      appendLine(lines, '附近位置', noDoorSupplement);
       appendLine(lines, '定位座標', noDoorCoordinate);
+      appendLine(lines, '上車辨識點', noDoorSupplement);
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
       if (mode !== 'driver') appendLine(lines, cfg['訊息欄位_人數'], value('passengers'));
@@ -6383,8 +6401,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         { label: reviewedPickupLabel, value: reviewedPickup, emphasis: true },
-        ...(noDoorSupplement ? [{ label: '附近位置', value: noDoorSupplement }] : []),
         ...(noDoorCoordinate ? [{ label: '定位座標', value: noDoorCoordinate }] : []),
+        ...(noDoorSupplement ? [{ label: '附近位置', value: noDoorSupplement }] : []),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
