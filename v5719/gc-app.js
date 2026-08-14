@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r3';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r4';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -25,6 +25,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R2_CONFIRMATION_PREMIUM_AND_LOCATION_EDIT_COMPACT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R3_IOS_RECENT_VIEWPORT_AND_LOCATION_EDIT_NO_SHAKE
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -4110,6 +4111,28 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let activeRecentControl = null;
   let activeRecentPanel = null;
   let recentManagementOpen = false;
+  // M2R4: keep anchored recent-address pickers alive through iOS/LINE browser-chrome
+  // height-only window.resize events. Only a real layout-width/orientation change dismisses it.
+  let recentQuickPickerLayoutWidth = 0;
+  let recentQuickPickerOrientationKey = '';
+
+  function getRecentQuickPickerLayoutWidth() {
+    return Math.round(document.documentElement?.clientWidth || window.innerWidth || 0);
+  }
+
+  function getRecentQuickPickerOrientationKey() {
+    const screenType = String(window.screen?.orientation?.type || '').trim();
+    if (screenType) return screenType;
+    // Legacy iOS exposes window.orientation; unlike innerHeight it is not affected by
+    // keyboard/browser-chrome height changes, so it cannot create a false landscape signal.
+    const legacyAngle = Number(window.orientation);
+    return Number.isFinite(legacyAngle) ? `angle-${legacyAngle}` : '';
+  }
+
+  function captureRecentQuickPickerViewportSignature() {
+    recentQuickPickerLayoutWidth = getRecentQuickPickerLayoutWidth();
+    recentQuickPickerOrientationKey = getRecentQuickPickerOrientationKey();
+  }
 
   // GC_MASTER_STABLE_2026_08R10Z14F25R6_RECENT_SHEET_SWIPE_DISMISS
   // Management-sheet only: the handle/header can be dragged downward to dismiss.
@@ -4392,6 +4415,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     activeRecentPanel = null;
     activeRecentControl = null;
     activeRecentTargetId = '';
+    recentQuickPickerLayoutWidth = 0;
+    recentQuickPickerOrientationKey = '';
   }
 
   function openRecentQuickPicker(control, targetId) {
@@ -4405,6 +4430,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     recentManagementOpen = false;
     activeRecentControl = control;
     activeRecentTargetId = targetId;
+    captureRecentQuickPickerViewportSignature();
     renderRecentQuickPanel(control);
     control.classList.add('is-open');
     control.querySelector('.recent-toggle')?.setAttribute('aria-expanded', 'true');
@@ -4625,10 +4651,27 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         });
       };
       window.addEventListener('scroll', syncRecentQuickPickerToViewport, { passive: true });
-      // A true layout-viewport resize/orientation change still closes the anchored picker.
-      window.addEventListener('resize', () => {
-        if (!recentManagementOpen) closeRecentQuickPicker();
-      }, { passive: true });
+      // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R4_IOS_RECENT_WINDOW_RESIZE_DISCRIMINATION
+      // iPhone 13 / short iOS WebViews can emit window.resize while the user merely scrolls and
+      // LINE/Safari chrome changes height. Height-only resize is NOT a dismiss gesture. A material
+      // layout-width or orientation change is structural and may safely close the anchored picker.
+      const handleRecentQuickPickerLayoutResize = () => {
+        if (recentManagementOpen || !activeRecentControl) return;
+        const currentLayoutWidth = getRecentQuickPickerLayoutWidth();
+        const currentOrientationKey = getRecentQuickPickerOrientationKey();
+        const widthChanged = recentQuickPickerLayoutWidth > 0
+          && Math.abs(currentLayoutWidth - recentQuickPickerLayoutWidth) >= 8;
+        const orientationChanged = Boolean(recentQuickPickerOrientationKey)
+          && currentOrientationKey !== recentQuickPickerOrientationKey;
+        if (widthChanged || orientationChanged) {
+          closeRecentQuickPicker();
+          return;
+        }
+        // Dynamic browser chrome, keyboard settling and other height-only viewport changes:
+        // keep the picker open and re-anchor it to the current visual viewport.
+        syncRecentQuickPickerToViewport();
+      };
+      window.addEventListener('resize', handleRecentQuickPickerLayoutResize, { passive: true });
       // M2R3 iOS compatibility: collapsing/expanding LINE/Safari chrome on short iPhones emits
       // visualViewport resize/scroll during an ordinary page swipe. Keep the picker open and
       // re-anchor it instead of treating that browser-chrome movement as a dismiss gesture.
