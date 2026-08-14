@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r9';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r10';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -31,6 +31,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R7_LOCATION_STATE_MACHINE_NO_DOOR_MANUAL_SWITCH
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R8_EXPLICIT_RELOCATION_GPS_AUTHORITY_AND_MANUAL_DRAFT
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R9_DMS_COORDINATE_AND_DISPATCH_PICKUP_IDENTIFIER
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R10_SAFE_PICKUP_OUTPUT_CANONICALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -688,6 +689,62 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   }
 
   window.GC_normalizeDispatchAddressForReview = normalizeDispatchAddressForReview;
+
+  // M2R10: pickup-only output sanitizer for provider/AutoFill labels such as
+  // "新生路28號 霧峰區 台中市 413004 台灣". The passenger's raw input remains untouched;
+  // only the confirmation / LINE dispatch copy is reordered when every component is unambiguous.
+  // Unknown/free-form text always falls back to the existing non-blocking review formatter.
+  function normalizeReversedTaiwanPickupAddressForReview(address) {
+    const original = normalizeAddress(address);
+    if (!original) return '';
+    try {
+      let text = typeof window.GC_traditionalizeDispatchAddress === 'function'
+        ? window.GC_traditionalizeDispatchAddress(original)
+        : original;
+      text = normalizeAddress(text).replace(/臺/g, '台').replace(/　/g, ' ').trim();
+      if (!text || /(?:undefined|null|�)/i.test(text)) return '';
+
+      // Remove only terminal standalone provider metadata. "台灣大道" is safe because
+      // the country token must be separated from the street text.
+      text = text.replace(/[\s,，、-]+(?:台灣|Taiwan|TWN)$/i, '').trim();
+      text = text.replace(/[\s,，、-]+[0-9０-９]{3,6}$/, '').trim();
+      text = text.replace(/[\s,，、-]+(?:台灣|Taiwan|TWN)$/i, '').trim();
+      if (!text) return '';
+
+      const county = canonicalTaiwanCounty(text);
+      // This corrective path is intentionally scoped to the fleet's Taichung service area.
+      // Other counties keep the existing formatter untouched rather than being guessed.
+      if (county !== '台中市') return '';
+      const doorMatch = text.match(/^(.+?(?:大道|路|街|道|巷|弄)[^,，、]{0,80}?[0-9０-９]+(?:[-之][0-9０-９]+)?號(?:之[0-9０-９]+)?)(?=\s|[,，、-]|$)/);
+      if (!doorMatch) return '';
+      const roadDoor = normalizeAddress(doorMatch[1]).replace(/臺/g, '台').trim();
+      if (!roadDoor || roadDoor.includes(county)) return '';
+
+      const tail = normalizeAddress(text.slice(doorMatch[0].length).replace(/^[\s,，、-]+/, '')).trim();
+      if (!tail) return '';
+      const tokens = tail.split(/[\s,，、-]+/).filter(Boolean);
+      const districtTokens = tokens.filter(token => ADDRESS_TAICHUNG_DISTRICTS.includes(token));
+      if (districtTokens.length !== 1 || !tokens.includes(county)) return '';
+      const district = districtTokens[0];
+      if (tokens.some(token => token !== county && token !== district)) return '';
+
+      const candidate = `${county}${district}${roadDoor}`;
+      let normalized = '';
+      try { normalized = window.GC_ADDRESS_GUARD?.canonicalTaiwanAddress?.(candidate) || ''; } catch (_) {}
+      normalized = normalized || smartNormalizeTaiwanAddress(candidate);
+      normalized = normalizeAddress(normalized).replace(/臺/g, '台').replace(/[，,、\s]+/g, '').trim();
+      if (!normalized.startsWith(`${county}${district}`)) return '';
+      if (!/(?:大道|路|街|道|巷|弄).*[0-9０-９]+(?:[-之][0-9０-９]+)?號/.test(normalized)) return '';
+      return normalized;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function normalizePickupAddressForReview(address) {
+    return normalizeReversedTaiwanPickupAddressForReview(address)
+      || normalizeDispatchAddressForReview(address);
+  }
 
   // GC_MASTER_STABLE_2026_08R10Z14F17_CALL_DESTINATION_DISPLAY_NORMALIZATION
   // Call destination is reference-only. Normalize only a display copy used by the confirmation
@@ -2207,9 +2264,22 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // A street + door number without county/district is still ambiguous (e.g. 公園路188號 can
   // exist in multiple districts). Strict pickup/fare fields must require a suggestion selection
   // or explicit county+district instead of silently choosing the proximity-biased top result.
+  function explicitTaiwanDistrictFromLooseAddress(value, county = canonicalTaiwanCounty(value)) {
+    const text = normalizeAddress(String(value || '').replace(/臺/g, '台').replace(/　/g, ' '));
+    if (!text) return '';
+    if (county && county !== '台中市') return '';
+    const tokens = text.split(/[\s,，、-]+/).filter(Boolean);
+    // Target only real Taichung district names. This prevents POI tokens such as 逢甲夜市／停車區
+    // from being mistaken for administrative areas while still recognizing iOS/AutoFill order.
+    const districts = tokens.filter(token => ADDRESS_TAICHUNG_DISTRICTS.includes(token));
+    return districts.length === 1 ? districts[0] : '';
+  }
+
   function isDoorAddressMissingAdmin(value) {
     const core = dispatchDoorAddressCore(value);
-    return Boolean(core.road && core.house && (!core.county || !core.district));
+    const county = core.county || canonicalTaiwanCounty(value);
+    const district = core.district || explicitTaiwanDistrictFromLooseAddress(value, county);
+    return Boolean(core.road && core.house && (!county || !district));
   }
 
   // R10Z14F11: the non-blocking UI reminder only needs a usable district / township / town.
@@ -2217,7 +2287,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // such as "霧峰區中正路523號" from being nagged only because the county/city text is omitted.
   function isDoorAddressMissingReminderAdmin(value) {
     const core = dispatchDoorAddressCore(value);
-    return Boolean(core.road && core.house && !core.district);
+    const district = core.district || explicitTaiwanDistrictFromLooseAddress(value, core.county || canonicalTaiwanCounty(value));
+    return Boolean(core.road && core.house && !district);
   }
 
   function chooseConfidentTypedResolution(query, candidates) {
@@ -6321,7 +6392,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const noDoorLocation = noDoorBoundLocation();
       const reviewedPickup = noDoorLocation
         ? (String(pickup || '').trim() || LOCATION_PIN_ONLY_LABEL)
-        : normalizeDispatchAddressForReview(pickup);
+        : normalizePickupAddressForReview(pickup);
       const reviewedPickupLabel = noDoorLocation
         ? (mode === 'driver' ? '代駕位置' : '上車位置')
         : cfg['訊息欄位_上車'];
