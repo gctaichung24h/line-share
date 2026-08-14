@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r13';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r14';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -35,6 +35,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R11_NO_DOOR_DISPATCH_CLUSTER_AND_SURROUNDING_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R14_FARE_DISCLOSURE_COLLAPSE_VISUAL_ANCHOR_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -6275,9 +6276,24 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function rideOptionalDisclosureEligible(details) {
     if (!(details instanceof HTMLDetailsElement)) return false;
-    if (!details.matches('details.optional-box:not(.favorite-box)')) return false;
-    if (!details.closest('#serviceForm') || !details.querySelector(':scope > .optional-content')) return false;
-    return ['call', 'driver'].includes(activeModeForViewportStability());
+    const activeMode = activeModeForViewportStability();
+
+    // M2R13: ride/driver "其他需求" keeps the original eligibility contract.
+    if (['call', 'driver'].includes(activeMode)) {
+      if (!details.matches('details.optional-box:not(.favorite-box)')) return false;
+      if (!details.closest('#serviceForm') || !details.querySelector(':scope > .optional-content')) return false;
+      return true;
+    }
+
+    // M2R14: the fare page has two tall native disclosures ("中部地區費率" and
+    // "其他估價協助"). They use the same BODY-tail reserve only for a deliberate
+    // user collapse, so closing either panel cannot trigger WebKit max-scroll clamping.
+    if (activeMode === 'fare') {
+      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return false;
+      return Boolean(details.closest('.gc-fare-card'));
+    }
+
+    return false;
   }
 
   function ensureUserDisclosureCollapseSpacer() {
@@ -6407,6 +6423,33 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         if (details.contains(current) || current.contains(details)) return;
         details.open = false;
       });
+    }, true);
+
+    // M2R14: fare disclosures are created in two different phases (the rate block is in the
+    // original render; the manual-assistance details is inserted later by gc-fare-master.js).
+    // Delegate from document so BOTH panels receive the same pre-toggle anchor transaction,
+    // including the dynamically-created manual panel, without changing their markup or CSS.
+    document.addEventListener('click', event => {
+      const summary = event.target?.closest?.('summary');
+      const details = summary?.parentElement;
+      if (!(details instanceof HTMLDetailsElement)) return;
+      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return;
+      if (activeModeForViewportStability() !== 'fare' || !details.open) return;
+      if (event.defaultPrevented || (typeof event.button === 'number' && event.button !== 0)) return;
+      prepareUserDisclosureCollapseAnchor(details, summary);
+    }, true);
+
+    document.addEventListener('toggle', event => {
+      const details = event.target;
+      if (!(details instanceof HTMLDetailsElement)) return;
+      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return;
+      if (activeModeForViewportStability() !== 'fare') return;
+      if (details.open) {
+        // Re-opening restores the removed height; release any tail reserve naturally.
+        requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
+      } else {
+        finishUserDisclosureCollapseAnchor(details);
+      }
     }, true);
 
     // Tapping elsewhere returns the page to its compact state. Defer the collapse
