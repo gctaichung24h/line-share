@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r7';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r8';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -29,6 +29,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R5_SMART_SUGGESTION_SINGLE_STABLE_TRANSACTION_AND_RECENT_GESTURE_LOCK
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R6_CONFIRMATION_COPY_OPTICAL_FINISH
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R7_LOCATION_STATE_MACHINE_NO_DOOR_MANUAL_SWITCH
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R8_EXPLICIT_RELOCATION_GPS_AUTHORITY_AND_MANUAL_DRAFT
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -3499,16 +3500,19 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const input = document.getElementById('pickup');
     const location = noDoorBoundLocation();
     if (!input || !location) return false;
+    const manualDraft = String(location.manualDraft || '').trim();
+    const manualDraftVerified = Boolean(manualDraft && location.manualDraftVerified);
 
-    // This is an explicit mode switch.  Never leave the GPS status sentence as editable text and
-    // never keep an old coordinate/map binding behind a newly typed address.
+    // This is an explicit mode switch. Never leave the GPS status sentence as editable text and
+    // never keep an old coordinate/map binding behind a manually entered address. If the rider
+    // had typed an address before explicitly re-requesting GPS, restore it only as a manual draft.
     const anchorTop = input.getBoundingClientRect().top;
     const anchorScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
     reserveLocationManualSwitchScrollCapacity();
     currentLocationUsed = false;
     clearAttachedLocation(false);
     input._gcCancelSmartSuggestions?.();
-    input.value = '';
+    input.value = manualDraft;
     input.dataset.gcSkipSuggestOnce = '1';
     clearAddressVerified(input);
     clearFieldValidation('pickup');
@@ -3520,6 +3524,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     // deliberate commit boundary and would collapse the whole form on an empty value.
     try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    if (manualDraftVerified) markAddressVerified(input, 'restored-manual-draft');
     const end = input.value.length;
     try { input.setSelectionRange(end, end); } catch (_) {}
 
@@ -4007,6 +4012,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const previousPickup = String(pickupInput.value || '').trim();
       const previousPickupVerified = isAddressVerified(pickupInput);
       const previousPickupOwnedByLocation = Boolean(boundAttachedLocation());
+      const previousManualDraft = previousPickup && !previousPickupOwnedByLocation && !isLocationStateDisplayText(previousPickup)
+        ? previousPickup
+        : '';
+      const previousManualDraftVerified = Boolean(previousManualDraft && previousPickupVerified);
       resetLocationSupplement();
       pickupInput._gcCancelSmartSuggestions?.();
       button.disabled = true;
@@ -4032,6 +4041,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           address: '',
           generatedAddress: '',
           manualAddress: '',
+          manualDraft: previousManualDraft,
+          manualDraftVerified: previousManualDraftVerified,
           confirmed: reserveAddressOnly,
           requiresConfirmation: false,
           sendMap: canSendMap,
@@ -4093,32 +4104,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         const noDoorAddress = String(reverseResult?.noDoorAddress || '').trim();
 
         if (!address) {
-          // A pre-existing passenger-entered address stays authoritative. Never pair a new GPS
-          // coordinate with unrelated manual text just because reverse geocoding lacks a door.
-          if (previousPickup && !previousPickupOwnedByLocation) {
-            if (reserveAddressOnly) {
-              attachedLocation = null;
-              pickupInput.value = previousPickup;
-              if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
-              else clearAddressVerified(pickupInput);
-              setLocationStatus('定位已取得但無法辨識正確門牌，已保留原本輸入的地址；請直接確認或重新取得位置。', 'success');
-              setLocationReview('', false);
-              return;
-            }
-            attachedLocation.settingInput = true;
-            pickupInput.value = previousPickup;
-            attachedLocation.settingInput = false;
-            attachedLocation.address = previousPickup;
-            attachedLocation.manualAddress = previousPickup;
-            attachedLocation.confirmed = previousPickupVerified;
-            if (previousPickupVerified) markAddressVerified(pickupInput, 'restored');
-            else clearAddressVerified(pickupInput);
-            attachedLocation.sendMap = false;
-            attachedLocation.noDoor = false;
-            setLocationStatus('定位已取得但無法確認門牌，已保留你原本輸入的地址；為避免地址與定位不一致，本次不附上定位。', 'success');
-            return;
-          }
-
+          // M2R8: pressing 使用目前位置／重新取得位置 is an explicit request to switch back to GPS.
+          // A precise GPS result without a reliable door must therefore become the authoritative
+          // no-door location state; an older manual address is kept only as a recoverable draft
+          // for a later "改填地址" action and must never masquerade as the current GPS address.
           // F25: precise GPS without a reliable door number is a fallback, not the normal shortcut.
           // Keep any road/area text that ArcGIS can safely identify, mark it clearly as no-door,
           // and preserve the ORIGINAL phone GPS coordinate for confirmation/LINE dispatch context.
