@@ -7,6 +7,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F20_RIDE_PROGRESSIVE_DONE_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -140,12 +141,6 @@
       if (!addressControls.has(control)) { update(); return; }
       cancelRideBlurUpdate();
       const revision = rideBlurRevision;
-      const startedAt = performance.now();
-      const viewport = window.visualViewport;
-      const suggest = document.getElementById(`${control.id}Suggest`);
-      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
-      let lastOffsetTop = Number(viewport?.offsetTop || 0);
-      let stableFrames = 0;
 
       const finish = () => {
         if (revision !== rideBlurRevision) return;
@@ -157,27 +152,18 @@
         update();
       };
 
-      const poll = () => {
-        if (revision !== rideBlurRevision) return;
-        if (anotherInteractiveTargetHasFocus(control)) return;
-        const height = Number(viewport?.height || window.innerHeight || 0);
-        const offsetTop = Number(viewport?.offsetTop || 0);
-        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
-        stableFrames = viewportStable ? stableFrames + 1 : 0;
-        lastHeight = height;
-        lastOffsetTop = offsetTop;
-        const elapsed = performance.now() - startedAt;
-        const suggestionsClosed = !suggest || suggest.classList.contains('hidden');
-        const bodyReleased = document.body?.style.position !== 'fixed';
-        if ((elapsed >= 380 && stableFrames >= 3 && suggestionsClosed && bodyReleased) || elapsed >= 820) {
-          finish();
-          return;
-        }
-        rideBlurRaf = requestAnimationFrame(poll);
-      };
+      const sharedSettler = window.GC_runAfterRideKeyboardDismissSettles;
+      if (typeof sharedSettler === 'function') {
+        // M2R12: join the exact same post-keyboard transaction used by smart-suggestion cleanup.
+        // This guarantees one settled layout commit instead of two independent polls that can finish
+        // on different animation frames and intermittently fight iOS visualViewport restoration.
+        sharedSettler(control, finish, { minDelay: 320, maxDelay: 1180 });
+        return;
+      }
 
-      rideBlurRaf = requestAnimationFrame(poll);
-      rideBlurTimer = setTimeout(finish, 860);
+      // Defensive fallback for an incomplete/legacy bundle only. Current production bundles always
+      // provide GC_runAfterRideKeyboardDismissSettles before this module is evaluated.
+      rideBlurTimer = setTimeout(finish, 880);
     }
 
     [...radios, document.getElementById('date'), document.getElementById('time')].filter(Boolean).forEach(control => {

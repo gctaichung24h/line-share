@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r11';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r12';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -33,6 +33,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R9_DMS_COORDINATE_AND_DISPATCH_PICKUP_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R10_SAFE_PICKUP_OUTPUT_CANONICALIZATION
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R11_NO_DOOR_DISPATCH_CLUSTER_AND_SURROUNDING_IDENTIFIER
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -858,6 +859,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let gcKeyboardDismissReleaseTimer = 0;
   let gcKeyboardDismissMaxTimer = 0;
   let gcRideAddressStableTransaction = null;
+  // M2R12: one coordinator owns every post-blur layout commit for the active ride address.
+  // Smart-suggestion collapse and progressive-flow updates join the same viewport-settle barrier
+  // instead of racing each other while iOS/LINE WebView is still restoring the keyboard viewport.
+  let gcRideKeyboardSettleCoordinator = null;
   // R10Z14F19: when a visible smart-suggestion list disappears at the exact same moment
   // the mobile keyboard closes, WebKit can clamp scrollY because document height shrinks
   // mid-animation. A hidden tail spacer temporarily carries only that removed height, then
@@ -1190,60 +1195,132 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
   window.addEventListener('scroll', () => scheduleSuggestionCollapseSettle(72), { passive: true });
 
-  function runAfterRideKeyboardDismissSettles(input, callback, { minDelay = 260, maxDelay = 780 } = {}) {
+  function runAfterRideKeyboardDismissSettles(input, callback, { minDelay = 320, maxDelay = 1180 } = {}) {
+    if (typeof callback !== 'function') return;
     if (!rideAddressKeyboardDismissInputEligible(input)) {
       setTimeout(callback, 180);
       return;
     }
+
+    const now = performance.now();
+    const blurSession = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
+    const existing = gcRideKeyboardSettleCoordinator;
+    if (existing && !existing.done && existing.input === input && (now - existing.startedAt) <= 120) {
+      existing.callbacks.push(callback);
+      existing.minDelay = Math.max(existing.minDelay, Number(minDelay) || 0);
+      existing.maxDelay = Math.max(existing.maxDelay, Number(maxDelay) || 0);
+      existing.refreshMaxTimer();
+      return;
+    }
+
     const viewport = window.visualViewport;
-    const startedAt = performance.now();
-    let lastHeight = Number(viewport?.height || window.innerHeight || 0);
-    let lastOffsetTop = Number(viewport?.offsetTop || 0);
-    let stableFrames = 0;
-    let raf = 0;
-    let maxTimer = 0;
-    let done = false;
+    const initialHeight = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
+    const initialOffsetTop = Number(viewport?.offsetTop || 0);
+    const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), initialHeight);
+    const keyboardWasOpen = Boolean(
+      viewport && baselineHeight > 0 && initialHeight > 0 &&
+      ((baselineHeight - initialHeight) >= 72 || keyboardAppearsOpen())
+    );
+
+    const coordinator = {
+      input,
+      blurSession,
+      startedAt: now,
+      initialHeight,
+      initialOffsetTop,
+      baselineHeight,
+      keyboardWasOpen,
+      callbacks: [callback],
+      minDelay: Math.max(260, Number(minDelay) || 0),
+      maxDelay: Math.max(820, Number(maxDelay) || 0),
+      lastHeight: initialHeight,
+      lastOffsetTop: initialOffsetTop,
+      stableFrames: 0,
+      raf: 0,
+      maxTimer: 0,
+      done: false,
+      refreshMaxTimer: null
+    };
+    gcRideKeyboardSettleCoordinator = coordinator;
 
     const cleanup = () => {
-      if (raf) cancelAnimationFrame(raf);
-      raf = 0;
-      clearTimeout(maxTimer);
-      maxTimer = 0;
+      if (coordinator.raf) cancelAnimationFrame(coordinator.raf);
+      coordinator.raf = 0;
+      clearTimeout(coordinator.maxTimer);
+      coordinator.maxTimer = 0;
     };
+
+    const markViewportSettled = () => {
+      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : coordinator.blurSession;
+      if (session?.passiveRideDismiss) session.viewportSettled = true;
+    };
+
     const finish = () => {
-      if (done) return;
-      done = true;
+      if (coordinator.done) return;
+      coordinator.done = true;
       cleanup();
-      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
-      if (session?.passiveRideDismiss) session.viewportSettled = true;
-      callback();
-      scheduleSuggestionCollapseSettle(72);
+      markViewportSettled();
+      if (gcRideKeyboardSettleCoordinator === coordinator) gcRideKeyboardSettleCoordinator = null;
+      const callbacks = coordinator.callbacks.splice(0);
+      // Commit every waiting mutation in one settled turn. No scrollTo/scrollBy is issued here;
+      // WebKit keeps ownership of the native keyboard viewport transition from start to finish.
+      callbacks.forEach(fn => {
+        try { fn(); } catch (error) { setTimeout(() => { throw error; }, 0); }
+      });
+      scheduleSuggestionCollapseSettle(96);
     };
+
     const cancelForRefocus = () => {
-      if (done) return;
-      done = true;
+      if (coordinator.done) return;
+      coordinator.done = true;
       cleanup();
-      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
-      if (session?.passiveRideDismiss) session.viewportSettled = true;
-      scheduleSuggestionCollapseSettle(72);
+      markViewportSettled();
+      if (gcRideKeyboardSettleCoordinator === coordinator) gcRideKeyboardSettleCoordinator = null;
+      scheduleSuggestionCollapseSettle(96);
     };
+
+    coordinator.refreshMaxTimer = () => {
+      clearTimeout(coordinator.maxTimer);
+      const elapsed = performance.now() - coordinator.startedAt;
+      coordinator.maxTimer = setTimeout(finish, Math.max(40, coordinator.maxDelay - elapsed + 40));
+    };
+
     const poll = () => {
-      if (done) return;
+      if (coordinator.done) return;
       if (document.activeElement === input) { cancelForRefocus(); return; }
+      // A direct tap into another editor is a focus transfer, not a keyboard dismissal. The new
+      // editor owns the keyboard, so finish the old field's queued mutations without waiting for
+      // a nonexistent close animation.
       if (otherEditorHasFocus(input)) { finish(); return; }
-      const height = Number(viewport?.height || window.innerHeight || 0);
+
+      const height = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
       const offsetTop = Number(viewport?.offsetTop || 0);
-      const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
-      stableFrames = viewportStable ? stableFrames + 1 : 0;
-      lastHeight = height;
-      lastOffsetTop = offsetTop;
-      const elapsed = performance.now() - startedAt;
-      if ((elapsed >= minDelay && stableFrames >= 3) || elapsed >= maxDelay) { finish(); return; }
-      raf = requestAnimationFrame(poll);
+      const viewportStable = Math.abs(height - coordinator.lastHeight) <= 0.5 && Math.abs(offsetTop - coordinator.lastOffsetTop) <= 0.5;
+      coordinator.stableFrames = viewportStable ? coordinator.stableFrames + 1 : 0;
+      coordinator.lastHeight = height;
+      coordinator.lastOffsetTop = offsetTop;
+
+      const elapsed = performance.now() - coordinator.startedAt;
+      const recoveredByBaseline = !coordinator.keyboardWasOpen || height >= coordinator.baselineHeight - 48;
+      const recoveredByGrowth = !coordinator.keyboardWasOpen || height >= coordinator.initialHeight + 64;
+      const viewportRecovered = recoveredByBaseline || recoveredByGrowth || !keyboardAppearsOpen();
+      const bodyReleased = document.body?.style.position !== 'fixed';
+
+      // Do not mistake the temporarily stable *keyboard-open* viewport for completion. That was
+      // the intermittent race: suggestion/progressive DOM height changed first, then iOS restored
+      // visualViewport and violently re-clamped scroll. Require real viewport recovery first.
+      if (elapsed >= coordinator.minDelay && coordinator.stableFrames >= 4 && viewportRecovered && bodyReleased) {
+        finish();
+        return;
+      }
+      if (elapsed >= coordinator.maxDelay) { finish(); return; }
+      coordinator.raf = requestAnimationFrame(poll);
     };
-    raf = requestAnimationFrame(poll);
-    maxTimer = setTimeout(finish, maxDelay + 40);
+
+    coordinator.refreshMaxTimer();
+    coordinator.raf = requestAnimationFrame(poll);
   }
+  window.GC_runAfterRideKeyboardDismissSettles = runAfterRideKeyboardDismissSettles;
 
   function mutateRideAddressUiStable(input, mutator) {
     // M2R5: an explicit smart-suggestion tap is committed as one viewport-stable transaction.
@@ -6164,7 +6241,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     });
   }
 
+  function addressInteractionOwnsKeyboardLayout(target) {
+    const element = target?.closest ? target : target?.parentElement;
+    const addressField = element?.closest?.('.address-field');
+    const editor = addressField?.querySelector?.(':scope > input.input');
+    return Boolean(editor && (editor.id === 'pickup' || editor.id === 'destination'));
+  }
+
   function closeManagedDisclosuresOutside(target) {
+    // M2R12: never shrink an unrelated disclosure during the same gesture that focuses an
+    // address field (or one of its utility/suggestion controls). iOS may be opening the keyboard
+    // at that exact moment; changing document height here is the reproducible jump-to-pickup race.
+    if (addressInteractionOwnsKeyboardLayout(target)) return;
     managedDisclosures().forEach(details => {
       if (!details.open || details.contains(target)) return;
       // Smart collapse: explanation-only panels close automatically, but a form section
@@ -6195,7 +6283,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     // submit buttons and neighboring disclosure summaries in mobile WebViews).
     document.addEventListener('click', event => {
       const target = event.target;
-      setTimeout(() => closeManagedDisclosuresOutside(target), 0);
+      if (addressInteractionOwnsKeyboardLayout(target)) return;
+      setTimeout(() => {
+        // Focus is assigned before click in mobile WebViews. Re-check the actual focused address
+        // editor so no zero-delay collapse can race the keyboard even if the click target is nested.
+        if (addressInteractionOwnsKeyboardLayout(document.activeElement)) return;
+        closeManagedDisclosuresOutside(target);
+      }, 0);
     });
   }
 
@@ -8698,6 +8792,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F15_ADDRESS_EDIT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F16_ALL_INPUT_VIEWPORT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F20_RIDE_PROGRESSIVE_DONE_STABILITY
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // First-screen clean, no service preselection on fresh Rich Menu entry. Existing functions remain in DOM.
   // Destination/advanced content opens only after the pickup is selected/verified or the user commits typed text.
   // No auto-scroll, auto-focus, forced viewport movement, or mid-typing layout expansion.
@@ -8831,12 +8926,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       if (!addressControls.has(control)) { update(); return; }
       cancelRideBlurUpdate();
       const revision = rideBlurRevision;
-      const startedAt = performance.now();
-      const viewport = window.visualViewport;
-      const suggest = document.getElementById(`${control.id}Suggest`);
-      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
-      let lastOffsetTop = Number(viewport?.offsetTop || 0);
-      let stableFrames = 0;
 
       const finish = () => {
         if (revision !== rideBlurRevision) return;
@@ -8848,27 +8937,18 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         update();
       };
 
-      const poll = () => {
-        if (revision !== rideBlurRevision) return;
-        if (anotherInteractiveTargetHasFocus(control)) return;
-        const height = Number(viewport?.height || window.innerHeight || 0);
-        const offsetTop = Number(viewport?.offsetTop || 0);
-        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
-        stableFrames = viewportStable ? stableFrames + 1 : 0;
-        lastHeight = height;
-        lastOffsetTop = offsetTop;
-        const elapsed = performance.now() - startedAt;
-        const suggestionsClosed = !suggest || suggest.classList.contains('hidden');
-        const bodyReleased = document.body?.style.position !== 'fixed';
-        if ((elapsed >= 380 && stableFrames >= 3 && suggestionsClosed && bodyReleased) || elapsed >= 820) {
-          finish();
-          return;
-        }
-        rideBlurRaf = requestAnimationFrame(poll);
-      };
+      const sharedSettler = window.GC_runAfterRideKeyboardDismissSettles;
+      if (typeof sharedSettler === 'function') {
+        // M2R12: join the exact same post-keyboard transaction used by smart-suggestion cleanup.
+        // This guarantees one settled layout commit instead of two independent polls that can finish
+        // on different animation frames and intermittently fight iOS visualViewport restoration.
+        sharedSettler(control, finish, { minDelay: 320, maxDelay: 1180 });
+        return;
+      }
 
-      rideBlurRaf = requestAnimationFrame(poll);
-      rideBlurTimer = setTimeout(finish, 860);
+      // Defensive fallback for an incomplete/legacy bundle only. Current production bundles always
+      // provide GC_runAfterRideKeyboardDismissSettles before this module is evaluated.
+      rideBlurTimer = setTimeout(finish, 880);
     }
 
     [...radios, document.getElementById('date'), document.getElementById('time')].filter(Boolean).forEach(control => {
