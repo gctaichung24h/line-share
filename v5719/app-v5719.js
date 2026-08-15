@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r5';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r6';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -368,7 +368,7 @@
           </div>
           <div class="location-review hidden" id="locationReview">
             <div class="location-review-copy">
-              <strong>定位地址確認</strong>
+              <strong id="locationReviewTitle">定位地址確認</strong>
               <span id="locationReviewText"></span>
             </div>
             <button class="location-confirm-btn" id="locationConfirmBtn" type="button">✓ 確認地址</button>
@@ -891,6 +891,9 @@
   let gcMobileLineKeyboardCommitCycle = null;
   let gcMobileLineLayoutReserve = null;
   let gcMobileLineFocusGesture = null;
+  let gcMobileFareFocusGesture = null;
+  let gcMobileFareOpeningRevealSession = null;
+  let gcNativeMobileEditorDismissSession = null;
   let gcMobileLineClosedViewport = {
     height: Number(window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0),
     width: Number(window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0),
@@ -899,6 +902,10 @@
   let gcKeyboardViewportBaseline = Number(
     window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
   );
+  let gcKeyboardViewportBaselineWidth = Number(
+    window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0
+  );
+  let gcKeyboardViewportBaselineRefreshTimer = 0;
 
   function clearViewportTailSpacer() {
     if (!gcViewportTailSpacer) return;
@@ -1440,7 +1447,24 @@
 
   const captureMobileLineFocusGesture = event => {
     if (event?.isTrusted === false) return;
-    const input = mobileLineKeyboardTargetElement(event.target);
+    const resolvedInput = resolvedMobileKeyboardEditor(event.target);
+    if (
+      resolvedInput &&
+      mobileTouchKeyboardEnvironment() &&
+      activeModeForViewportStability() === 'fare' &&
+      ['fareMinutes', 'fareKm'].includes(resolvedInput.id) &&
+      resolvedInput.closest?.('.gc-fare-card')
+    ) {
+      const point = event.touches?.[0] || event;
+      gcMobileFareFocusGesture = {
+        input: resolvedInput,
+        x: Number(point?.clientX || 0),
+        y: Number(point?.clientY || 0),
+        at: performance.now(),
+        consumed: false
+      };
+    }
+    const input = mobileLineKeyboardTargetElement(resolvedInput);
     if (!input || !mobileLineKeyboardEnvironment()) return;
     const point = event.touches?.[0] || event;
     gcMobileLineFocusGesture = {
@@ -1619,7 +1643,49 @@
     const current = Number(
       window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
     );
+    const width = Number(
+      window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0
+    );
+    if (Math.abs(width - gcKeyboardViewportBaselineWidth) > 2) {
+      // A portrait closed height is not a valid keyboard baseline after rotating to landscape
+      // (or vice versa). Start a fresh width epoch; later close events can only raise this value.
+      gcKeyboardViewportBaselineWidth = width;
+      gcKeyboardViewportBaseline = current;
+      return;
+    }
     if (current > gcKeyboardViewportBaseline) gcKeyboardViewportBaseline = current;
+  }
+
+  function keyboardViewportBaselineForCurrentWidth(fallbackHeight = 0) {
+    const width = Number(
+      window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0
+    );
+    if (Math.abs(width - gcKeyboardViewportBaselineWidth) > 2) return Math.max(0, Number(fallbackHeight || 0));
+    return Math.max(Number(fallbackHeight || 0), Number(gcKeyboardViewportBaseline || 0));
+  }
+
+  function scheduleKeyboardViewportBaselineRefresh() {
+    const observedWidth = Number(
+      window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0
+    );
+    if (Math.abs(observedWidth - gcKeyboardViewportBaselineWidth) > 2) {
+      // Orientation/layout-width changes invalidate anchors captured in the previous geometry.
+      // Cancelling these optional observers is fail-closed: native focus remains untouched.
+      cleanupMobileFareOpeningReveal();
+      cleanupNativeMobileEditorDismiss();
+    }
+    clearTimeout(gcKeyboardViewportBaselineRefreshTimer);
+    gcKeyboardViewportBaselineRefreshTimer = setTimeout(() => {
+      gcKeyboardViewportBaselineRefreshTimer = 0;
+      const currentWidth = Number(
+        window.visualViewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0
+      );
+      if (Math.abs(currentWidth - observedWidth) > 2) {
+        scheduleKeyboardViewportBaselineRefresh();
+        return;
+      }
+      captureKeyboardViewportBaseline();
+    }, 180);
   }
 
   function keyboardAppearsOpen() {
@@ -1627,8 +1693,300 @@
     if (!viewport) return false;
     const current = Number(viewport.height || 0);
     if (!current) return false;
-    return gcKeyboardViewportBaseline - current >= 72;
+    return keyboardViewportBaselineForCurrentWidth(current) - current >= 72;
   }
+
+  window.visualViewport?.addEventListener('resize', scheduleKeyboardViewportBaselineRefresh, { passive: true });
+  window.addEventListener('resize', scheduleKeyboardViewportBaselineRefresh, { passive: true });
+
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R6_MOBILE_FOCUS_DISCLOSURE_CONTINUITY
+  // A fare number can sit below the final visual viewport when a tall rate disclosure is open.
+  // Keep native focus/caret and keyboard animation as the primary owner, then — only after the
+  // real visual viewport is quiet — make one measured nearest-edge correction if the complete
+  // labelled control is still obscured. Already-visible controls, address inputs and desktop do
+  // not enter this path.
+  function mobileFareNumberEditor(candidate) {
+    const input = resolvedMobileKeyboardEditor(candidate);
+    if (!input || !['fareMinutes', 'fareKm'].includes(input.id)) return null;
+    if (!mobileTouchKeyboardEnvironment() || activeModeForViewportStability() !== 'fare') return null;
+    if (!input.closest?.('.gc-fare-card') || input.disabled || input.readOnly) return null;
+    return input;
+  }
+
+  function cleanupMobileFareOpeningReveal(session = gcMobileFareOpeningRevealSession) {
+    if (!session) return;
+    if (session.raf) cancelAnimationFrame(session.raf);
+    session.raf = 0;
+    clearTimeout(session.maxTimer);
+    session.maxTimer = 0;
+    window.visualViewport?.removeEventListener('resize', session.onViewportMotion);
+    window.visualViewport?.removeEventListener('scroll', session.onViewportMotion);
+    window.removeEventListener('resize', session.onViewportMotion);
+    window.removeEventListener('scroll', session.onViewportMotion);
+    window.removeEventListener('pointermove', session.onUserMove);
+    window.removeEventListener('touchmove', session.onUserMove);
+    window.removeEventListener('wheel', session.onUserWheel);
+    if (gcMobileFareOpeningRevealSession === session) gcMobileFareOpeningRevealSession = null;
+  }
+
+  function noteMobileFareOpeningNativeMotion(session, metrics) {
+    if (!session || session.nativeVisualMotionObserved) return;
+    const input = session.input;
+    const target = input?.closest?.('.gc-fare-calc-field') || input;
+    if (!target?.isConnected) return;
+    const visualTop = target.getBoundingClientRect().top - Number(metrics?.offsetTop || 0);
+    if (Math.abs(visualTop - session.initialTargetVisualTop) > 1.5) {
+      // Sticky by design: WebKit may move the field during the keyboard animation and return it
+      // to the same endpoint. That was still a painted native stage, so an app correction later
+      // would visibly become stage two even though the two endpoint coordinates happen to match.
+      session.nativeVisualMotionObserved = true;
+    }
+  }
+
+  function finishMobileFareOpeningReveal(session) {
+    if (!session || session.done || gcMobileFareOpeningRevealSession !== session) return;
+    session.done = true;
+    const input = session.input;
+    const viewport = window.visualViewport;
+    if (
+      session.userTookControl ||
+      document.activeElement !== input ||
+      !viewport ||
+      !keyboardAppearsOpen() ||
+      !document.querySelector('details.gc-fare-rates')?.open
+    ) {
+      cleanupMobileFareOpeningReveal(session);
+      return;
+    }
+
+    const target = input.closest?.('.gc-fare-calc-field') || input;
+    const rect = target.getBoundingClientRect();
+    const currentVisualTop = rect.top - Number(viewport.offsetTop || 0);
+    // If WebKit already moved this control, it owns the opening trajectory. A delayed app write
+    // would become the second visible stage the customer reported. The fallback below is reserved
+    // for the proven no-reveal case only (the target stayed in the same visual position).
+    if (
+      session.nativeVisualMotionObserved ||
+      Math.abs(currentVisualTop - session.initialTargetVisualTop) > 1.5
+    ) {
+      cleanupMobileFareOpeningReveal(session);
+      return;
+    }
+    const viewportTop = Number(viewport.offsetTop || 0) + 12;
+    const viewportBottom = Number(viewport.offsetTop || 0) + Number(viewport.height || 0) - 18;
+    let delta = 0;
+    if (rect.bottom > viewportBottom + 0.5) delta = rect.bottom - viewportBottom;
+    else if (rect.top < viewportTop - 0.5) delta = rect.top - viewportTop;
+
+    const currentScrollY = Math.max(0, Number(window.scrollY || window.pageYOffset || 0));
+    const layoutHeight = Math.max(1, Number(document.documentElement?.clientHeight || window.innerHeight || 0));
+    const maximumScrollY = Math.max(0, Number(document.documentElement?.scrollHeight || 0) - layoutHeight);
+    const boundedDelta = delta > 0
+      ? Math.min(delta, Math.max(0, maximumScrollY - currentScrollY))
+      : Math.max(delta, -currentScrollY);
+
+    cleanupMobileFareOpeningReveal(session);
+    if (Math.abs(boundedDelta) <= 0.75) return;
+    const reducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+    window.scrollBy({ top: boundedDelta, left: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+  }
+
+  function pollMobileFareOpeningReveal(session) {
+    if (!session || session.done || gcMobileFareOpeningRevealSession !== session) return;
+    if (document.activeElement !== session.input || session.userTookControl) {
+      cleanupMobileFareOpeningReveal(session);
+      return;
+    }
+    const metrics = readMobileLineKeyboardViewport();
+    noteMobileFareOpeningNativeMotion(session, metrics);
+    if (Math.abs(metrics.width - session.initialWidth) > 2) {
+      cleanupMobileFareOpeningReveal(session);
+      return;
+    }
+    const unchanged =
+      Math.abs(metrics.height - session.lastMetrics.height) <= 0.5 &&
+      Math.abs(metrics.offsetTop - session.lastMetrics.offsetTop) <= 0.5 &&
+      Math.abs(metrics.pageTop - session.lastMetrics.pageTop) <= 0.5;
+    if (!unchanged) session.lastMotionAt = performance.now();
+    session.stableFrames = unchanged ? session.stableFrames + 1 : 0;
+    session.lastMetrics = metrics;
+    if (session.baselineHeight - metrics.height >= 72) session.keyboardWasObserved = true;
+    if (
+      session.keyboardWasObserved &&
+      performance.now() - session.lastMotionAt >= 144 &&
+      session.stableFrames >= 8
+    ) {
+      finishMobileFareOpeningReveal(session);
+      return;
+    }
+    session.raf = requestAnimationFrame(() => pollMobileFareOpeningReveal(session));
+  }
+
+  function beginMobileFareOpeningReveal(input) {
+    const editor = mobileFareNumberEditor(input);
+    const gesture = gcMobileFareFocusGesture;
+    if (
+      !editor ||
+      !gesture ||
+      gesture.input !== editor ||
+      gesture.consumed ||
+      performance.now() - gesture.at > 1000
+    ) return;
+    gesture.consumed = true;
+    cleanupMobileFareOpeningReveal();
+    const initialMetrics = readMobileLineKeyboardViewport();
+    const initialTarget = editor.closest?.('.gc-fare-calc-field') || editor;
+    const session = {
+      input: editor,
+      initialWidth: initialMetrics.width,
+      initialTargetVisualTop: initialTarget.getBoundingClientRect().top - initialMetrics.offsetTop,
+      baselineHeight: keyboardViewportBaselineForCurrentWidth(initialMetrics.height),
+      lastMetrics: initialMetrics,
+      lastMotionAt: performance.now(),
+      stableFrames: 0,
+      keyboardWasObserved: Boolean(
+        keyboardViewportBaselineForCurrentWidth(initialMetrics.height) - initialMetrics.height >= 72
+      ),
+      nativeVisualMotionObserved: false,
+      userTookControl: false,
+      userGesture: { x: gesture.x, y: gesture.y },
+      done: false,
+      raf: 0,
+      maxTimer: 0,
+      onViewportMotion: null,
+      onUserMove: null,
+      onUserWheel: null
+    };
+    session.onViewportMotion = () => {
+      if (session.done || gcMobileFareOpeningRevealSession !== session) return;
+      const metrics = readMobileLineKeyboardViewport();
+      noteMobileFareOpeningNativeMotion(session, metrics);
+      if (session.baselineHeight - metrics.height >= 72) session.keyboardWasObserved = true;
+      session.lastMetrics = metrics;
+      session.lastMotionAt = performance.now();
+      session.stableFrames = 0;
+      if (!session.raf) session.raf = requestAnimationFrame(() => pollMobileFareOpeningReveal(session));
+    };
+    session.onUserMove = event => {
+      if (event?.isTrusted === false || session.userTookControl) return;
+      const point = event.touches?.[0] || event;
+      if (Math.hypot(
+        Number(point?.clientX || 0) - session.userGesture.x,
+        Number(point?.clientY || 0) - session.userGesture.y
+      ) >= 12) {
+        session.userTookControl = true;
+        cleanupMobileFareOpeningReveal(session);
+      }
+    };
+    session.onUserWheel = event => {
+      if (event?.isTrusted === false) return;
+      if (Math.abs(Number(event?.deltaX || 0)) + Math.abs(Number(event?.deltaY || 0)) >= 1) {
+        session.userTookControl = true;
+        cleanupMobileFareOpeningReveal(session);
+      }
+    };
+    gcMobileFareOpeningRevealSession = session;
+    window.visualViewport?.addEventListener('resize', session.onViewportMotion, { passive: true });
+    window.visualViewport?.addEventListener('scroll', session.onViewportMotion, { passive: true });
+    window.addEventListener('resize', session.onViewportMotion, { passive: true });
+    window.addEventListener('scroll', session.onViewportMotion, { passive: true });
+    window.addEventListener('pointermove', session.onUserMove, { passive: true });
+    window.addEventListener('touchmove', session.onUserMove, { passive: true });
+    window.addEventListener('wheel', session.onUserWheel, { passive: true });
+    session.raf = requestAnimationFrame(() => pollMobileFareOpeningReveal(session));
+    session.maxTimer = setTimeout(() => cleanupMobileFareOpeningReveal(session), 1600);
+  }
+
+  // Native-only mobile editors intentionally avoid the old BODY freeze. iOS can, however, hide
+  // the keyboard while retaining the input as first responder. Once the real viewport is fully
+  // recovered and quiet, issue only a semantic blur (never focus or scroll) so a later disclosure
+  // or address tap cannot resurrect that stale keyboard owner.
+  function cleanupNativeMobileEditorDismiss(session = gcNativeMobileEditorDismissSession) {
+    if (!session) return;
+    if (session.raf) cancelAnimationFrame(session.raf);
+    session.raf = 0;
+    window.visualViewport?.removeEventListener('resize', session.onViewportMotion);
+    window.visualViewport?.removeEventListener('scroll', session.onViewportMotion);
+    window.removeEventListener('resize', session.onViewportMotion);
+    window.removeEventListener('scroll', session.onViewportMotion);
+    if (gcNativeMobileEditorDismissSession === session) gcNativeMobileEditorDismissSession = null;
+  }
+
+  function pollNativeMobileEditorDismiss(session) {
+    if (!session || gcNativeMobileEditorDismissSession !== session) return;
+    if (document.activeElement !== session.input) {
+      cleanupNativeMobileEditorDismiss(session);
+      return;
+    }
+    const metrics = readMobileLineKeyboardViewport();
+    const unchanged =
+      Math.abs(metrics.height - session.lastMetrics.height) <= 0.5 &&
+      Math.abs(metrics.offsetTop - session.lastMetrics.offsetTop) <= 0.5 &&
+      Math.abs(metrics.pageTop - session.lastMetrics.pageTop) <= 0.5;
+    if (!unchanged) session.lastMotionAt = performance.now();
+    session.stableFrames = unchanged ? session.stableFrames + 1 : 0;
+    session.lastMetrics = metrics;
+    const recovered = metrics.height >= session.baselineHeight - 4;
+    if (
+      session.keyboardWasObserved && recovered &&
+      performance.now() - session.lastMotionAt >= 96 &&
+      session.stableFrames >= 6
+    ) {
+      const input = session.input;
+      cleanupNativeMobileEditorDismiss(session);
+      if (document.activeElement === input) {
+        try { input.blur(); } catch (_) {}
+      }
+      return;
+    }
+    session.raf = requestAnimationFrame(() => pollNativeMobileEditorDismiss(session));
+  }
+
+  function beginNativeMobileEditorDismissWatch(input) {
+    const editor = nativeMobilePageEditorElement(input);
+    if (!editor || mobileLineKeyboardTargetEnabled(editor)) return;
+    cleanupNativeMobileEditorDismiss();
+    const initialMetrics = readMobileLineKeyboardViewport();
+    const baselineHeight = keyboardViewportBaselineForCurrentWidth(initialMetrics.height);
+    const session = {
+      input: editor,
+      baselineHeight,
+      lastMetrics: initialMetrics,
+      lastMotionAt: performance.now(),
+      stableFrames: 0,
+      keyboardWasObserved: baselineHeight - initialMetrics.height >= 72,
+      raf: 0,
+      onViewportMotion: null
+    };
+    session.onViewportMotion = () => {
+      if (gcNativeMobileEditorDismissSession !== session) return;
+      const metrics = readMobileLineKeyboardViewport();
+      if (session.baselineHeight - metrics.height >= 72) session.keyboardWasObserved = true;
+      session.lastMetrics = metrics;
+      session.lastMotionAt = performance.now();
+      session.stableFrames = 0;
+      const recovered = metrics.height >= session.baselineHeight - 4;
+      if (session.keyboardWasObserved && recovered && !session.raf) {
+        session.raf = requestAnimationFrame(() => pollNativeMobileEditorDismiss(session));
+      }
+    };
+    gcNativeMobileEditorDismissSession = session;
+    window.visualViewport?.addEventListener('resize', session.onViewportMotion, { passive: true });
+    window.visualViewport?.addEventListener('scroll', session.onViewportMotion, { passive: true });
+    window.addEventListener('resize', session.onViewportMotion, { passive: true });
+    window.addEventListener('scroll', session.onViewportMotion, { passive: true });
+  }
+
+  document.addEventListener('focusin', event => {
+    const editor = nativeMobilePageEditorElement(event.target);
+    if (!editor) return;
+    beginMobileFareOpeningReveal(editor);
+    beginNativeMobileEditorDismissWatch(editor);
+  }, true);
+  document.addEventListener('focusout', event => {
+    if (gcMobileFareOpeningRevealSession?.input === event.target) cleanupMobileFareOpeningReveal();
+    if (gcNativeMobileEditorDismissSession?.input === event.target) cleanupNativeMobileEditorDismiss();
+  }, true);
 
   function restoreBodyInlineStyle(body, snapshot) {
     if (!body || !snapshot) return;
@@ -1823,7 +2181,7 @@
     const viewport = window.visualViewport;
     const initialHeight = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
     const initialOffsetTop = Number(viewport?.offsetTop || 0);
-    const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), initialHeight);
+    const baselineHeight = keyboardViewportBaselineForCurrentWidth(initialHeight);
     const keyboardWasOpen = Boolean(
       viewport && baselineHeight > 0 && initialHeight > 0 &&
       ((baselineHeight - initialHeight) >= 72 || keyboardAppearsOpen())
@@ -1984,6 +2342,10 @@
   window.GC_mutateInputViewportStable = mutateRideAddressUiStable;
   window.GC_clearViewportTailSpacer = clearViewportTailSpacer;
   window.addEventListener('pagehide', () => {
+    clearTimeout(gcKeyboardViewportBaselineRefreshTimer);
+    gcKeyboardViewportBaselineRefreshTimer = 0;
+    cleanupMobileFareOpeningReveal();
+    cleanupNativeMobileEditorDismiss();
     const mobileCycle = gcMobileLineKeyboardCycle;
     if (mobileCycle && !mobileCycle.done) finishMobileLineKeyboardCycleHidden(mobileCycle);
     clearTimeout(gcMobileLineHeldGeometrySettleTimer);
@@ -5025,10 +5387,14 @@
     });
   }
 
-  function setLocationReview(message = '', visible = false) {
+  function setLocationReview(message = '', visible = false, { noDoor = false } = {}) {
     const review = document.getElementById('locationReview');
+    const title = document.getElementById('locationReviewTitle');
     const text = document.getElementById('locationReviewText');
+    const confirmButton = document.getElementById('locationConfirmBtn');
+    if (title) title.textContent = noDoor ? '定位位置確認' : '定位地址確認';
     if (text) text.textContent = message;
+    if (confirmButton) confirmButton.textContent = noDoor ? '✓ 使用此定位' : '✓ 確認地址';
     if (review) review.classList.toggle('hidden', !visible);
   }
 
@@ -5263,11 +5629,11 @@
             attachedLocation.requiresConfirmation = false;
             clearFieldValidation('pickup');
             setLocationReview('', false);
-            setLocationStatus('目前位置無法辨識完整門牌，可補充周邊辨識點。', 'success');
+            setLocationStatus('已取得目前定位，但無法辨識完整門牌。可補充周邊辨識點，或改填完整地址。', 'success');
           } else {
             attachedLocation.requiresConfirmation = true;
             setLocationStatus('', 'success');
-            setLocationReview('目前位置無法辨識完整門牌，可補充周邊辨識點。', true);
+            setLocationReview('已取得目前定位，但無法辨識完整門牌。可補充周邊辨識點，或改填完整地址。', true, { noDoor: true });
           }
           return;
         }
@@ -7334,6 +7700,8 @@
   let gcUserDisclosureCollapseSpacer = null;
   let gcUserDisclosureCollapseState = null;
   let gcUserDisclosureCollapseScrollRaf = 0;
+  let gcUserDisclosureMobileFocusHoldUntil = 0;
+  let gcUserDisclosureMobileFocusHoldTimer = 0;
 
   function rideOptionalDisclosureEligible(details) {
     if (!(details instanceof HTMLDetailsElement)) return false;
@@ -7385,21 +7753,73 @@
 
   function removeUserDisclosureCollapseSpacer() {
     gcUserDisclosureCollapseState = null;
+    gcUserDisclosureMobileFocusHoldUntil = 0;
+    clearTimeout(gcUserDisclosureMobileFocusHoldTimer);
+    gcUserDisclosureMobileFocusHoldTimer = 0;
     if (!gcUserDisclosureCollapseSpacer) return;
     gcUserDisclosureCollapseSpacer.remove();
     gcUserDisclosureCollapseSpacer = null;
   }
 
+  function mobileDisclosureKeyboardOwner(candidate) {
+    if (!mobileTouchKeyboardEnvironment()) return null;
+    return nativeMobilePageEditorElement(candidate) ||
+      mobileLineKeyboardTargetElement(candidate) ||
+      nativeMobilePickerInteractionElement(candidate) ||
+      null;
+  }
+
+  function holdUserDisclosureCollapseForMobileFocus(candidate) {
+    const owner = mobileDisclosureKeyboardOwner(candidate);
+    if (!owner) return;
+    gcUserDisclosureMobileFocusHoldUntil = performance.now() + 1100;
+    clearTimeout(gcUserDisclosureMobileFocusHoldTimer);
+    gcUserDisclosureMobileFocusHoldTimer = setTimeout(() => {
+      gcUserDisclosureMobileFocusHoldTimer = 0;
+      if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
+      requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
+    }, 1140);
+  }
+
+  function releaseClosedKeyboardEditorBeforeDisclosureGesture(target) {
+    if (!mobileTouchKeyboardEnvironment() || keyboardAppearsOpen()) return;
+    const summary = target?.closest?.('summary');
+    const details = summary?.parentElement;
+    if (!summary || !rideOptionalDisclosureEligible(details)) return;
+    const activeControl = mobileDisclosureKeyboardOwner(document.activeElement);
+    if (!activeControl || typeof activeControl.blur !== 'function') return;
+    if (gcNativeMobileEditorDismissSession?.input === activeControl) cleanupNativeMobileEditorDismiss();
+    if (gcMobileFareOpeningRevealSession?.input === activeControl) cleanupMobileFareOpeningReveal();
+    try { activeControl.blur(); } catch (_) {}
+  }
+
+  const captureUserDisclosureMobileFocusIntent = event => {
+    if (event?.isTrusted === false) return;
+    releaseClosedKeyboardEditorBeforeDisclosureGesture(event.target);
+    if (gcUserDisclosureCollapseSpacer?.isConnected) holdUserDisclosureCollapseForMobileFocus(event.target);
+  };
+  document.addEventListener('pointerdown', captureUserDisclosureMobileFocusIntent, { passive: true, capture: true });
+  document.addEventListener('touchstart', captureUserDisclosureMobileFocusIntent, { passive: true, capture: true });
+  document.addEventListener('focusin', event => {
+    if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
+    holdUserDisclosureCollapseForMobileFocus(event.target);
+  }, true);
+
   function settleUserDisclosureCollapseSpacerToCurrentScroll() {
     const spacer = gcUserDisclosureCollapseSpacer;
     if (!spacer?.isConnected) return;
-    // R5: do not release fare collapse capacity while any mobile keyboard still owns the visual
-    // viewport. Safari/Chrome may restore the closed height after two apparently-stable frames;
-    // releasing here would recreate the delayed clamp this reserve is meant to prevent.
+    // R6: call/driver optional sections use the same mobile keyboard geometry as the two fare
+    // disclosures. Do not release their collapse capacity during a new focus gesture, while a
+    // keyboard is visible, or while the LINE exact-field transaction still owns recovery.
+    const activeMode = activeModeForViewportStability();
     if (
       mobileTouchKeyboardEnvironment() &&
-      activeModeForViewportStability() === 'fare' &&
-      ((gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done) || keyboardAppearsOpen())
+      ['call', 'driver', 'fare'].includes(activeMode) &&
+      (
+        performance.now() < gcUserDisclosureMobileFocusHoldUntil ||
+        (gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done) ||
+        keyboardAppearsOpen()
+      )
     ) return;
     const reserve = userDisclosureSpacerHeight();
     if (reserve <= 0) {
@@ -7430,21 +7850,30 @@
     const existingReserve = userDisclosureSpacerHeight();
     const keyboardRecoveryGap = (
       mobileTouchKeyboardEnvironment() &&
-      activeModeForViewportStability() === 'fare' &&
+      ['call', 'driver', 'fare'].includes(activeModeForViewportStability()) &&
       keyboardAppearsOpen()
-    ) ? Math.max(0, Number(gcKeyboardViewportBaseline || 0) - userDisclosureViewportHeight()) : 0;
+    ) ? Math.max(0, keyboardViewportBaselineForCurrentWidth(userDisclosureViewportHeight()) - userDisclosureViewportHeight()) : 0;
     // Reserve before the native <summary> default action closes the details. The reserve lives
     // at BODY tail only; it never changes form geometry or the location of the clicked summary.
     spacer.style.height = `${Math.ceil(existingReserve + removableHeight + keyboardRecoveryGap + 4)}px`;
 
     const active = document.activeElement;
+    const activeControl = mobileDisclosureKeyboardOwner(active);
     const mobileCycleInput = gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done
       ? mobileLineKeyboardTargetElement(gcMobileLineKeyboardCycle.input)
       : null;
     gcUserDisclosureCollapseState = {
       details,
-      keyboardInput: mobileCycleInput || (rideAddressKeyboardDismissInputEligible(active) ? active : null)
+      keyboardInput: mobileCycleInput || activeControl || (rideAddressKeyboardDismissInputEligible(active) ? active : null)
     };
+    // iOS can hide the keyboard after Done while leaving the old input as first responder.
+    // Release that retained owner only after the disappearing height has been reserved. Never
+    // focus another field: the summary's native default action remains the sole interaction owner.
+    if (activeControl && typeof activeControl.blur === 'function') {
+      if (gcNativeMobileEditorDismissSession?.input === activeControl) cleanupNativeMobileEditorDismiss();
+      if (gcMobileFareOpeningRevealSession?.input === activeControl) cleanupMobileFareOpeningReveal();
+      try { activeControl.blur(); } catch (_) {}
+    }
   }
 
   function finishUserDisclosureCollapseAnchor(details) {
