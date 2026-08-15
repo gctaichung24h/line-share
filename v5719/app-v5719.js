@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r4';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r5';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -853,6 +853,20 @@
   // The latter changes during keyboard animation and was the remaining one-frame "shake".
   const GC_VIEWPORT_STABLE_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
   const GC_MOBILE_LINE_KEYBOARD_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
+  const GC_NATIVE_MOBILE_PAGE_EDITOR_IDS = new Set([
+    'pickup', 'destination', 'fareKm', 'fareMinutes', 'locationSupplement',
+    'passengers', 'baggage', 'requirements', 'notes', 'vehicle', 'parking',
+    'favoriteNameInput', 'favoriteEditNameInput'
+  ]);
+  const GC_NATIVE_CALL_EDITOR_IDS = new Set([
+    'pickup', 'destination', 'locationSupplement', 'passengers', 'baggage',
+    'requirements', 'notes'
+  ]);
+  const GC_NATIVE_DRIVER_EDITOR_IDS = new Set([
+    'pickup', 'destination', 'locationSupplement', 'vehicle', 'parking', 'notes'
+  ]);
+  const GC_NATIVE_FARE_EDITOR_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
+  const GC_NATIVE_MODAL_EDITOR_IDS = new Set(['favoriteNameInput', 'favoriteEditNameInput']);
   const GC_KEYBOARD_TEXT_TYPES = new Set(['', 'text', 'search', 'tel', 'url', 'email', 'number']);
   let gcBlurViewportSession = null;
   let gcBlurViewportTimer = 0;
@@ -984,17 +998,68 @@
   }
 
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R4_NATIVE_KEYBOARD_SINGLE_OWNER
-  // LINE runs this page in WKWebView on iOS and Android WebView on Android. For the four
-  // explicitly reported editors, native focus/reveal is the only owner while the keyboard is
-  // opening or closing. The legacy BODY freeze, tail spacer and repeated scroll restores remain
-  // byte-for-byte available to every unlisted editor and to the existing GPS/manual-location flow.
-  function mobileLineKeyboardTargetElement(candidate) {
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R5_ALL_MOBILE_EDITORS_AND_DISCLOSURES
+  // LINE runs this page in WKWebView on iOS and Android WebView on Android. The four
+  // async-layout address/fare editors keep the recovered callback transaction below. Every other
+  // main mobile editor is native-only; the legacy BODY freeze remains for desktop and the existing
+  // GPS/manual-location special owner.
+  function resolvedMobileKeyboardEditor(candidate) {
     let input = candidate?.matches?.('input, textarea') ? candidate : null;
     if (!input) {
       const label = candidate?.closest?.('label[for]');
       input = label?.control || (label?.htmlFor ? document.getElementById(label.htmlFor) : null);
     }
-    if (!input || !GC_MOBILE_LINE_KEYBOARD_IDS.has(input.id) || !input.isConnected) return null;
+    return input?.isConnected ? input : null;
+  }
+
+  function mobileTouchKeyboardEnvironment() {
+    const ua = String(navigator.userAgent || '');
+    const ipadDesktopClass = /Macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
+    return /Android|iPhone|iPad|iPod/i.test(ua) || ipadDesktopClass;
+  }
+
+  // Every real OS-keyboard editor on the main call/driver/fare forms is native-only on phones
+  // and tablets. These plain fields have no blur-time layout work, so sending them through the
+  // legacy BODY freeze and six stale scroll restores can only add a second viewport owner. The
+  // two favorite-name inputs are already inside a modal viewport lock and must not add another.
+  function nativeMobilePageEditorElement(candidate) {
+    const input = resolvedMobileKeyboardEditor(candidate);
+    if (!input || !GC_NATIVE_MOBILE_PAGE_EDITOR_IDS.has(input.id) || !mobileTouchKeyboardEnvironment()) return null;
+    if (input.disabled || input.readOnly) return null;
+    if (input.tagName === 'INPUT' && !GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase())) return null;
+    if (input.tagName !== 'INPUT' && input.tagName !== 'TEXTAREA') return null;
+
+    const mode = activeModeForViewportStability();
+    if (mode === 'fare') {
+      return GC_NATIVE_FARE_EDITOR_IDS.has(input.id) && input.closest?.('.gc-fare-card') ? input : null;
+    }
+    if (!['call', 'driver'].includes(mode)) return null;
+    if (GC_NATIVE_MODAL_EDITOR_IDS.has(input.id)) {
+      return input.closest?.('.favorite-save-overlay') ? input : null;
+    }
+    const allowed = mode === 'call' ? GC_NATIVE_CALL_EDITOR_IDS : GC_NATIVE_DRIVER_EDITOR_IDS;
+    if (!allowed.has(input.id) || !input.closest?.('#serviceForm')) return null;
+    // Pickup keeps the existing GPS/manual-location owner for the whole special cycle. Its
+    // optional locationSupplement is a plain editor and remains native-only.
+    if (input.id === 'pickup' && mobileLineKeyboardSpecialOwner(input)) return null;
+    return input;
+  }
+
+  function nativeMobilePickerInteractionElement(candidate) {
+    if (!mobileTouchKeyboardEnvironment()) return null;
+    let control = candidate?.matches?.('select') ? candidate : null;
+    if (!control) {
+      const label = candidate?.closest?.('label[for]');
+      const labelled = label?.control || (label?.htmlFor ? document.getElementById(label.htmlFor) : null);
+      if (labelled?.matches?.('select')) control = labelled;
+    }
+    if (!control?.isConnected || control.disabled) return null;
+    return control.closest?.('#serviceForm') ? control : null;
+  }
+
+  function mobileLineKeyboardTargetElement(candidate) {
+    const input = resolvedMobileKeyboardEditor(candidate);
+    if (!input || !GC_MOBILE_LINE_KEYBOARD_IDS.has(input.id)) return null;
     const mode = activeModeForViewportStability();
     if (mode === 'fare') return input.closest?.('.gc-fare-card') ? input : null;
     if (!['call', 'driver'].includes(mode)) return null;
@@ -1404,7 +1469,16 @@
       const existing = gcMobileLineKeyboardCycle;
       const target = event.target;
       const isEditor = Boolean(target?.matches?.('input, textarea, select') || target?.isContentEditable);
-      if (existing && !existing.done && isEditor) handoffMobileLineKeyboardCycleToLegacy(existing, target);
+      if (existing && !existing.done && isEditor) {
+        // Favorite-name fields live inside a BODY-locked modal. Flush the background address
+        // cycle while that viewport is hidden instead of carrying a stale form anchor into the
+        // modal's independent focus lifecycle.
+        if (GC_NATIVE_MODAL_EDITOR_IDS.has(target.id) && nativeMobilePageEditorElement(target)) {
+          finishMobileLineKeyboardCycleHidden(existing);
+        } else {
+          handoffMobileLineKeyboardCycleToLegacy(existing, target);
+        }
+      }
       return;
     }
     const owner = mobileLineKeyboardTargetAvailable(input) === input ? 'native' : 'legacy';
@@ -1483,6 +1557,7 @@
 
   function viewportStableInputEligible(input) {
     if (mobileLineKeyboardTargetEnabled(input)) return false;
+    if (nativeMobilePageEditorElement(input)) return false;
     if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
     const activeMode = activeModeForViewportStability();
     // F22: fare number fields sit above the result area, so their own UI updates do not need
@@ -1494,6 +1569,7 @@
 
   function rideAddressKeyboardDismissInputEligible(input) {
     if (mobileLineKeyboardTargetEnabled(input)) return false;
+    if (nativeMobilePageEditorElement(input) && ['pickup', 'destination'].includes(input.id)) return true;
     if (!input || !input.isConnected || !input.closest?.('#serviceForm')) return false;
     const activeMode = activeModeForViewportStability();
     return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
@@ -1510,6 +1586,10 @@
 
   function keyboardDismissInputEligible(input) {
     if (mobileLineKeyboardTargetEnabled(input)) return false;
+    // R5: every main-page OS-keyboard editor on iOS/iPadOS/Android is WebKit/Chromium-owned.
+    // The legacy controller fixes BODY and restores an already-stale keyboard-open scrollY; that
+    // is the exact notes/vehicle/baggage Done jump. Desktop keeps the frozen M2R15 path unchanged.
+    if (nativeMobilePageEditorElement(input)) return false;
     if (!input || !input.isConnected || !input.closest?.('#app')) return false;
     const activeMode = activeModeForViewportStability();
     if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
@@ -1530,7 +1610,7 @@
   function otherEditorHasFocus(input) {
     const active = document.activeElement;
     if (!active || active === input) return false;
-    return keyboardDismissInputEligible(active) || Boolean(
+    return Boolean(nativeMobilePageEditorElement(active)) || keyboardDismissInputEligible(active) || Boolean(
       mobileLineKeyboardEnvironment() && mobileLineKeyboardTargetElement(active)
     );
   }
@@ -1914,6 +1994,7 @@
     clearViewportTailSpacer();
     clearLocationManualSwitchSpacer();
     settleSuggestionCollapseSpacer({ force: true });
+    removeUserDisclosureCollapseSpacer();
   }, { passive: true });
 
   function clearAddressSuggestionGeometryHold(box) {
@@ -7175,6 +7256,20 @@
     const editor = addressField?.querySelector?.(':scope > input.input');
     if (editor && (editor.id === 'pickup' || editor.id === 'destination')) return true;
 
+    // R5: focusing any mobile form editor must not also compact a disclosure in the same native
+    // keyboard gesture. That height change was a second layout owner even when the editor itself
+    // no longer used the legacy keyboard controller.
+    if (nativeMobilePageEditorElement(element) || nativeMobilePickerInteractionElement(element)) return true;
+
+    // A fare summary/content click is itself the disclosure transaction. Do not let the later
+    // zero-delay outside-click compactor close the upper rate panel after the direct handler has
+    // deliberately preserved it for a stable rates -> estimate-help transition.
+    if (
+      mobileTouchKeyboardEnvironment() &&
+      activeModeForViewportStability() === 'fare' &&
+      element?.closest?.('details.gc-fare-rates, details.gc-fare-manual-details')
+    ) return true;
+
     // R4: fareMinutes/fareKm and every visible part of their <label> belong to the same keyboard
     // interaction. The global outside-click compactor must not close an already-open rate/help
     // disclosure during this focus gesture; doing so removed hundreds of pixels before the
@@ -7199,13 +7294,35 @@
     // address field (or one of its utility/suggestion controls). iOS may be opening the keyboard
     // at that exact moment; changing document height here is the reproducible jump-to-pickup race.
     if (addressInteractionOwnsKeyboardLayout(target)) return;
+    const protectMobileFareCollapseRange = Boolean(
+      mobileTouchKeyboardEnvironment() && activeModeForViewportStability() === 'fare'
+    );
     managedDisclosures().forEach(details => {
       if (!details.open || details.contains(target)) return;
       // Smart collapse: explanation-only panels close automatically, but a form section
       // holding actual customer choices stays open so the customer can verify them.
       if (disclosureHasMeaningfulData(details)) return;
+      // R5: a genuine outside tap may close one or both tall fare disclosures. Reserve their
+      // removable height before changing <details>. This keeps the existing auto-close behavior
+      // while preventing mobile WebViews from clamping scrollY when the document becomes shorter.
+      if (
+        protectMobileFareCollapseRange &&
+        details.matches?.('details.gc-fare-rates, details.gc-fare-manual-details')
+      ) {
+        const summary = details.querySelector(':scope > summary');
+        prepareUserDisclosureCollapseAnchor(details, summary);
+      }
       details.open = false;
     });
+  }
+
+  function mobileFareGenuineOutsideInteraction(target) {
+    const element = target?.closest ? target : target?.parentElement;
+    if (!element) return false;
+    if (!mobileTouchKeyboardEnvironment() || activeModeForViewportStability() !== 'fare') return false;
+    if (element.closest?.('details.gc-fare-rates, details.gc-fare-manual-details')) return false;
+    if (nativeMobilePageEditorElement(element) || nativeMobilePickerInteractionElement(element)) return false;
+    return true;
   }
 
   // M2R13: a user-initiated collapse of the tall "其他需求" section can remove more
@@ -7276,6 +7393,14 @@
   function settleUserDisclosureCollapseSpacerToCurrentScroll() {
     const spacer = gcUserDisclosureCollapseSpacer;
     if (!spacer?.isConnected) return;
+    // R5: do not release fare collapse capacity while any mobile keyboard still owns the visual
+    // viewport. Safari/Chrome may restore the closed height after two apparently-stable frames;
+    // releasing here would recreate the delayed clamp this reserve is meant to prevent.
+    if (
+      mobileTouchKeyboardEnvironment() &&
+      activeModeForViewportStability() === 'fare' &&
+      ((gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done) || keyboardAppearsOpen())
+    ) return;
     const reserve = userDisclosureSpacerHeight();
     if (reserve <= 0) {
       removeUserDisclosureCollapseSpacer();
@@ -7303,9 +7428,14 @@
 
     const spacer = ensureUserDisclosureCollapseSpacer();
     const existingReserve = userDisclosureSpacerHeight();
+    const keyboardRecoveryGap = (
+      mobileTouchKeyboardEnvironment() &&
+      activeModeForViewportStability() === 'fare' &&
+      keyboardAppearsOpen()
+    ) ? Math.max(0, Number(gcKeyboardViewportBaseline || 0) - userDisclosureViewportHeight()) : 0;
     // Reserve before the native <summary> default action closes the details. The reserve lives
     // at BODY tail only; it never changes form geometry or the location of the clicked summary.
-    spacer.style.height = `${Math.ceil(existingReserve + removableHeight + 4)}px`;
+    spacer.style.height = `${Math.ceil(existingReserve + removableHeight + keyboardRecoveryGap + 4)}px`;
 
     const active = document.activeElement;
     const mobileCycleInput = gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done
@@ -7351,6 +7481,10 @@
     if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
     requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
   }, { passive: true });
+  window.visualViewport?.addEventListener('resize', () => {
+    if (!gcUserDisclosureCollapseSpacer?.isConnected) return;
+    requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
+  }, { passive: true });
 
   window.GC_prepareUserDisclosureCollapseAnchor = prepareUserDisclosureCollapseAnchor;
   window.GC_finishUserDisclosureCollapseAnchor = finishUserDisclosureCollapseAnchor;
@@ -7360,15 +7494,29 @@
     return Boolean(
       details !== current &&
       details?.open &&
-      mobileLineKeyboardEnvironment() &&
+      mobileTouchKeyboardEnvironment() &&
       activeModeForViewportStability() === 'fare' &&
       details.matches?.('details.gc-fare-rates, details.gc-fare-manual-details') &&
       current?.matches?.('details.gc-fare-rates, details.gc-fare-manual-details')
     );
   }
 
+  function preserveMobileLineFareDisclosurePeer(details, current) {
+    return Boolean(
+      mobileLineFareDisclosurePeer(details, current) &&
+      details.matches?.('details.gc-fare-rates') &&
+      current?.matches?.('details.gc-fare-manual-details')
+    );
+  }
+
   function closeMobileLineFareDisclosurePeer(details, current, currentSummary) {
     if (!mobileLineFareDisclosurePeer(details, current)) return false;
+    // The rates panel is above estimate help. Removing it while opening the lower panel changes
+    // the lower summary's document top by the full rate-table height. When that height exceeds
+    // current scrollY, no scroll correction can preserve the row (the target clamps to page top).
+    // Keep both panels the customer explicitly opened; this is the only zero-scroll, zero-blank,
+    // cross-WebView solution. The reverse direction still closes the lower peer safely.
+    if (preserveMobileLineFareDisclosurePeer(details, current)) return false;
 
     // A close performed inside the recovered keyboard transaction is protected by that
     // transaction's local reserve and single measured correction. Use the row the customer just
@@ -7390,23 +7538,8 @@
     }
 
     const peerSummary = details.querySelector(':scope > summary');
-    const anchor = currentSummary?.isConnected ? currentSummary : current.querySelector(':scope > summary');
-    const beforeTop = anchor?.isConnected ? viewportStableTop(anchor) : null;
     prepareUserDisclosureCollapseAnchor(details, peerSummary);
     details.open = false;
-
-    // Closing the upper peer changes the document position of the newly-opened lower summary.
-    // Restore that clicked row in the same event turn; the existing invisible tail reserve keeps
-    // the target range reachable and is subsequently reduced without another scroll write.
-    if (Number.isFinite(beforeTop) && anchor?.isConnected) {
-      const delta = viewportStableTop(anchor) - beforeTop;
-      if (Math.abs(delta) > 0.75) {
-        const currentY = Math.max(0, window.scrollY || window.pageYOffset || 0);
-        const maxY = Math.max(0, document.documentElement.scrollHeight - userDisclosureViewportHeight());
-        const targetY = Math.max(0, Math.min(maxY, currentY + delta));
-        if (Math.abs(targetY - currentY) > 0.75) window.scrollBy(0, targetY - currentY);
-      }
-    }
     return true;
   }
 
@@ -7423,6 +7556,7 @@
         if (details === current || !details.open) return;
         if (details.contains(current) || current.contains(details)) return;
         if (mobileLineFareDisclosurePeer(details, current)) {
+          if (preserveMobileLineFareDisclosurePeer(details, current)) return;
           const cycleInput = gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done
             ? mobileLineKeyboardTargetElement(gcMobileLineKeyboardCycle.input)
             : null;
@@ -7454,9 +7588,10 @@
       if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return;
       if (activeModeForViewportStability() !== 'fare') return;
       if (event.defaultPrevented || (typeof event.button === 'number' && event.button !== 0)) return;
-      if (!details.open && mobileLineKeyboardEnvironment()) {
+      if (!details.open && mobileTouchKeyboardEnvironment()) {
         managedDisclosures().forEach(peer => {
           if (mobileLineFareDisclosurePeer(peer, details)) {
+            if (preserveMobileLineFareDisclosurePeer(peer, details)) return;
             const cycleInput = gcMobileLineKeyboardCycle && !gcMobileLineKeyboardCycle.done
               ? mobileLineKeyboardTargetElement(gcMobileLineKeyboardCycle.input)
               : null;
@@ -7488,10 +7623,14 @@
     document.addEventListener('click', event => {
       const target = event.target;
       if (addressInteractionOwnsKeyboardLayout(target)) return;
+      const mobileFareGenuineOutside = mobileFareGenuineOutsideInteraction(target);
       setTimeout(() => {
         // Focus is assigned before click in mobile WebViews. Re-check the actual focused address
         // editor so no zero-delay collapse can race the keyboard even if the click target is nested.
-        if (addressInteractionOwnsKeyboardLayout(document.activeElement)) return;
+        // A confirmed fare-outside gesture is the exception: some WebViews retain the previous
+        // fare input as activeElement until after click, but that stale focus must not suppress the
+        // user's explicit outside-close action. The pre-collapse reserve below owns its geometry.
+        if (!mobileFareGenuineOutside && addressInteractionOwnsKeyboardLayout(document.activeElement)) return;
         closeManagedDisclosuresOutside(target);
       }, 0);
     });
