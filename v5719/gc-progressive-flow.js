@@ -132,7 +132,7 @@
     }
 
     function anotherInteractiveTargetHasFocus(control) {
-      const active = document.activeElement;
+      const active = window.GC_keyboardTargetInteractionElement?.() || document.activeElement;
       if (!active || active === control || active === document.body || active === document.documentElement) return false;
       return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName || '');
     }

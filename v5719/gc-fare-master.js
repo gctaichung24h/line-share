@@ -11,6 +11,7 @@
   // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_HANDOFF_SANITIZER
   // GC_MASTER_STABLE_2026_08R10Z9Z_FARE_ADMIN_GUIDANCE_HANDOFF
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R2_FARE_ASYNC_DISMISS_LAYOUT_GUARD
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
@@ -156,13 +157,21 @@
     return typeof helper === 'function' ? helper(input, mutator) : mutator();
   }
   function fareEditingInput(preferred = null) {
-    const active = document.activeElement;
+    const active = window.GC_keyboardTargetInteractionElement?.() || document.activeElement;
     if (active && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return active;
     return preferred;
+  }
+  function liveFareKeyboardEditor() {
+    const active = document.activeElement;
+    if (!active || !['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return null;
+    const session = active._gcKeyboardTargetSession;
+    return session && !session.done && !session.blurred ? active : null;
   }
 
   let fareAdminGuidanceToken = 0;
   let fareAdminGuidanceTimer = 0;
+  let fareAdminDeferredResults = null;
+  let fareKeyboardFocusRevision = 0;
   function fareAdminTargetLabel(id) {
     return id === 'destination' ? '下車' : '上車';
   }
@@ -171,11 +180,13 @@
     return (Array.isArray(options) ? options : []).map(option => option?.label).filter(Boolean).join('／');
   }
 
-  function renderFareAdminGuidance(results = []) {
+  function renderFareAdminGuidance(results = [], anchorInput = null, guardToken = 0) {
     const slot = qs('gcFareAdminGuidance');
     if (!slot) return;
     const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
-    return mutateFareViewportStable(fareEditingInput(preferred), () => {
+    return mutateFareViewportStable(anchorInput || fareEditingInput(preferred), () => {
+      if (guardToken && (guardToken !== fareAdminGuidanceToken || !fareAdminResultsStillCurrent(results))) return;
+      if (fareAdminDeferredResults?.results === results) fareAdminDeferredResults = null;
       const active = results.filter(result => result && result.state !== 'none');
       if (!active.length) {
         slot.className = 'gc-fare-admin-guidance hidden';
@@ -210,8 +221,26 @@
     });
   }
 
-  function refreshFareAdminGuidance() {
+  function fareAdminResultsStillCurrent(results) {
+    return results.every(result => trim(qs(result.targetId)?.value) === result.query);
+  }
+
+  function flushDeferredFareAdminGuidance() {
+    const deferred = fareAdminDeferredResults;
+    if (!deferred) return;
+    if (deferred.token !== fareAdminGuidanceToken || !fareAdminResultsStillCurrent(deferred.results)) {
+      fareAdminDeferredResults = null;
+      return;
+    }
+    const preferred = deferred.results.map(result => qs(result?.targetId)).find(Boolean) || null;
+    fareAdminDeferredResults = null;
+    renderFareAdminGuidance(deferred.results, preferred, deferred.token);
+  }
+
+  function refreshFareAdminGuidance(originInput = null) {
     clearTimeout(fareAdminGuidanceTimer);
+    fareAdminDeferredResults = null;
+    const focusRevisionAtStart = fareKeyboardFocusRevision;
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
@@ -220,7 +249,7 @@
     const pending = inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
     }));
-    renderFareAdminGuidance(pending);
+    renderFareAdminGuidance(pending, originInput);
     if (!pending.length || typeof window.GC_getAddressAdminGuidance !== 'function') return Promise.resolve(pending);
 
     return Promise.all(pending.map(async initial => {
@@ -232,15 +261,23 @@
       }
     })).then(results => {
       if (token !== fareAdminGuidanceToken) return results;
-      const stillCurrent = results.every(result => trim(qs(result.targetId)?.value) === result.query);
-      if (!stillCurrent) return results;
-      renderFareAdminGuidance(results);
+      if (!fareAdminResultsStillCurrent(results)) return results;
+      const liveEditor = liveFareKeyboardEditor();
+      const keyboardSessionEndedDuringRequest = fareKeyboardFocusRevision !== focusRevisionAtStart && !liveEditor;
+      if ((originInput || keyboardSessionEndedDuringRequest) && !liveEditor) {
+        fareAdminDeferredResults = { token, results };
+        return results;
+      }
+      const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
+      renderFareAdminGuidance(results, preferred, token);
       return results;
     });
   }
 
-  function queueFareAdminGuidance(delay = 380) {
+  function queueFareAdminGuidance(originInput, delay = 380) {
     clearTimeout(fareAdminGuidanceTimer);
+    ++fareAdminGuidanceToken;
+    fareAdminDeferredResults = null;
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
@@ -248,7 +285,7 @@
     renderFareAdminGuidance(inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
     })));
-    fareAdminGuidanceTimer = setTimeout(refreshFareAdminGuidance, Math.max(0, delay));
+    fareAdminGuidanceTimer = setTimeout(() => refreshFareAdminGuidance(originInput), Math.max(0, delay));
   }
 
   function restoreDraft() {
@@ -574,13 +611,24 @@
         mutateFareViewportStable(input, () => {
           if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
           if (input === destination && trim(destination.value)) setFieldError('destination', '');
-          if (input === pickup || input === destination) queueFareAdminGuidance();
+          if (input === pickup || input === destination) queueFareAdminGuidance(input);
         });
       });
-      input.addEventListener('change', () => {
+      input.addEventListener('change', event => {
         saveDraft();
-        if (input === pickup || input === destination) mutateFareViewportStable(input, refreshFareAdminGuidance);
+        if (input === pickup || input === destination) {
+          const refresh = () => refreshFareAdminGuidance(input);
+          const settler = window.GC_runAfterRideKeyboardDismissSettles;
+          if (event.isTrusted && typeof settler === 'function') settler(input, refresh);
+          else mutateFareViewportStable(input, refresh);
+        }
       });
+      input.addEventListener('focus', () => {
+        ++fareKeyboardFocusRevision;
+        // Guidance sits above the numeric editors. Never insert it in the same gesture that opens
+        // fareMinutes/fareKm; an address focus is the next safe, explicit place to reveal evidence.
+        if (input === pickup || input === destination) flushDeferredFareAdminGuidance();
+      }, { passive: true });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
       const input = qs(id);
