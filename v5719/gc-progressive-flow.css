@@ -2866,3 +2866,138 @@ html,body,#app,.form-card,.form-body,.field,.gc-primary-address{min-width:0!impo
   .location-manual-address-btn{transition:none!important}
 }
 
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M1_PREMIUM_MOTION_COMPAT_LAYER
+   Visual-only, cross-device micro-interaction layer. No geometry, focus, keyboard, scroll,
+   validation, address, date/time, navigation or submit behavior is changed here.
+   Motion is limited to compositor-friendly opacity/transform feedback; no height/width animation. */
+:root{
+  --gc-motion-fast:.14s;
+  --gc-motion-base:.19s;
+  --gc-motion-sheet:.22s;
+  --gc-motion-ease:cubic-bezier(.20,.78,.24,1);
+  --gc-motion-ease-soft:cubic-bezier(.22,.72,.22,1);
+}
+
+/* Frequent-trip sheet: replace the older abrupt entrance with one calm, short motion only. */
+#gcFavoriteSheet.gc-sheet-overlay:not(.hidden)>.gc-sheet{
+  animation:gcR15PremiumSheetIn var(--gc-motion-sheet) var(--gc-motion-ease)!important;
+  transform-origin:50% 100%!important;
+}
+#gcFavoriteSheet .gc-sheet.gc-sheet-dragging{
+  animation:none!important;
+}
+
+/* Recent-address quick picker: viewport geometry remains JS-owned; only the paint-in is softened. */
+.recent-panel.gc-recent-portal:not(.hidden){
+  animation:gcR15PremiumPopoverIn var(--gc-motion-base) var(--gc-motion-ease)!important;
+  transform-origin:50% 0!important;
+}
+.recent-panel.gc-recent-portal.is-upward:not(.hidden){transform-origin:50% 100%!important}
+
+/* Existing centered overlays keep their exact card geometry; backdrop receives fade only. */
+.confirm-overlay:not(.hidden),
+.favorite-save-overlay:not(.hidden),
+.favorite-edit-overlay:not(.hidden),
+.recent-clear-overlay:not(.hidden),
+.gc-time-picker-overlay:not(.hidden){
+  animation:gcR15PremiumBackdropIn .16s ease-out!important;
+}
+
+/* Native details remain native: no height animation, no click interception, only opened content paint-in. */
+details.optional-box:not(.favorite-box)[open]>.optional-content,
+details.gc-info-disclosure[open]>.gc-info-disclosure-body,
+details.gc-fare-rates[open]>.gc-fare-rates-content,
+details.gc-fare-manual-details[open]>.gc-fare-manual-inner{
+  animation:gcR15PremiumDisclosureIn .18s var(--gc-motion-ease-soft)!important;
+}
+
+/* Arrow/chevron timing is unified without changing their size, direction or hit area. */
+.gc-ride-card .recent-chevron,
+.gc-fare-rates-summary::after,
+.gc-driver-card .gc-secondary-box>summary::after,
+.gc-fare-manual-details>summary b::after{
+  transition-duration:.20s!important;
+  transition-timing-function:var(--gc-motion-ease)!important;
+}
+
+/* Tactile feedback: transform never changes layout dimensions. */
+#gcFavoriteToggle,
+.gc-ride-card .recent-toggle,
+#gcFavoriteSheet .gc-sheet-close,
+#gcFavoriteSheet .favorite-use,
+#gcFavoriteSheet .favorite-delete,
+#gcFavoriteSheet .favorite-actions button,
+.recent-panel.gc-recent-portal .recent-use,
+.recent-panel.gc-recent-portal .recent-clear-all,
+.confirm-back,.confirm-send,
+.gc-time-cancel,.gc-time-confirm,
+.location-manual-address-btn{
+  transition-property:transform,opacity,background-color,border-color,box-shadow!important;
+  transition-duration:var(--gc-motion-fast)!important;
+  transition-timing-function:var(--gc-motion-ease)!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+#gcFavoriteToggle:active,
+.gc-ride-card .recent-toggle:active,
+#gcFavoriteSheet .gc-sheet-close:active,
+#gcFavoriteSheet .favorite-use:active,
+#gcFavoriteSheet .favorite-delete:active,
+#gcFavoriteSheet .favorite-actions button:active,
+.recent-panel.gc-recent-portal .recent-use:active,
+.recent-panel.gc-recent-portal .recent-clear-all:active,
+.confirm-back:active,.confirm-send:active,
+.gc-time-cancel:active,.gc-time-confirm:active,
+.location-manual-address-btn:active{
+  transform:translate3d(0,1px,0) scale(.99)!important;
+}
+
+@keyframes gcR15PremiumSheetIn{
+  from{opacity:.48;transform:translate3d(0,12px,0) scale(.995)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes gcR15PremiumPopoverIn{
+  from{transform:translate3d(0,5px,0) scale(.995)}
+  to{transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes gcR15PremiumBackdropIn{
+  from{opacity:.32}
+  to{opacity:1}
+}
+@keyframes gcR15PremiumDisclosureIn{
+  from{opacity:.58;transform:translate3d(0,-3px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  #gcFavoriteSheet.gc-sheet-overlay:not(.hidden)>.gc-sheet,
+  .recent-panel.gc-recent-portal:not(.hidden),
+  .confirm-overlay:not(.hidden),
+  .favorite-save-overlay:not(.hidden),
+  .favorite-edit-overlay:not(.hidden),
+  .recent-clear-overlay:not(.hidden),
+  .gc-time-picker-overlay:not(.hidden),
+  details.optional-box:not(.favorite-box)[open]>.optional-content,
+  details.gc-info-disclosure[open]>.gc-info-disclosure-body,
+  details.gc-fare-rates[open]>.gc-fare-rates-content,
+  details.gc-fare-manual-details[open]>.gc-fare-manual-inner{
+    animation:none!important;
+  }
+  #gcFavoriteToggle,
+  .gc-ride-card .recent-toggle,
+  #gcFavoriteSheet .gc-sheet-close,
+  #gcFavoriteSheet .favorite-use,
+  #gcFavoriteSheet .favorite-delete,
+  #gcFavoriteSheet .favorite-actions button,
+  .recent-panel.gc-recent-portal .recent-use,
+  .recent-panel.gc-recent-portal .recent-clear-all,
+  .confirm-back,.confirm-send,
+  .gc-time-cancel,.gc-time-confirm,
+  .location-manual-address-btn,
+  .gc-ride-card .recent-chevron,
+  .gc-fare-rates-summary::after,
+  .gc-driver-card .gc-secondary-box>summary::after,
+  .gc-fare-manual-details>summary b::after{
+    transition:none!important;
+  }
+}
+
