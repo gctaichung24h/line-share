@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r13';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -35,8 +35,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R11_NO_DOOR_DISPATCH_CLUSTER_AND_SURROUNDING_IDENTIFIER
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R12_IOS_DESTINATION_FOCUS_AND_DONE_RACE_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R13_OPTIONAL_COLLAPSE_VISUAL_ANCHOR_STABILITY
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R14_FARE_DISCLOSURE_COLLAPSE_VISUAL_ANCHOR_STABILITY
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15_RECENT_QUICK_PICKER_BACKGROUND_SCROLL_OWNERSHIP
   // GC_MASTER_STABLE_2026_08R10Z14F8_FAVORITE_PICKUP_ONLY_AND_COMPACT_SHEET
   // Scope lock: favorite-trip pickup-only saving and favorite-sheet height only.
   // Scope lock: call confirmation copy hierarchy and post-normalization admin reminder only.
@@ -849,15 +847,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z14F18_KEYBOARD_DISMISS_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F19_SUGGESTION_DONE_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F21_RIDE_DONE_NATIVE_VIEWPORT_RELEASE
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15K1_IOS_LINE_WEBVIEW_TARGET_KEYBOARD_ANCHOR_ROOT_FIX
   // While a control is actively edited, keep its on-screen top stable against suggestion/guidance
   // DOM mutations. When the virtual keyboard is dismissed (iOS Done / Android hide), preserve the
   // document scroll position rather than repeatedly re-anchoring against visualViewport.offsetTop.
   // The latter changes during keyboard animation and was the remaining one-frame "shake".
   const GC_VIEWPORT_STABLE_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
-  const GC_KEYBOARD_VIEWPORT_TARGET_IDS = new Set(['pickup', 'destination', 'fareKm', 'fareMinutes']);
   const GC_KEYBOARD_TEXT_TYPES = new Set(['', 'text', 'search', 'tel', 'url', 'email', 'number']);
-  const GC_KEYBOARD_TOUCH_CAPABLE = Number(navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
   let gcBlurViewportSession = null;
   let gcBlurViewportTimer = 0;
   let gcViewportTailSpacer = null;
@@ -865,9 +860,16 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let gcKeyboardDismissReleaseTimer = 0;
   let gcKeyboardDismissMaxTimer = 0;
   let gcRideAddressStableTransaction = null;
-  let gcKeyboardTargetCurrentSession = null;
-  let gcKeyboardTargetSessionSerial = 0;
-  let gcKeyboardTargetLayoutTransaction = null;
+  // M2R12: one coordinator owns every post-blur layout commit for the active ride address.
+  // Smart-suggestion collapse and progressive-flow updates join the same viewport-settle barrier
+  // instead of racing each other while iOS/LINE WebView is still restoring the keyboard viewport.
+  let gcRideKeyboardSettleCoordinator = null;
+  // R10Z14F19: when a visible smart-suggestion list disappears at the exact same moment
+  // the mobile keyboard closes, WebKit can clamp scrollY because document height shrinks
+  // mid-animation. A hidden tail spacer temporarily carries only that removed height, then
+  // shrinks to the minimum still required to preserve the current viewport.
+  let gcSuggestionCollapseSpacer = null;
+  let gcSuggestionCollapseSettleTimer = 0;
   let gcKeyboardViewportBaseline = Number(
     window.visualViewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0
   );
@@ -878,76 +880,14 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     gcViewportTailSpacer = null;
   }
 
-  function viewportTailSpacerHeight() {
-    return gcViewportTailSpacer?.isConnected
-      ? Math.max(0, gcViewportTailSpacer.getBoundingClientRect().height)
-      : 0;
-  }
-
-  function ensureViewportTailSpacer() {
-    if (gcViewportTailSpacer?.isConnected) return gcViewportTailSpacer;
-    gcViewportTailSpacer = document.createElement('div');
-    gcViewportTailSpacer.id = 'gcViewportTailSpacer';
-    gcViewportTailSpacer.setAttribute('aria-hidden', 'true');
-    gcViewportTailSpacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
-    document.body.appendChild(gcViewportTailSpacer);
-    return gcViewportTailSpacer;
-  }
-
-  function setViewportTailSpacerMinimum(minimumHeight) {
-    const minimum = Math.max(0, Math.ceil(Number(minimumHeight) || 0));
-    if (minimum <= 1 && !gcViewportTailSpacer?.isConnected) return;
-    const spacer = ensureViewportTailSpacer();
-    const current = Number.parseFloat(spacer.style.height) || viewportTailSpacerHeight();
-    if (minimum > current) spacer.style.height = `${minimum}px`;
-  }
-
-  function addViewportTailSpacerCapacity(extraHeight) {
-    const extra = Math.max(0, Math.ceil(Number(extraHeight) || 0));
-    if (extra <= 1) return false;
-    const spacer = ensureViewportTailSpacer();
-    const current = Number.parseFloat(spacer.style.height) || viewportTailSpacerHeight();
-    spacer.style.height = `${Math.ceil(current + extra)}px`;
-    return true;
-  }
-
-  function rootScrollMetrics() {
-    const root = document.scrollingElement || document.documentElement;
-    return {
-      root,
-      scrollY: Math.max(0, Number(window.scrollY || window.pageYOffset || root?.scrollTop || 0)),
-      scrollHeight: Math.max(0, Number(root?.scrollHeight || document.documentElement?.scrollHeight || 0)),
-      clientHeight: Math.max(1, Number(root?.clientHeight || document.documentElement?.clientHeight || window.innerHeight || 0))
-    };
-  }
-
-  function reserveViewportTailForScrollY(scrollY, requiredViewportHeight = 0) {
-    const metrics = rootScrollMetrics();
-    const spacerHeight = viewportTailSpacerHeight();
-    const naturalScrollHeight = Math.max(0, metrics.scrollHeight - spacerHeight);
-    const viewportHeight = Math.max(metrics.clientHeight, Number(requiredViewportHeight) || 0);
-    setViewportTailSpacerMinimum(Math.max(spacerHeight, Number(scrollY) + viewportHeight - naturalScrollHeight + 2));
-  }
-
-  function settleViewportTailSpacer({ force = false } = {}) {
-    const spacer = gcViewportTailSpacer;
-    if (!spacer?.isConnected) return;
-    if (!force && gcKeyboardTargetLayoutTransaction) return;
-    if (!force && gcKeyboardTargetCurrentSession && !gcKeyboardTargetCurrentSession.done) return;
-    if (force) {
-      clearViewportTailSpacer();
-      return;
-    }
-    const spacerHeight = viewportTailSpacerHeight();
-    const metrics = rootScrollMetrics();
-    const visibleBottom = metrics.scrollY + metrics.clientHeight;
-    const naturalScrollHeight = Math.max(0, metrics.scrollHeight - spacerHeight);
-    const minimumNeeded = Math.max(0, Math.ceil(visibleBottom - naturalScrollHeight + 2));
-    if (minimumNeeded <= 1) {
-      clearViewportTailSpacer();
-      return;
-    }
-    spacer.style.height = `${minimumNeeded}px`;
+  function ensureSuggestionCollapseSpacer() {
+    if (gcSuggestionCollapseSpacer?.isConnected) return gcSuggestionCollapseSpacer;
+    gcSuggestionCollapseSpacer = document.createElement('div');
+    gcSuggestionCollapseSpacer.id = 'gcSuggestionCollapseSpacer';
+    gcSuggestionCollapseSpacer.setAttribute('aria-hidden', 'true');
+    gcSuggestionCollapseSpacer.style.cssText = 'display:block;width:1px;min-width:1px;height:0;pointer-events:none;visibility:hidden;';
+    document.body.appendChild(gcSuggestionCollapseSpacer);
+    return gcSuggestionCollapseSpacer;
   }
 
   function reserveSuggestionCollapseCapacity(box) {
@@ -961,15 +901,51 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       (Number.parseFloat(style.marginBottom) || 0)
     );
     if (outerHeight <= 1) return false;
-    return addViewportTailSpacerCapacity(outerHeight);
+    const spacer = ensureSuggestionCollapseSpacer();
+    const current = Number.parseFloat(spacer.style.height) || 0;
+    spacer.style.height = `${Math.ceil(current + outerHeight)}px`;
+    return true;
   }
 
   function settleSuggestionCollapseSpacer({ force = false } = {}) {
-    settleViewportTailSpacer({ force });
+    const spacer = gcSuggestionCollapseSpacer;
+    if (!spacer?.isConnected) return;
+    if (!force && (gcKeyboardDismissSession || rideKeyboardDismissPending() || document.body?.style.position === 'fixed')) return;
+    clearTimeout(gcSuggestionCollapseSettleTimer);
+    gcSuggestionCollapseSettleTimer = 0;
+    if (force) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    const spacerHeight = Math.max(0, spacer.getBoundingClientRect().height);
+    if (spacerHeight <= 2) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    const scrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
+    const layoutHeight = Math.max(1, window.innerHeight || document.documentElement?.clientHeight || 0);
+    const naturalScrollHeight = Math.max(0, document.documentElement.scrollHeight - spacerHeight);
+    const minimumNeeded = Math.max(0, Math.ceil(scrollY + layoutHeight - naturalScrollHeight + 2));
+    if (minimumNeeded <= 2) {
+      spacer.remove();
+      gcSuggestionCollapseSpacer = null;
+      return;
+    }
+    spacer.style.height = `${Math.min(Math.ceil(spacerHeight), minimumNeeded)}px`;
   }
 
-  function scheduleSuggestionCollapseSettle() {
-    settleSuggestionCollapseSpacer();
+  function scheduleSuggestionCollapseSettle(delay = 90) {
+    if (!gcSuggestionCollapseSpacer?.isConnected) return;
+    clearTimeout(gcSuggestionCollapseSettleTimer);
+    gcSuggestionCollapseSettleTimer = setTimeout(() => {
+      if (gcKeyboardDismissSession || rideKeyboardDismissPending() || document.body?.style.position === 'fixed') {
+        scheduleSuggestionCollapseSettle(90);
+        return;
+      }
+      settleSuggestionCollapseSpacer();
+    }, delay);
   }
 
   function ensureFareNumberViewportCapacity(session) {
@@ -994,17 +970,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return new URLSearchParams(location.search).get('mode');
   }
 
-  function keyboardViewportTargetElement(input) {
-    if (!input || !input.isConnected || !input.closest?.('#app') || !GC_KEYBOARD_VIEWPORT_TARGET_IDS.has(input.id)) return false;
-    const activeMode = activeModeForViewportStability();
-    if (activeMode === 'fare') return true;
-    return ['call', 'driver'].includes(activeMode) && (input.id === 'pickup' || input.id === 'destination');
-  }
-
-  function keyboardViewportTargetEligible(input) {
-    return Boolean(keyboardViewportTargetElement(input) && !input.disabled && !input.readOnly);
-  }
-
   function viewportStableInputEligible(input) {
     if (!input || !GC_VIEWPORT_STABLE_IDS.has(input.id)) return false;
     const activeMode = activeModeForViewportStability();
@@ -1022,8 +987,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   }
 
   function rideKeyboardDismissPending() {
-    const session = gcKeyboardTargetCurrentSession;
-    return Boolean(session?.dismissing && !session.done);
+    const session = gcBlurViewportSession;
+    return Boolean(
+      session?.passiveRideDismiss &&
+      !session.viewportSettled &&
+      performance.now() <= session.expiresAt
+    );
   }
 
   function keyboardDismissInputEligible(input) {
@@ -1031,9 +1000,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const activeMode = activeModeForViewportStability();
     if (!['call', 'driver', 'fare'].includes(activeMode)) return false;
     if (input.disabled || input.readOnly) return false;
-    // M2R15K1: the four reported fields use their own short-lived visual-anchor session. They must
-    // never enter this legacy all-input BODY freeze / repeated scroll restoration path.
-    if (keyboardViewportTargetEligible(input)) return false;
+    // F22: do not body-freeze or re-anchor fareMinutes/fareKm on Done/refocus. Native mobile
+    // viewport behavior is smoother here; result-height release is handled separately below.
+    if (activeMode === 'fare' && (input.id === 'fareKm' || input.id === 'fareMinutes')) return false;
     if (input.tagName === 'TEXTAREA') return true;
     if (input.tagName !== 'INPUT') return false;
     return GC_KEYBOARD_TEXT_TYPES.has(String(input.type || '').toLowerCase());
@@ -1047,7 +1016,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   function otherEditorHasFocus(input) {
     const active = document.activeElement;
     if (!active || active === input) return false;
-    return keyboardViewportTargetEligible(active) || keyboardDismissInputEligible(active);
+    return keyboardDismissInputEligible(active);
   }
 
   function captureKeyboardViewportBaseline() {
@@ -1227,439 +1196,186 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   window.visualViewport?.addEventListener('scroll', restoreBlurViewportOnVisualChange, { passive: true });
   window.addEventListener('scroll', () => scheduleSuggestionCollapseSettle(72), { passive: true });
 
-  function keyboardTargetViewportMetrics() {
+  function runAfterRideKeyboardDismissSettles(input, callback, { minDelay = 320, maxDelay = 1180 } = {}) {
+    if (typeof callback !== 'function') return;
+    if (!rideAddressKeyboardDismissInputEligible(input)) {
+      setTimeout(callback, 180);
+      return;
+    }
+
+    const now = performance.now();
+    const blurSession = gcBlurViewportSession?.input === input ? gcBlurViewportSession : null;
+    const existing = gcRideKeyboardSettleCoordinator;
+    if (existing && !existing.done && existing.input === input && (now - existing.startedAt) <= 120) {
+      existing.callbacks.push(callback);
+      existing.minDelay = Math.max(existing.minDelay, Number(minDelay) || 0);
+      existing.maxDelay = Math.max(existing.maxDelay, Number(maxDelay) || 0);
+      existing.refreshMaxTimer();
+      return;
+    }
+
     const viewport = window.visualViewport;
-    return {
-      height: Math.max(1, Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0)),
-      offsetTop: Number(viewport?.offsetTop || 0),
-      scrollY: Math.max(0, Number(window.scrollY || window.pageYOffset || 0)),
-      scrollHeight: Math.max(0, Number(document.documentElement?.scrollHeight || 0)),
-      width: Math.max(1, Number(viewport?.width || window.innerWidth || document.documentElement?.clientWidth || 0))
-    };
-  }
-
-  function keyboardTargetVisualTop(input, metrics = keyboardTargetViewportMetrics()) {
-    return input.getBoundingClientRect().top - metrics.offsetTop;
-  }
-
-  function reserveKeyboardTargetDismissCapacity(session) {
-    if (!session || session.done) return;
-    const metrics = keyboardTargetViewportMetrics();
-    reserveViewportTailForScrollY(
-      metrics.scrollY,
-      session.baselineOffsetTop + session.baselineHeight
+    const initialHeight = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
+    const initialOffsetTop = Number(viewport?.offsetTop || 0);
+    const baselineHeight = Math.max(Number(gcKeyboardViewportBaseline || 0), initialHeight);
+    const keyboardWasOpen = Boolean(
+      viewport && baselineHeight > 0 && initialHeight > 0 &&
+      ((baselineHeight - initialHeight) >= 72 || keyboardAppearsOpen())
     );
+
+    const coordinator = {
+      input,
+      blurSession,
+      startedAt: now,
+      initialHeight,
+      initialOffsetTop,
+      baselineHeight,
+      keyboardWasOpen,
+      callbacks: [callback],
+      minDelay: Math.max(260, Number(minDelay) || 0),
+      maxDelay: Math.max(820, Number(maxDelay) || 0),
+      lastHeight: initialHeight,
+      lastOffsetTop: initialOffsetTop,
+      stableFrames: 0,
+      raf: 0,
+      maxTimer: 0,
+      done: false,
+      refreshMaxTimer: null
+    };
+    gcRideKeyboardSettleCoordinator = coordinator;
+
+    const cleanup = () => {
+      if (coordinator.raf) cancelAnimationFrame(coordinator.raf);
+      coordinator.raf = 0;
+      clearTimeout(coordinator.maxTimer);
+      coordinator.maxTimer = 0;
+    };
+
+    const markViewportSettled = () => {
+      const session = gcBlurViewportSession?.input === input ? gcBlurViewportSession : coordinator.blurSession;
+      if (session?.passiveRideDismiss) session.viewportSettled = true;
+    };
+
+    const finish = () => {
+      if (coordinator.done) return;
+      coordinator.done = true;
+      cleanup();
+      markViewportSettled();
+      if (gcRideKeyboardSettleCoordinator === coordinator) gcRideKeyboardSettleCoordinator = null;
+      const callbacks = coordinator.callbacks.splice(0);
+      // Commit every waiting mutation in one settled turn. No scrollTo/scrollBy is issued here;
+      // WebKit keeps ownership of the native keyboard viewport transition from start to finish.
+      callbacks.forEach(fn => {
+        try { fn(); } catch (error) { setTimeout(() => { throw error; }, 0); }
+      });
+      scheduleSuggestionCollapseSettle(96);
+    };
+
+    const cancelForRefocus = () => {
+      if (coordinator.done) return;
+      coordinator.done = true;
+      cleanup();
+      markViewportSettled();
+      if (gcRideKeyboardSettleCoordinator === coordinator) gcRideKeyboardSettleCoordinator = null;
+      scheduleSuggestionCollapseSettle(96);
+    };
+
+    coordinator.refreshMaxTimer = () => {
+      clearTimeout(coordinator.maxTimer);
+      const elapsed = performance.now() - coordinator.startedAt;
+      coordinator.maxTimer = setTimeout(finish, Math.max(40, coordinator.maxDelay - elapsed + 40));
+    };
+
+    const poll = () => {
+      if (coordinator.done) return;
+      if (document.activeElement === input) { cancelForRefocus(); return; }
+      // A direct tap into another editor is a focus transfer, not a keyboard dismissal. The new
+      // editor owns the keyboard, so finish the old field's queued mutations without waiting for
+      // a nonexistent close animation.
+      if (otherEditorHasFocus(input)) { finish(); return; }
+
+      const height = Number(viewport?.height || window.innerHeight || document.documentElement?.clientHeight || 0);
+      const offsetTop = Number(viewport?.offsetTop || 0);
+      const viewportStable = Math.abs(height - coordinator.lastHeight) <= 0.5 && Math.abs(offsetTop - coordinator.lastOffsetTop) <= 0.5;
+      coordinator.stableFrames = viewportStable ? coordinator.stableFrames + 1 : 0;
+      coordinator.lastHeight = height;
+      coordinator.lastOffsetTop = offsetTop;
+
+      const elapsed = performance.now() - coordinator.startedAt;
+      const recoveredByBaseline = !coordinator.keyboardWasOpen || height >= coordinator.baselineHeight - 48;
+      const recoveredByGrowth = !coordinator.keyboardWasOpen || height >= coordinator.initialHeight + 64;
+      const viewportRecovered = recoveredByBaseline || recoveredByGrowth || !keyboardAppearsOpen();
+      const bodyReleased = document.body?.style.position !== 'fixed';
+
+      // Do not mistake the temporarily stable *keyboard-open* viewport for completion. That was
+      // the intermittent race: suggestion/progressive DOM height changed first, then iOS restored
+      // visualViewport and violently re-clamped scroll. Require real viewport recovery first.
+      if (elapsed >= coordinator.minDelay && coordinator.stableFrames >= 4 && viewportRecovered && bodyReleased) {
+        finish();
+        return;
+      }
+      if (elapsed >= coordinator.maxDelay) { finish(); return; }
+      coordinator.raf = requestAnimationFrame(poll);
+    };
+
+    coordinator.refreshMaxTimer();
+    coordinator.raf = requestAnimationFrame(poll);
+  }
+  window.GC_runAfterRideKeyboardDismissSettles = runAfterRideKeyboardDismissSettles;
+
+  function mutateRideAddressUiStable(input, mutator) {
+    // M2R5: an explicit smart-suggestion tap is committed as one viewport-stable transaction.
+    // Nested UI mutations (suggestion collapse, admin hint, progressive reveal) must not each
+    // issue their own scroll correction; the outer transaction restores the anchor once.
+    if (gcRideAddressStableTransaction?.input === input) return mutator();
+    if (!viewportStableInputEligible(input)) return mutator();
+    const activeSession = document.activeElement === input
+      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
+      : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
+        ? gcBlurViewportSession
+        : null);
+    if (!activeSession) return mutator();
+
+    const result = mutator();
+    const restore = () => {
+      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      restoreViewportStableSession(activeSession);
+    };
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
+    setTimeout(restore, 54);
+    setTimeout(restore, 148);
+    return result;
   }
 
-  function runKeyboardLayoutTransaction(input, mutator, options = {}) {
-    if (typeof mutator !== 'function') return;
-    if (gcKeyboardTargetLayoutTransaction) return mutator();
+  function runRideAddressUiStableTransaction(input, mutator) {
+    if (gcRideAddressStableTransaction?.input === input || !viewportStableInputEligible(input)) return mutator();
+    const activeSession = document.activeElement === input
+      ? { input, anchorTop: viewportStableTop(input), scrollY: window.scrollY || window.pageYOffset || 0, docTop: input.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0), blurPhase: false }
+      : (gcBlurViewportSession?.input === input && performance.now() <= gcBlurViewportSession.expiresAt
+        ? gcBlurViewportSession
+        : null);
+    if (!activeSession) return mutator();
 
-    const active = keyboardViewportTargetEligible(document.activeElement) ? document.activeElement : null;
-    const anchorInput = keyboardViewportTargetEligible(options.anchorInput)
-      ? options.anchorInput
-      : (active || (keyboardViewportTargetEligible(input) ? input : null));
-    if (!anchorInput?.isConnected) return mutator();
-
-    const beforeMetrics = keyboardTargetViewportMetrics();
-    const anchorTop = Number.isFinite(options.anchorTop)
-      ? Number(options.anchorTop)
-      : keyboardTargetVisualTop(anchorInput, beforeMetrics);
-    const session = options.session || anchorInput._gcKeyboardViewportSession || null;
-    const transaction = { input: anchorInput, corrected: false };
-    gcKeyboardTargetLayoutTransaction = transaction;
+    const transaction = { input, activeSession };
     gcRideAddressStableTransaction = transaction;
     let result;
     try {
       result = mutator();
     } finally {
       if (gcRideAddressStableTransaction === transaction) gcRideAddressStableTransaction = null;
-      if (gcKeyboardTargetLayoutTransaction === transaction) gcKeyboardTargetLayoutTransaction = null;
     }
-
-    let afterMetrics = keyboardTargetViewportMetrics();
-    let delta = keyboardTargetVisualTop(anchorInput, afterMetrics) - anchorTop;
-    const viewportWasChanging = session && !options.viewportRecovered &&
-      (performance.now() - Number(session.lastViewportChangeAt || 0)) < 48;
-    const correctionAllowed = options.viewportRecovered === true &&
-      options.allowCorrection !== false &&
-      !viewportWasChanging &&
-      !session?.userTookControl &&
-      !locationEditLayoutLock &&
-      (!options.singleSessionCorrection || !session?.dismissCorrectionUsed);
-
-    if (correctionAllowed && Math.abs(delta) > 1.5) {
-      // Callbacks have now committed and their final natural height is measurable. Add only the
-      // tail capacity required to make the exact anchor correction reachable by the root scroller.
-      reserveViewportTailForScrollY(Math.max(0, afterMetrics.scrollY + delta));
-      afterMetrics = keyboardTargetViewportMetrics();
-      delta = keyboardTargetVisualTop(anchorInput, afterMetrics) - anchorTop;
-      const rootMetrics = rootScrollMetrics();
-      const maximumCorrection = Math.max(96, afterMetrics.height * 0.65);
-      const maximumScrollY = Math.max(0, rootMetrics.scrollHeight - rootMetrics.clientHeight);
-      const targetScrollY = Math.min(maximumScrollY, Math.max(0, rootMetrics.scrollY + delta));
-      const correction = targetScrollY - rootMetrics.scrollY;
-      if (Math.abs(delta) <= maximumCorrection && Math.abs(correction) > 1.5 && Math.abs(correction - delta) <= 2.5) {
-        // The target path has exactly one scroll write: only after a measured visual-anchor error.
-        window.scrollBy(0, correction);
-        transaction.corrected = true;
-        if (options.singleSessionCorrection && session) session.dismissCorrectionUsed = true;
-      }
-    }
-
-    // Keep the exact reserve after a correction until the resulting root scroll is observable;
-    // subsequent scroll/transactions may shrink it only to a value that preserves that position.
-    if (!transaction.corrected && options.settleTail !== false) settleViewportTailSpacer();
-    return result;
-  }
-
-  function cleanupKeyboardTargetSession(session) {
-    if (!session) return;
-    if (session.raf) cancelAnimationFrame(session.raf);
-    session.raf = 0;
-    clearTimeout(session.maxTimer);
-    session.maxTimer = 0;
-    const viewport = window.visualViewport;
-    viewport?.removeEventListener('resize', session.onVisualChange);
-    viewport?.removeEventListener('scroll', session.onVisualChange);
-    window.removeEventListener('pointerdown', session.onUserGestureStart);
-    window.removeEventListener('touchstart', session.onUserGestureStart);
-    window.removeEventListener('touchmove', session.onUserMove);
-    window.removeEventListener('scroll', session.onUserObservedScroll);
-    window.removeEventListener('wheel', session.onUserWheel);
-    window.removeEventListener('pointermove', session.onPointerMove);
-  }
-
-  function cancelKeyboardTargetSession(session) {
-    if (!session || session.done) return;
-    session.done = true;
-    session.dismissing = false;
-    cleanupKeyboardTargetSession(session);
-    if (session.input?._gcKeyboardViewportSession === session) session.input._gcKeyboardViewportSession = null;
-    if (session.input?._gcKeyboardViewportPendingBlurSession === session) session.input._gcKeyboardViewportPendingBlurSession = null;
-    if (gcKeyboardTargetCurrentSession === session) gcKeyboardTargetCurrentSession = null;
-  }
-
-  function finishKeyboardTargetSession(session, {
-    anchorInput = session?.input,
-    anchorTop = session?.dismissAnchorTop,
-    viewportRecovered = false,
-    allowCorrection = true,
-    keepTailCapacity = false
-  } = {}) {
-    if (!session || session.done) return;
-    session.done = true;
-    session.dismissing = false;
-    cleanupKeyboardTargetSession(session);
-    if (session.input?._gcKeyboardViewportSession === session) session.input._gcKeyboardViewportSession = null;
-    if (session.input?._gcKeyboardViewportPendingBlurSession === session) session.input._gcKeyboardViewportPendingBlurSession = null;
-    if (gcKeyboardTargetCurrentSession === session) gcKeyboardTargetCurrentSession = null;
-    if (viewportRecovered) captureKeyboardViewportBaseline();
-
-    const callbacks = session.callbacks.splice(0);
-    runKeyboardLayoutTransaction(anchorInput, () => {
-      callbacks.forEach(callback => {
-        try { callback(); } catch (error) { queueMicrotask(() => { throw error; }); }
-      });
-    }, {
-      anchorInput,
-      anchorTop,
-      session,
-      viewportRecovered,
-      allowCorrection: allowCorrection && viewportRecovered,
-      singleSessionCorrection: true,
-      settleTail: !keepTailCapacity
-    });
-  }
-
-  function keyboardTargetViewportDiffersFromBaseline(session, metrics) {
-    return session.baselineHeight - metrics.height >= 48 ||
-      Math.abs(metrics.offsetTop - session.baselineOffsetTop) >= 12;
-  }
-
-  function pollKeyboardTargetDismiss(session) {
-    if (!session || session.done || !session.dismissing) return;
-    const metrics = keyboardTargetViewportMetrics();
-    if (keyboardTargetViewportDiffersFromBaseline(session, metrics)) session.keyboardWasObserved = true;
-    const stable = Math.abs(metrics.height - session.lastMetrics.height) <= 0.5 &&
-      Math.abs(metrics.offsetTop - session.lastMetrics.offsetTop) <= 0.5 &&
-      Math.abs(metrics.scrollY - session.lastMetrics.scrollY) <= 0.5 &&
-      Math.abs(metrics.scrollHeight - session.lastMetrics.scrollHeight) <= 1;
-    session.stableFrames = stable ? session.stableFrames + 1 : 0;
-    session.lastMetrics = metrics;
-
-    const heightTolerance = Math.max(4, session.baselineHeight * 0.012);
-    const offsetRecovered = Math.abs(metrics.offsetTop - session.baselineOffsetTop) <= 2.5;
-    const viewportRecovered = !window.visualViewport ||
-      (!GC_KEYBOARD_TOUCH_CAPABLE && !session.keyboardWasObserved) ||
-      (session.keyboardWasObserved && metrics.height >= session.baselineHeight - heightTolerance && offsetRecovered);
-    const sameWidth = Math.abs(metrics.width - session.baselineWidth) <= 2;
-    if (sameWidth && viewportRecovered && session.stableFrames >= 3) {
-      finishKeyboardTargetSession(session, { viewportRecovered: true });
-      return;
-    }
-    session.raf = requestAnimationFrame(() => pollKeyboardTargetDismiss(session));
-  }
-
-  function beginKeyboardTargetDismiss(session) {
-    if (!session || session.done || session.dismissing) return;
-    session.dismissing = true;
-    gcKeyboardTargetCurrentSession = session;
-    reserveKeyboardTargetDismissCapacity(session);
-    session.lastMetrics = keyboardTargetViewportMetrics();
-    session.stableFrames = 0;
-    session.raf = requestAnimationFrame(() => pollKeyboardTargetDismiss(session));
-    // This is a single fail-safe cleanup deadline, never a delayed scroll correction.
-    session.maxTimer = setTimeout(() => {
-      if (!session.done) finishKeyboardTargetSession(session, {
-        viewportRecovered: false,
-        allowCorrection: false,
-        keepTailCapacity: true
-      });
-    }, session.maxDelay);
-  }
-
-  function handleKeyboardTargetBlur(input) {
-    const session = input?._gcKeyboardViewportSession;
-    if (!session || session.done || session.blurred) return;
-    session.blurred = true;
-    const dismissMetrics = keyboardTargetViewportMetrics();
-    session.dismissAnchorTop = keyboardTargetVisualTop(input, dismissMetrics);
-    session.dismissScrollY = dismissMetrics.scrollY;
-    // A completed inner suggestion drag must not make the following native keyboard restoration
-    // look like a new user-owned root scroll. Genuine root movement already set userTookControl.
-    session.userGesture = null;
-    input._gcKeyboardViewportPendingBlurSession = session;
-    queueMicrotask(() => {
-      if (session.done) return;
-      const active = document.activeElement;
-      const activeSession = active?._gcKeyboardViewportSession;
-      if (active !== input && keyboardViewportTargetEligible(active) && activeSession && activeSession !== session) {
-        // Address/number focus transfer keeps the keyboard open. Commit the old field's queued DOM
-        // changes once, in the same turn, against the new field; it is never treated as Done.
-        const anchorTop = keyboardTargetVisualTop(active);
-        finishKeyboardTargetSession(session, {
-          anchorInput: active,
-          anchorTop,
-          viewportRecovered: false,
-          allowCorrection: false,
-          keepTailCapacity: true
-        });
-        return;
-      }
-      if (keyboardDismissInputEligible(active)) {
-        finishKeyboardTargetSession(session, {
-          viewportRecovered: false,
-          allowCorrection: false
-        });
-        return;
-      }
-      beginKeyboardTargetDismiss(session);
-    });
-  }
-
-  function bindKeyboardViewportTarget(input) {
-    if (!keyboardViewportTargetElement(input) || input.dataset.gcKeyboardViewportTargetBound === '1') return;
-    input.dataset.gcKeyboardViewportTargetBound = '1';
-    const capturePointerAnchor = () => {
-      const metrics = keyboardTargetViewportMetrics();
-      input._gcKeyboardViewportPointerAnchor = {
-        at: performance.now(),
-        top: keyboardTargetVisualTop(input, metrics),
-        height: metrics.height,
-        offsetTop: metrics.offsetTop,
-        scrollY: metrics.scrollY,
-        width: metrics.width
-      };
+    const restore = () => {
+      if (document.activeElement !== input && gcBlurViewportSession?.input !== input) return;
+      restoreViewportStableSession(activeSession);
     };
-    input.addEventListener('pointerdown', capturePointerAnchor, { passive: true, capture: true });
-    input.addEventListener('touchstart', capturePointerAnchor, { passive: true, capture: true });
-    input.addEventListener('focus', () => {
-      if (!keyboardViewportTargetEligible(input)) return;
-      const metrics = keyboardTargetViewportMetrics();
-      const previousSession = gcKeyboardTargetCurrentSession;
-      const inheritedBaseline = previousSession?.blurred && !previousSession.done &&
-        Math.abs(previousSession.baselineWidth - metrics.width) <= 2
-        ? {
-            height: previousSession.baselineHeight,
-            offsetTop: previousSession.baselineOffsetTop,
-            width: previousSession.baselineWidth
-          }
-        : null;
-      if (previousSession?.blurred && !previousSession.done) {
-        finishKeyboardTargetSession(previousSession, {
-          anchorInput: input,
-          anchorTop: keyboardTargetVisualTop(input, metrics),
-          viewportRecovered: false,
-          allowCorrection: false,
-          keepTailCapacity: true
-        });
-      }
-      const pointer = input._gcKeyboardViewportPointerAnchor;
-      const usePointer = pointer && (performance.now() - pointer.at) <= 800 && Math.abs(pointer.width - metrics.width) <= 2;
-      const baseline = inheritedBaseline || (usePointer
-        ? { height: pointer.height, offsetTop: pointer.offsetTop, width: pointer.width }
-        : { height: metrics.height, offsetTop: metrics.offsetTop, width: metrics.width });
-      gcKeyboardViewportBaseline = Math.max(gcKeyboardViewportBaseline, baseline.height);
-      const session = {
-        id: ++gcKeyboardTargetSessionSerial,
-        input,
-        baselineHeight: baseline.height,
-        baselineOffsetTop: baseline.offsetTop,
-        baselineWidth: baseline.width,
-        dismissAnchorTop: null,
-        dismissScrollY: null,
-        keyboardWasObserved: false,
-        lastViewportChangeAt: performance.now(),
-        userTookControl: false,
-        dismissCorrectionUsed: false,
-        callbacks: [],
-        blurred: false,
-        dismissing: false,
-        done: false,
-        stableFrames: 0,
-        lastMetrics: metrics,
-        raf: 0,
-        maxTimer: 0,
-        maxDelay: 1500,
-        onVisualChange: null,
-        onUserGestureStart: null,
-        onUserMove: null,
-        onUserObservedScroll: null,
-        onUserWheel: null,
-        onPointerMove: null
-      };
-      const userGesturePoint = event => event?.touches?.[0] || event;
-      const beginUserGesture = event => {
-        if (session.done) return;
-        const point = userGesturePoint(event);
-        const clientX = Number(point?.clientX);
-        const clientY = Number(point?.clientY);
-        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
-        const gestureMetrics = keyboardTargetViewportMetrics();
-        session.userGesture = {
-          clientX,
-          clientY,
-          scrollY: gestureMetrics.scrollY,
-          offsetTop: gestureMetrics.offsetTop,
-          movedAt: 0
-        };
-      };
-      const markUserControlAfterActualScroll = () => {
-        const gesture = session.userGesture;
-        if (!gesture?.movedAt || performance.now() - gesture.movedAt > 280) return;
-        const current = keyboardTargetViewportMetrics();
-        if (Math.abs(current.scrollY - gesture.scrollY) > 1.5 ||
-            Math.abs(current.offsetTop - gesture.offsetTop) > 1.5) {
-          session.userTookControl = true;
-        }
-      };
-      const observeUserMove = event => {
-        if (session.done || session.userTookControl || !session.userGesture) return;
-        const point = userGesturePoint(event);
-        const clientX = Number(point?.clientX);
-        const clientY = Number(point?.clientY);
-        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
-        const distance = Math.hypot(
-          clientX - session.userGesture.clientX,
-          clientY - session.userGesture.clientY
-        );
-        if (distance < 12) return;
-        session.userGesture.movedAt = performance.now();
-        markUserControlAfterActualScroll();
-      };
-      session.keyboardWasObserved = keyboardTargetViewportDiffersFromBaseline(session, metrics);
-      session.onVisualChange = () => {
-        if (session.done) return;
-        const current = keyboardTargetViewportMetrics();
-        session.lastViewportChangeAt = performance.now();
-        if (!session.keyboardWasObserved && keyboardTargetViewportDiffersFromBaseline(session, current)) session.keyboardWasObserved = true;
-        markUserControlAfterActualScroll();
-      };
-      session.onUserGestureStart = beginUserGesture;
-      session.onUserMove = observeUserMove;
-      session.onUserObservedScroll = markUserControlAfterActualScroll;
-      session.onUserWheel = event => {
-        if (Math.abs(Number(event?.deltaX) || 0) > 0.5 || Math.abs(Number(event?.deltaY) || 0) > 0.5) {
-          session.userTookControl = true;
-        }
-      };
-      session.onPointerMove = event => {
-        if (event.pointerType === 'touch') observeUserMove(event);
-      };
-      input._gcKeyboardViewportSession = session;
-      gcKeyboardTargetCurrentSession = session;
-      window.visualViewport?.addEventListener('resize', session.onVisualChange, { passive: true });
-      window.visualViewport?.addEventListener('scroll', session.onVisualChange, { passive: true });
-      window.addEventListener('pointerdown', session.onUserGestureStart, { passive: true });
-      window.addEventListener('touchstart', session.onUserGestureStart, { passive: true });
-      window.addEventListener('touchmove', session.onUserMove, { passive: true });
-      window.addEventListener('scroll', session.onUserObservedScroll, { passive: true });
-      window.addEventListener('wheel', session.onUserWheel, { passive: true });
-      window.addEventListener('pointermove', session.onPointerMove, { passive: true });
-    }, { capture: true });
-    input.addEventListener('blur', () => handleKeyboardTargetBlur(input), { capture: true });
-  }
-
-  function runAfterRideKeyboardDismissSettles(input, callback, { maxDelay = 1180 } = {}) {
-    if (typeof callback !== 'function') return;
-    if (!keyboardViewportTargetElement(input)) {
-      queueMicrotask(callback);
-      return;
-    }
-    const session = input._gcKeyboardViewportPendingBlurSession || input._gcKeyboardViewportSession;
-    if (!session || session.done) {
-      const active = keyboardViewportTargetEligible(document.activeElement) ? document.activeElement : input;
-      queueMicrotask(() => runKeyboardLayoutTransaction(active, callback, {
-        anchorInput: active,
-        allowCorrection: false
-      }));
-      return;
-    }
-    session.callbacks.push(callback);
-    session.maxDelay = Math.max(session.maxDelay, Math.min(1800, Number(maxDelay) || 0));
-  }
-  window.GC_runAfterRideKeyboardDismissSettles = runAfterRideKeyboardDismissSettles;
-
-  function mutateRideAddressUiStable(input, mutator) {
-    if (typeof mutator !== 'function') return;
-    if (gcKeyboardTargetLayoutTransaction || gcRideAddressStableTransaction) return mutator();
-    if (!keyboardViewportTargetElement(input)) return mutator();
-    const dismissing = gcKeyboardTargetCurrentSession;
-    if (dismissing?.dismissing && !dismissing.done) {
-      dismissing.callbacks.push(mutator);
-      return;
-    }
-    const pending = input._gcKeyboardViewportPendingBlurSession;
-    if (pending && !pending.done) {
-      pending.callbacks.push(mutator);
-      return;
-    }
-    const active = keyboardViewportTargetEligible(document.activeElement) ? document.activeElement : null;
-    const activeSession = active?._gcKeyboardViewportSession;
-    if (active && active !== input && activeSession && !activeSession.done) {
-      activeSession.callbacks.push(mutator);
-      return;
-    }
-    const anchor = active || input;
-    const rect = anchor.getBoundingClientRect();
-    const metrics = keyboardTargetViewportMetrics();
-    const visible = rect.bottom > metrics.offsetTop && rect.top < metrics.offsetTop + metrics.height;
-    if (!active && !visible) return mutator();
-    return runKeyboardLayoutTransaction(anchor, mutator, {
-      anchorInput: anchor,
-      session: anchor._gcKeyboardViewportSession,
-      allowCorrection: false
-    });
-  }
-
-  function runRideAddressUiStableTransaction(input, mutator) {
-    return mutateRideAddressUiStable(input, mutator);
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
+    setTimeout(restore, 58);
+    setTimeout(restore, 150);
+    return result;
   }
   window.GC_mutateInputViewportStable = mutateRideAddressUiStable;
   window.GC_clearViewportTailSpacer = clearViewportTailSpacer;
   window.addEventListener('pagehide', () => {
-    cancelKeyboardTargetSession(gcKeyboardTargetCurrentSession);
     if (gcKeyboardDismissSession) releaseKeyboardDismissFreeze(gcKeyboardDismissSession, { immediate: true });
     clearViewportTailSpacer();
     clearLocationManualSwitchSpacer();
@@ -2958,16 +2674,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     promise.then(evidence => {
       const currentKey = addressConfidenceKey(input.value);
       if (input.dataset.gcAdminAmbiguityToken !== token || currentKey !== queryKey || !pickupAdminReminderEligible(input, input.value)) return;
-      // A blur-triggered network reply may arrive after the keyboard transaction has ended. A live
-      // target can safely queue the DOM commit into its own short transaction; otherwise keep only
-      // the evidence for submit/next edit and never introduce a second delayed height change.
-      const activeEditor = keyboardViewportTargetEligible(document.activeElement) ? document.activeElement : null;
-      const editSession = activeEditor?._gcKeyboardViewportSession;
-      if (activeEditor && editSession && !editSession.done && !editSession.blurred) {
-        renderPickupAdminReminder(input, evidence);
-        return;
-      }
-      input._gcAdminAmbiguity = evidence?.queryKey === queryKey && evidence.options?.length >= 2 ? evidence : null;
+      renderPickupAdminReminder(input, evidence);
     });
     return promise;
   }
@@ -2984,7 +2691,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       status.className = 'location-status';
       delete status.dataset.gcStatusOwner;
     }
-    renderPickupAdminReminder(input, input._gcAdminAmbiguity);
+    renderPickupAdminReminder(input);
     if (!pickupAdminReminderEligible(input, input.value)) return;
     input._gcAdminAmbiguityTimer = setTimeout(() => startPickupAdminAmbiguityLookup(input), Math.max(0, delay));
   }
@@ -3294,18 +3001,10 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       const box = document.getElementById(`${id}Suggest`);
       if (!input || !box || input.dataset.gcSmartAddressBound === '1') return;
       input.dataset.gcSmartAddressBound = '1';
-      bindKeyboardViewportTarget(input);
       input.addEventListener('focus', warmAddressService, { passive: true });
-      input.addEventListener('focus', () => {
-        const session = input._gcKeyboardViewportSession;
-        if (input.id === 'pickup' && input._gcAdminAmbiguity && session && !session.done && !session.blurred) {
-          renderPickupAdminReminder(input, input._gcAdminAmbiguity);
-        }
-      }, { passive: true });
       input.addEventListener('pointerdown', warmAddressService, { passive: true });
       let timer = 0;
       let localToken = 0;
-      let explicitSelectionRevision = 0;
 
       // GC_MASTER_STABLE_2026_08R10N_PROGRAMMATIC_ADDRESS_SUGGEST_GUARD
       // Recent/favorite/location fills are already confirmed choices. They must invalidate any
@@ -3394,13 +3093,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
       input.addEventListener('blur', () => {
         // GC_R10Z3_BLUR_FORMAT_ONLY: restore R10Q's safe tidy-up after typing is finished.
-        // M2R15K1: invalidate the old field immediately, so a late async reply cannot change DOM
-        // during Done or after focus has transferred to the other address.
-        invalidateSmartSuggestionRequest();
-        clearTimeout(input._gcAdminAmbiguityTimer);
-        input.dataset.gcAdminAmbiguityToken = String(++addressAdminAmbiguityToken);
-        input._gcAdminAmbiguityPromise = null;
-        input._gcAdminAmbiguityPromiseKey = '';
+        // F21: call/driver address suggestions stay structurally present while iOS dismisses the
+        // keyboard. Let WebKit finish its native viewport animation first, then close the suggestion
+        // surface once and allow progressive-flow to commit. Fare mode keeps its existing timing.
         const suggestionCapacityReserved = reserveSuggestionCollapseCapacity(box);
         const finishAddressBlur = () => {
           normalizeAddressInput(id);
@@ -3420,14 +3115,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         const initialSelected = canonicalizeSuggestedAddress(item.text);
         if (!initialSelected) return;
 
-        // Commit the passenger-visible choice synchronously while this exact focus session owns the
-        // gesture. Provider resolution may finish after Done, but then it may update hidden route
-        // metadata only; it must never perform a late visible/progressive layout commit.
-        const selectionSession = input._gcKeyboardViewportSession;
-        if (document.activeElement !== input || !selectionSession || selectionSession.done || selectionSession.blurred) return;
-        clearTimeout(timer);
-        const selectionRevision = ++explicitSelectionRevision;
-        const resolvedPromise = resolveAddressSuggestion(item);
+        const resolved = await resolveAddressSuggestion(item);
         // GC_R10Z5_EXPLICIT_SUGGESTION_VISIBLE_SOURCE_LOCK
         // The passenger tapped the rendered suggestion. That cleaned suggestion label is therefore
         // the visible source of truth. ArcGIS candidate resolution may validate/route it in the
@@ -3439,7 +3127,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
         // R10Y explicit-selection rule: only an explicit passenger tap may replace visible text.
         // The replacement is the cleaned canonical candidate; raw provider formatting never becomes UI text.
-        const selectedKey = addressConfidenceKey(selected);
+        const resolvedAddress = resolvedAddressForInput(selected, resolved, selected) || selected;
         const suggestionCapacityReserved = reserveSuggestionCollapseCapacity(box);
         runRideAddressUiStableTransaction(input, () => {
           input.dataset.gcSuggestionTapCommit = '1';
@@ -3447,7 +3135,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
             input.value = selected;
             input.dataset.gcSkipSuggestOnce = '1';
             invalidateSmartSuggestionRequest();
-            markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', selected);
+            markAddressVerified(input, relaxedDestination ? 'suggestion-relaxed-destination' : 'suggestion', resolvedAddress);
             input.classList.remove('invalid', 'gc-address-needs-choice');
             document.getElementById(`${id}Error`)?.classList.remove('show');
             // Collapse exactly once inside the same transaction. input/change listeners may update
@@ -3462,12 +3150,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
           }
         });
         if (suggestionCapacityReserved) scheduleSuggestionCollapseSettle(120);
-        const resolved = await resolvedPromise;
-        if (selectionRevision !== explicitSelectionRevision || addressConfidenceKey(input.value) !== selectedKey ||
-            input.dataset.gcAddressVerified !== '1') return;
-        const resolvedAddress = resolvedAddressForInput(selected, resolved, selected) || selected;
-        const hiddenRouteAddress = smartNormalizeTaiwanAddress(resolvedAddress);
-        if (hiddenRouteAddress) input.dataset.gcResolvedAddress = hiddenRouteAddress;
       });
     });
   }
@@ -4786,49 +4468,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   let recentQuickPickerOrientationKey = '';
   let recentQuickPickerTouchLastY = 0;
   let recentQuickPickerTouchActive = false;
-  // M2R15: the quick recent-address picker is a viewport-owned surface. While it is open,
-  // vertical gestures outside the picker belong to the picker interaction, not to the page behind it.
-  // Do not body-fix or alter page layout: the M2R3-M2R5 picker stability work remains intact.
-  let recentQuickPickerBackgroundScrollLocked = false;
-  let recentQuickPickerBackgroundScrollY = 0;
-
-  function lockRecentQuickPickerBackgroundScroll() {
-    if (recentQuickPickerBackgroundScrollLocked) return;
-    recentQuickPickerBackgroundScrollY = Math.max(0, window.scrollY || window.pageYOffset || 0);
-    recentQuickPickerBackgroundScrollLocked = true;
-  }
-
-  function unlockRecentQuickPickerBackgroundScroll() {
-    recentQuickPickerBackgroundScrollLocked = false;
-    recentQuickPickerBackgroundScrollY = 0;
-  }
-
-  function recentQuickPickerEventInsidePanel(target) {
-    return Boolean(activeRecentPanel && target instanceof Node && activeRecentPanel.contains(target));
-  }
-
-  function guardRecentQuickPickerBackgroundTouchMove(event) {
-    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
-    if (recentQuickPickerEventInsidePanel(event.target)) return;
-    if (event.cancelable) event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function guardRecentQuickPickerBackgroundWheel(event) {
-    if (!recentQuickPickerBackgroundScrollLocked || recentManagementOpen) return;
-    const panel = activeRecentPanel;
-    if (panel && panel.contains(event.target)) {
-      const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight);
-      const deltaY = Number(event.deltaY || 0);
-      const atTop = panel.scrollTop <= 0.5;
-      const atBottom = panel.scrollTop >= maxScrollTop - 0.5;
-      const wouldChainToPage = maxScrollTop <= 1 || (deltaY < 0 && atTop) || (deltaY > 0 && atBottom);
-      if (wouldChainToPage && event.cancelable) event.preventDefault();
-      return;
-    }
-    if (event.cancelable) event.preventDefault();
-    event.stopPropagation();
-  }
 
   function getRecentQuickPickerLayoutWidth() {
     return Math.round(document.documentElement?.clientWidth || window.innerWidth || 0);
@@ -5160,7 +4799,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     recentQuickPickerOrientationKey = '';
     recentQuickPickerTouchActive = false;
     recentQuickPickerTouchLastY = 0;
-    unlockRecentQuickPickerBackgroundScroll();
   }
 
   function openRecentQuickPicker(control, targetId) {
@@ -5182,7 +4820,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!panel) return;
     bindRecentPortalPanel(panel);
     activeRecentPanel = panel;
-    lockRecentQuickPickerBackgroundScroll();
     document.body.appendChild(panel);
     panel.classList.remove('hidden');
     requestAnimationFrame(() => positionRecentQuickPanel(control));
@@ -5384,11 +5021,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         if (activeRecentControl.contains(event.target) || activeRecentPanel?.contains(event.target)) return;
         closeRecentQuickPicker();
       });
-      // M2R15: background scroll ownership is locked only while the quick picker is open.
-      // Touches inside the picker keep using its native/internal pan-y logic; touches outside it
-      // cannot move the page behind the fixed popover. Wheel edge chaining is blocked as well.
-      document.addEventListener('touchmove', guardRecentQuickPickerBackgroundTouchMove, { passive: false, capture: true });
-      document.addEventListener('wheel', guardRecentQuickPickerBackgroundWheel, { passive: false, capture: true });
       // M2R5: once opened, the recent-address popover is a fixed viewport surface. Ordinary page
       // scroll, LINE/Safari chrome movement and visualViewport scroll/resize must NOT continuously
       // re-anchor it; that feedback loop is what made the iPhone 13 popover follow the finger/shake.
@@ -6643,24 +6275,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 
   function rideOptionalDisclosureEligible(details) {
     if (!(details instanceof HTMLDetailsElement)) return false;
-    const activeMode = activeModeForViewportStability();
-
-    // M2R13: ride/driver "其他需求" keeps the original eligibility contract.
-    if (['call', 'driver'].includes(activeMode)) {
-      if (!details.matches('details.optional-box:not(.favorite-box)')) return false;
-      if (!details.closest('#serviceForm') || !details.querySelector(':scope > .optional-content')) return false;
-      return true;
-    }
-
-    // M2R14: the fare page has two tall native disclosures ("中部地區費率" and
-    // "其他估價協助"). They use the same BODY-tail reserve only for a deliberate
-    // user collapse, so closing either panel cannot trigger WebKit max-scroll clamping.
-    if (activeMode === 'fare') {
-      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return false;
-      return Boolean(details.closest('.gc-fare-card'));
-    }
-
-    return false;
+    if (!details.matches('details.optional-box:not(.favorite-box)')) return false;
+    if (!details.closest('#serviceForm') || !details.querySelector(':scope > .optional-content')) return false;
+    return ['call', 'driver'].includes(activeModeForViewportStability());
   }
 
   function ensureUserDisclosureCollapseSpacer() {
@@ -6790,33 +6407,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         if (details.contains(current) || current.contains(details)) return;
         details.open = false;
       });
-    }, true);
-
-    // M2R14: fare disclosures are created in two different phases (the rate block is in the
-    // original render; the manual-assistance details is inserted later by gc-fare-master.js).
-    // Delegate from document so BOTH panels receive the same pre-toggle anchor transaction,
-    // including the dynamically-created manual panel, without changing their markup or CSS.
-    document.addEventListener('click', event => {
-      const summary = event.target?.closest?.('summary');
-      const details = summary?.parentElement;
-      if (!(details instanceof HTMLDetailsElement)) return;
-      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return;
-      if (activeModeForViewportStability() !== 'fare' || !details.open) return;
-      if (event.defaultPrevented || (typeof event.button === 'number' && event.button !== 0)) return;
-      prepareUserDisclosureCollapseAnchor(details, summary);
-    }, true);
-
-    document.addEventListener('toggle', event => {
-      const details = event.target;
-      if (!(details instanceof HTMLDetailsElement)) return;
-      if (!details.matches('details.gc-fare-rates, details.gc-fare-manual-details')) return;
-      if (activeModeForViewportStability() !== 'fare') return;
-      if (details.open) {
-        // Re-opening restores the removed height; release any tail reserve naturally.
-        requestAnimationFrame(settleUserDisclosureCollapseSpacerToCurrentScroll);
-      } else {
-        finishUserDisclosureCollapseAnchor(details);
-      }
     }, true);
 
     // Tapping elsewhere returns the page to its compact state. Defer the collapse
@@ -7209,10 +6799,57 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (!kmInput || !minuteInput || !result || !label || !price || !basis || !note1 || !note2 || !longDistance) return;
 
     const calculatorInputs = [kmInput, minuteInput];
-    calculatorInputs.forEach(bindKeyboardViewportTarget);
+    let fareNumberBlurToken = 0;
     const clearPreservedEditSpace = () => {
       result.classList.remove('gc-preserve-edit-space');
       result.style.removeProperty('--gc-fare-preserved-height');
+    };
+    const clearPreservedEditSpaceAfterNativeDismiss = input => {
+      const token = ++fareNumberBlurToken;
+      const viewport = window.visualViewport;
+      const startedAt = performance.now();
+      let lastHeight = Number(viewport?.height || window.innerHeight || 0);
+      let lastOffsetTop = Number(viewport?.offsetTop || 0);
+      let stableFrames = 0;
+      let raf = 0;
+      let maxTimer = 0;
+      let done = false;
+      const cleanup = () => {
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        clearTimeout(maxTimer);
+        maxTimer = 0;
+      };
+      const finish = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        done = true;
+        cleanup();
+        if (calculatorInputs.includes(document.activeElement)) return;
+        clearPreservedEditSpace();
+      };
+      const cancelForRefocus = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        done = true;
+        cleanup();
+      };
+      const poll = () => {
+        if (done || token !== fareNumberBlurToken) return;
+        if (document.activeElement === input || calculatorInputs.includes(document.activeElement)) {
+          cancelForRefocus();
+          return;
+        }
+        const height = Number(viewport?.height || window.innerHeight || 0);
+        const offsetTop = Number(viewport?.offsetTop || 0);
+        const viewportStable = Math.abs(height - lastHeight) <= 0.5 && Math.abs(offsetTop - lastOffsetTop) <= 0.5;
+        stableFrames = viewportStable ? stableFrames + 1 : 0;
+        lastHeight = height;
+        lastOffsetTop = offsetTop;
+        const elapsed = performance.now() - startedAt;
+        if ((elapsed >= 240 && stableFrames >= 3) || elapsed >= 900) { finish(); return; }
+        raf = requestAnimationFrame(poll);
+      };
+      raf = requestAnimationFrame(poll);
+      maxTimer = setTimeout(finish, 940);
     };
     const preserveEditSpace = () => {
       if (!calculatorInputs.includes(document.activeElement)) return;
@@ -7276,14 +6913,15 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     kmInput.addEventListener('change', () => update(kmInput));
     minuteInput.addEventListener('change', () => update(minuteInput));
     calculatorInputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        // Cancel a pending Done cleanup when the passenger immediately re-enters either number field.
+        fareNumberBlurToken += 1;
+      });
       input.addEventListener('blur', () => {
-        const capacityReserved = result.classList.contains('gc-preserve-edit-space')
-          ? addViewportTailSpacerCapacity(result.getBoundingClientRect().height)
-          : false;
-        runAfterRideKeyboardDismissSettles(input, () => {
-          if (!calculatorInputs.includes(document.activeElement)) clearPreservedEditSpace();
-          if (capacityReserved) scheduleSuggestionCollapseSettle();
-        });
+        // F22: keep the result area's reserved height until the native virtual-keyboard viewport
+        // finishes settling. No body position:fixed, no scrollTo/scrollBy, and no fare-number
+        // viewport anchor are involved, so Done and immediate refocus remain native and stable.
+        clearPreservedEditSpaceAfterNativeDismiss(input);
       });
     });
     reset();
@@ -8655,7 +8293,6 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX
   // GC_MASTER_STABLE_2026_08R10Z3_ADDRESS_HANDOFF_SANITIZER
   // GC_MASTER_STABLE_2026_08R10Z9Z_FARE_ADMIN_GUIDANCE_HANDOFF
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15K1_FARE_ASYNC_KEYBOARD_LAYOUT_GUARD
   // GC_ADDRESS_CONTRACT_TW_GROUND_V1
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
@@ -8805,17 +8442,9 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     if (active && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return active;
     return preferred;
   }
-  function liveFareKeyboardEditor() {
-    const active = document.activeElement;
-    if (!active || !['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return null;
-    const session = active._gcKeyboardViewportSession;
-    return session && !session.done && !session.blurred ? active : null;
-  }
 
   let fareAdminGuidanceToken = 0;
   let fareAdminGuidanceTimer = 0;
-  let fareAdminDeferredResults = null;
-  let fareKeyboardFocusRevision = 0;
   function fareAdminTargetLabel(id) {
     return id === 'destination' ? '下車' : '上車';
   }
@@ -8824,13 +8453,11 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return (Array.isArray(options) ? options : []).map(option => option?.label).filter(Boolean).join('／');
   }
 
-  function renderFareAdminGuidance(results = [], anchorInput = null, guardToken = 0) {
+  function renderFareAdminGuidance(results = []) {
     const slot = qs('gcFareAdminGuidance');
     if (!slot) return;
     const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
-    return mutateFareViewportStable(anchorInput || fareEditingInput(preferred), () => {
-      if (guardToken && (guardToken !== fareAdminGuidanceToken || !fareAdminResultsStillCurrent(results))) return;
-      if (fareAdminDeferredResults?.results === results) fareAdminDeferredResults = null;
+    return mutateFareViewportStable(fareEditingInput(preferred), () => {
       const active = results.filter(result => result && result.state !== 'none');
       if (!active.length) {
         slot.className = 'gc-fare-admin-guidance hidden';
@@ -8865,26 +8492,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     });
   }
 
-  function fareAdminResultsStillCurrent(results) {
-    return results.every(result => trim(qs(result.targetId)?.value) === result.query);
-  }
-
-  function flushDeferredFareAdminGuidance() {
-    const deferred = fareAdminDeferredResults;
-    if (!deferred) return;
-    if (deferred.token !== fareAdminGuidanceToken || !fareAdminResultsStillCurrent(deferred.results)) {
-      fareAdminDeferredResults = null;
-      return;
-    }
-    const preferred = deferred.results.map(result => qs(result?.targetId)).find(Boolean) || null;
-    fareAdminDeferredResults = null;
-    renderFareAdminGuidance(deferred.results, preferred, deferred.token);
-  }
-
-  function refreshFareAdminGuidance(originInput = null) {
+  function refreshFareAdminGuidance() {
     clearTimeout(fareAdminGuidanceTimer);
-    fareAdminDeferredResults = null;
-    const focusRevisionAtStart = fareKeyboardFocusRevision;
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
@@ -8893,7 +8502,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const pending = inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
     }));
-    renderFareAdminGuidance(pending, originInput);
+    renderFareAdminGuidance(pending);
     if (!pending.length || typeof window.GC_getAddressAdminGuidance !== 'function') return Promise.resolve(pending);
 
     return Promise.all(pending.map(async initial => {
@@ -8905,26 +8514,15 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       }
     })).then(results => {
       if (token !== fareAdminGuidanceToken) return results;
-      if (!fareAdminResultsStillCurrent(results)) return results;
-      const liveEditor = liveFareKeyboardEditor();
-      const keyboardSessionEndedDuringRequest = fareKeyboardFocusRevision !== focusRevisionAtStart && !liveEditor;
-      // A request started by address editing may finish after Done. Keep that late evidence without
-      // changing the height above fareMinutes/fareKm. If another target is live, anchor to the
-      // originating address so the shared keyboard transaction commits it only at a safe boundary.
-      if ((originInput || keyboardSessionEndedDuringRequest) && !liveEditor) {
-        fareAdminDeferredResults = { token, results };
-        return results;
-      }
-      const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
-      renderFareAdminGuidance(results, preferred, token);
+      const stillCurrent = results.every(result => trim(qs(result.targetId)?.value) === result.query);
+      if (!stillCurrent) return results;
+      renderFareAdminGuidance(results);
       return results;
     });
   }
 
-  function queueFareAdminGuidance(originInput, delay = 380) {
+  function queueFareAdminGuidance(delay = 380) {
     clearTimeout(fareAdminGuidanceTimer);
-    ++fareAdminGuidanceToken;
-    fareAdminDeferredResults = null;
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
@@ -8932,7 +8530,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     renderFareAdminGuidance(inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
     })));
-    fareAdminGuidanceTimer = setTimeout(() => refreshFareAdminGuidance(originInput), Math.max(0, delay));
+    fareAdminGuidanceTimer = setTimeout(refreshFareAdminGuidance, Math.max(0, delay));
   }
 
   function restoreDraft() {
@@ -9258,17 +8856,13 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         mutateFareViewportStable(input, () => {
           if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
           if (input === destination && trim(destination.value)) setFieldError('destination', '');
-          if (input === pickup || input === destination) queueFareAdminGuidance(input);
+          if (input === pickup || input === destination) queueFareAdminGuidance();
         });
       });
       input.addEventListener('change', () => {
         saveDraft();
-        if (input === pickup || input === destination) mutateFareViewportStable(input, () => refreshFareAdminGuidance(input));
+        if (input === pickup || input === destination) mutateFareViewportStable(input, refreshFareAdminGuidance);
       });
-      input.addEventListener('focus', () => {
-        ++fareKeyboardFocusRevision;
-        flushDeferredFareAdminGuidance();
-      }, { passive: true });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
       const input = qs(id);
