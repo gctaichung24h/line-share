@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r6';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -4914,7 +4914,8 @@
   function isLocationStateDisplayText(value) {
     const text = String(value || '').trim();
     if (!text) return false;
-    return text.startsWith('📍 已取得目前定位') || /（無門牌）$/.test(text);
+    const dmsCoordinate = /^\d{1,3}°\d{2}'\d{2}\.\d"[NS]\s*,?\s*\d{1,3}°\d{2}'\d{2}\.\d"[EW]$/;
+    return text.startsWith('📍 已取得目前定位') || /（無門牌）$/.test(text) || dmsCoordinate.test(text);
   }
 
   function setNoDoorLocationInputState(active) {
@@ -5601,11 +5602,9 @@
           // no-door location state; an older manual address is kept only as a recoverable draft
           // for a later "改填地址" action and must never masquerade as the current GPS address.
           // F25: precise GPS without a reliable door number is a fallback, not the normal shortcut.
-          // Keep any road/area text that ArcGIS can safely identify, mark it clearly as no-door,
-          // and preserve the ORIGINAL phone GPS coordinate for confirmation/LINE dispatch context.
-          const fallbackAddress = noDoorAddress
-            ? `${noDoorAddress.replace(/（無門牌）$/,'')}（無門牌）`
-            : LOCATION_PIN_ONLY_LABEL;
+          // The original phone GPS coordinate is the authoritative pickup value. Do not expose a
+          // partial road/area string as an address when dispatch would still need to reconfirm it.
+          const fallbackAddress = formatLocationCoordinate(attachedLocation) || LOCATION_PIN_ONLY_LABEL;
           attachedLocation.address = fallbackAddress;
           attachedLocation.generatedAddress = fallbackAddress;
           attachedLocation.boundAddressKey = addressConfidenceKey(fallbackAddress);
@@ -8276,10 +8275,9 @@
       const reviewedPickupLabel = noDoorLocation
         ? (mode === 'driver' ? '代駕位置' : '上車位置')
         : cfg['訊息欄位_上車'];
-      // M2R11: a precise GPS no-door state is not a human address. Keep the state text out of
-      // confirmation/dispatch and present the useful coordinate directly. Driver mode uses its
-      // own semantic label; raw GPS state, map pin and send validation remain unchanged.
-      const noDoorCoordinateLabel = mode === 'driver' ? '代駕座標' : '上車座標';
+      // A precise GPS no-door state keeps the existing dispatch address/location label while
+      // presenting the useful coordinate as its value. Raw GPS state, map pin and validation stay unchanged.
+      const noDoorCoordinateLabel = cfg['訊息欄位_上車'];
       // GC_R10Z14F18_DRIVER_DESTINATION_DISPLAY_NORMALIZATION
       // Call drop-off and driver delivery are both descriptive reference destinations. Use the
       // same non-blocking Taiwan display formatter; failures fall back to the original value.
@@ -8291,10 +8289,6 @@
       const pickupAdminSoftReminder = !noDoorLocation && !pickupAdminAmbiguity && isDoorAddressMissingReminderAdmin(pickupAdminReminderSource)
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
-      const destinationAdminSoftReminder = mode === 'call' && reviewedDestination && isDoorAddressMissingReminderAdmin(reviewedDestination)
-        ? 'ⓘ 尚未填寫行政區，建議返回補充'
-        : '';
-
       // F23/F25 final safety gate: the visible address must still match the current-location
       // session. Instant service may attach the LINE map pin; all four service variants may carry
       // a text coordinate ONLY for a precise current-location result that has no reliable door.
@@ -8369,7 +8363,6 @@
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
-        ...(destinationAdminSoftReminder ? [{ label: '', value: destinationAdminSoftReminder, note: true }] : []),
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(!noDoorLocation && dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
