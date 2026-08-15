@@ -160,18 +160,57 @@
     if (active && ['pickup', 'destination', 'fareKm', 'fareMinutes'].includes(active.id)) return active;
     return preferred;
   }
-  function iphoneLineKeyboardTarget(input) {
-    try { return window.GC_isIphoneLineKeyboardTarget?.(input) === true; }
-    catch (_) { return false; }
-  }
-  function iphoneLineFareKeyboardEnvironment() {
-    return iphoneLineKeyboardTarget(qs('pickup')) || iphoneLineKeyboardTarget(qs('destination'));
-  }
 
   let fareAdminGuidanceToken = 0;
   let fareAdminGuidanceTimer = 0;
-  let fareKeyboardFocusRevision = 0;
+  let fareMobileKeyboardRevision = 0;
   let deferredFareAdminGuidance = null;
+
+  function mobileLineFareKeyboardCycleBusy() {
+    return ['pickup', 'destination', 'fareKm', 'fareMinutes'].some(id => {
+      const input = qs(id);
+      return Boolean(
+        input &&
+        window.GC_isMobileLineKeyboardTarget?.(input) &&
+        input.dataset.gcMobileLineKeyboardEditing === '1'
+      );
+    });
+  }
+
+  function cacheFareAdminGuidance(results = []) {
+    const rank = result => result?.state === 'strong' ? 2 : (result?.state === 'soft' ? 1 : 0);
+    const merged = new Map();
+    [...(deferredFareAdminGuidance || []), ...(Array.isArray(results) ? results : [])].forEach(result => {
+      if (!result?.targetId) return;
+      const copy = { ...result };
+      const key = `${copy.targetId}\u0000${trim(copy.query)}`;
+      const current = merged.get(key);
+      // A later soft placeholder for the same unchanged address must never erase already-resolved
+      // strong district evidence. Strong data is replayed only in a recovered/explicit transaction.
+      if (!current || rank(copy) >= rank(current)) merged.set(key, copy);
+    });
+    const all = [...merged.entries()];
+    const currentKeys = new Set(all.filter(([, result]) =>
+      trim(qs(result?.targetId)?.value) === trim(result?.query)
+    ).map(([key]) => key));
+    const pinned = all.filter(([key]) => currentKeys.has(key));
+    const remaining = all.filter(([key]) => !currentKeys.has(key));
+    // Capacity is bounded, but the current address for each field is pinned. In particular, a
+    // resolved strong pickup result cannot be evicted by unrelated destination soft placeholders.
+    deferredFareAdminGuidance = [
+      ...remaining.slice(-Math.max(0, 8 - pinned.length)),
+      ...pinned
+    ].slice(-8).map(([, result]) => result);
+  }
+  function currentDeferredFareAdminGuidance() {
+    return (deferredFareAdminGuidance || []).filter(
+      result => trim(qs(result?.targetId)?.value) === trim(result?.query)
+    );
+  }
+  function renderFareAdminGuidanceSafely(results = []) {
+    cacheFareAdminGuidance(results);
+    return renderFareAdminGuidance(currentDeferredFareAdminGuidance(), { force: true });
+  }
   function fareAdminTargetLabel(id) {
     return id === 'destination' ? '下車' : '上車';
   }
@@ -180,15 +219,14 @@
     return (Array.isArray(options) ? options : []).map(option => option?.label).filter(Boolean).join('／');
   }
 
-  function renderFareAdminGuidance(results = []) {
+  function renderFareAdminGuidance(results = [], { force = false } = {}) {
     const slot = qs('gcFareAdminGuidance');
     if (!slot) return;
-    if (iphoneLineFareKeyboardEnvironment()) {
-      const activeTarget = fareEditingInput();
-      // Guidance is positioned above the number controls. Never insert or resize it while a
-      // number keyboard is open; keep the provider result non-visible instead of moving the field.
-      if (activeTarget && (activeTarget.id === 'fareKm' || activeTarget.id === 'fareMinutes')) return;
+    if (!force && mobileLineFareKeyboardCycleBusy()) {
+      cacheFareAdminGuidance(results);
+      return;
     }
+    deferredFareAdminGuidance = null;
     const preferred = results.map(result => qs(result?.targetId)).find(Boolean) || null;
     return mutateFareViewportStable(fareEditingInput(preferred), () => {
       const active = results.filter(result => result && result.state !== 'none');
@@ -225,30 +263,19 @@
     });
   }
 
-  function refreshFareAdminGuidance(originInput = null, recoveredLayoutCommit = false) {
+  function refreshFareAdminGuidance({ originRevision = fareMobileKeyboardRevision, deferVisible = false } = {}) {
     clearTimeout(fareAdminGuidanceTimer);
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
       : () => false;
     const token = ++fareAdminGuidanceToken;
-    const r3KeyboardEnvironment = iphoneLineFareKeyboardEnvironment();
-    const focusRevision = fareKeyboardFocusRevision;
-    const originWasActive = Boolean(r3KeyboardEnvironment && originInput && document.activeElement === originInput && originInput._gcFareKeyboardEditing === true);
-    if (r3KeyboardEnvironment && deferredFareAdminGuidance) {
-      const cached = deferredFareAdminGuidance;
-      const cacheStillCurrent = cached.results.every(result => trim(qs(result.targetId)?.value) === result.query);
-      if (!cacheStillCurrent) deferredFareAdminGuidance = null;
-      else if ((recoveredLayoutCommit || !originInput) && !fareEditingInput()) {
-        deferredFareAdminGuidance = null;
-        renderFareAdminGuidance(cached.results);
-        return Promise.resolve(cached.results);
-      }
-    }
     const pending = inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
     }));
-    if (!r3KeyboardEnvironment || !originInput || originWasActive || recoveredLayoutCommit) renderFareAdminGuidance(pending);
+    const mustDefer = deferVisible || originRevision !== fareMobileKeyboardRevision || mobileLineFareKeyboardCycleBusy();
+    if (mustDefer) cacheFareAdminGuidance(pending);
+    else renderFareAdminGuidanceSafely(pending);
     if (!pending.length || typeof window.GC_getAddressAdminGuidance !== 'function') return Promise.resolve(pending);
 
     return Promise.all(pending.map(async initial => {
@@ -259,35 +286,50 @@
         return initial;
       }
     })).then(results => {
-      if (token !== fareAdminGuidanceToken) return results;
       const stillCurrent = results.every(result => trim(qs(result.targetId)?.value) === result.query);
       if (!stillCurrent) return results;
-      if (r3KeyboardEnvironment) {
-        const active = fareEditingInput();
-        const originStillActive = !originInput || (originWasActive && document.activeElement === originInput && originInput._gcFareKeyboardEditing === true);
-        if (!originStillActive || fareKeyboardFocusRevision !== focusRevision || (active && active !== originInput)) {
-          // Preserve the provider's strong evidence without changing visible height during/after
-          // a keyboard transaction. A recovered address commit or later explicit closed action
-          // replays it once, provided both address queries are still identical.
-          deferredFareAdminGuidance = { results };
-          return results;
-        }
+      if (token !== fareAdminGuidanceToken) {
+        // A superseded request must not repaint, but resolved strong evidence for the same still-
+        // visible address remains useful. Preserve it only for the mobile LINE deferred path; the
+        // newer request will merge it before any safe render instead of downgrading to soft.
+        const mobileStrong = results.filter(result =>
+          result?.state === 'strong' && window.GC_isMobileLineKeyboardTarget?.(qs(result.targetId))
+        );
+        if (mobileStrong.length) cacheFareAdminGuidance(mobileStrong);
+        return results;
       }
-      renderFareAdminGuidance(results);
+      if (mustDefer || originRevision !== fareMobileKeyboardRevision || mobileLineFareKeyboardCycleBusy()) {
+        cacheFareAdminGuidance(results);
+      } else {
+        renderFareAdminGuidanceSafely(results);
+      }
       return results;
     });
   }
 
-  function queueFareAdminGuidance(delay = 380, originInput = null) {
+  function flushDeferredFareAdminGuidance() {
+    if (!deferredFareAdminGuidance || mobileLineFareKeyboardCycleBusy()) return false;
+    const current = currentDeferredFareAdminGuidance();
+    renderFareAdminGuidance(current, { force: true });
+    return true;
+  }
+
+  function queueFareAdminGuidance(delay = 380) {
     clearTimeout(fareAdminGuidanceTimer);
     const inputs = [qs('pickup'), qs('destination')].filter(Boolean);
     const needsAdmin = typeof window.GC_addressNeedsAdmin === 'function'
       ? input => window.GC_addressNeedsAdmin(input.value)
       : () => false;
-    renderFareAdminGuidance(inputs.filter(needsAdmin).map(input => ({
+    const originRevision = fareMobileKeyboardRevision;
+    const pending = inputs.filter(needsAdmin).map(input => ({
       state: 'soft', targetId: input.id, query: trim(input.value), options: []
-    })));
-    fareAdminGuidanceTimer = setTimeout(() => refreshFareAdminGuidance(originInput), Math.max(0, delay));
+    }));
+    if (mobileLineFareKeyboardCycleBusy()) cacheFareAdminGuidance(pending);
+    else renderFareAdminGuidanceSafely(pending);
+    fareAdminGuidanceTimer = setTimeout(
+      () => refreshFareAdminGuidance({ originRevision }),
+      Math.max(0, delay)
+    );
   }
 
   function restoreDraft() {
@@ -589,8 +631,14 @@
       result.appendChild(mapsAgain);
     }
 
-    qs('gcFareMapBtn')?.addEventListener('click', openMaps);
-    qs('gcFareMapsAgain')?.addEventListener('click', openMaps);
+    qs('gcFareMapBtn')?.addEventListener('click', event => {
+      flushDeferredFareAdminGuidance();
+      openMaps(event);
+    });
+    qs('gcFareMapsAgain')?.addEventListener('click', event => {
+      flushDeferredFareAdminGuidance();
+      openMaps(event);
+    });
     qs('gcFareCallBtn')?.addEventListener('click', toCall);
     qs('gcFareAdminGuidance')?.addEventListener('click', event => {
       const button = event.target.closest('button[data-target][data-admin-option]');
@@ -607,47 +655,48 @@
         }
       }).catch(() => {});
     });
-    [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean).forEach(input => {
+    const fareKeyboardTargets = [pickup, destination, qs('fareKm'), qs('fareMinutes')].filter(Boolean);
+    fareKeyboardTargets.forEach(input => {
       input.addEventListener('focus', () => {
-        if (!iphoneLineKeyboardTarget(input)) return;
-        fareKeyboardFocusRevision += 1;
-        input._gcFareKeyboardEditing = true;
+        if (window.GC_isMobileLineKeyboardTarget?.(input)) fareMobileKeyboardRevision += 1;
       }, { passive: true });
       input.addEventListener('blur', () => {
-        if (iphoneLineKeyboardTarget(input)) input._gcFareKeyboardEditing = false;
+        if (window.GC_isMobileLineKeyboardTarget?.(input)) {
+          fareMobileKeyboardRevision += 1;
+          if ((input === pickup || input === destination) && typeof window.GC_runAfterRideKeyboardDismissSettles === 'function') {
+            window.GC_runAfterRideKeyboardDismissSettles(input, flushDeferredFareAdminGuidance);
+          }
+        }
       }, { passive: true });
       input.addEventListener('input', () => {
         saveDraft();
         mutateFareViewportStable(input, () => {
           if (input === pickup && trim(pickup.value)) setFieldError('pickup', '');
           if (input === destination && trim(destination.value)) setFieldError('destination', '');
-          if (input === pickup || input === destination) {
-            if (iphoneLineKeyboardTarget(input)) queueFareAdminGuidance(380, input);
-            else queueFareAdminGuidance();
-          }
+          if (input === pickup || input === destination) queueFareAdminGuidance();
         });
       });
       input.addEventListener('change', () => {
         saveDraft();
         if (input === pickup || input === destination) {
-          if (iphoneLineKeyboardTarget(input) && typeof window.GC_runAfterRideKeyboardDismissSettles === 'function') {
-            window.GC_runAfterRideKeyboardDismissSettles(input, () => refreshFareAdminGuidance(input, true));
-          } else {
-            mutateFareViewportStable(input, refreshFareAdminGuidance);
-          }
+          const refresh = () => window.GC_isMobileLineKeyboardTarget?.(input)
+            ? refreshFareAdminGuidance({ originRevision: fareMobileKeyboardRevision, deferVisible: true })
+            : refreshFareAdminGuidance();
+          mutateFareViewportStable(input, refresh);
         }
       });
     });
     ['fareKm', 'fareMinutes'].forEach(id => {
       const input = qs(id);
-      input?.addEventListener('input', () => {
-        if (iphoneLineKeyboardTarget(input)) mutateFareViewportStable(input, refreshFareAction);
-        else setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0);
-      });
-      input?.addEventListener('change', () => {
-        if (iphoneLineKeyboardTarget(input)) mutateFareViewportStable(input, refreshFareAction);
-        else setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0);
-      });
+      const scheduleFareActionRefresh = () => {
+        if (window.GC_isMobileLineKeyboardTarget?.(input)) {
+          mutateFareViewportStable(input, refreshFareAction);
+        } else {
+          setTimeout(() => mutateFareViewportStable(input, refreshFareAction), 0);
+        }
+      };
+      input?.addEventListener('input', scheduleFareActionRefresh);
+      input?.addEventListener('change', scheduleFareActionRefresh);
     });
     clearLegacyFareStorage();
     currentFareFlow(true);
