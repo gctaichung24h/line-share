@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m2';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -6858,6 +6858,13 @@
     }
   }
 
+  function formatReservationDateForReview(rawValue) {
+    const parsed = parseReservationDate(rawValue);
+    if (!parsed) return String(rawValue || '');
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    return `${String(parsed.year).padStart(4, '0')}年${String(parsed.month).padStart(2, '0')}月${String(parsed.day).padStart(2, '0')}日（${weekdays[parsed.date.getUTCDay()]}）`;
+  }
+
   function reservationScheduleReady() {
     const date = document.getElementById('date');
     const time = document.getElementById('time');
@@ -8297,11 +8304,12 @@
       const noDoorSupplement = noDoorLocation ? currentLocationSupplement() : '';
 
       const typeText = serviceType === 'reserve' ? cfg['預約選項'] : cfg['即時選項'];
+      const reservationDateDisplay = serviceType === 'reserve' ? formatReservationDateForReview(value('date')) : '';
       const lines = [serviceType === 'reserve' ? cfg['訊息標題_預約'] : cfg['訊息標題_即時']];
       if (cfg['訊息分隔線']) lines.push(cfg['訊息分隔線']);
       appendLine(lines, cfg['訊息欄位_用車方式'], typeText);
       if (serviceType === 'reserve') {
-        appendLine(lines, cfg['訊息欄位_日期'], value('date'));
+        appendLine(lines, cfg['訊息欄位_日期'], reservationDateDisplay);
         appendLine(lines, cfg['訊息欄位_時間'], value('time'));
       }
       if (noDoorLocation) {
@@ -8350,7 +8358,7 @@
       const rows = [
         { label: cfg['訊息欄位_用車方式'], value: typeText },
         ...(serviceType === 'reserve' ? [
-          { label: cfg['訊息欄位_日期'], value: value('date') },
+          { label: cfg['訊息欄位_日期'], value: reservationDateDisplay },
           { label: cfg['訊息欄位_時間'], value: value('time') }
         ] : []),
         ...(noDoorLocation
