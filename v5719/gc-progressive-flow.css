@@ -3001,18 +3001,22 @@ details.gc-fare-manual-details[open]>.gc-fare-manual-inner{
   }
 }
 
-/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M3_FARE_RETURN_AND_LONG_DISTANCE_POLISH
-   Scope: fare-to-call paint stability + long-distance visual hierarchy only.
-   No input, focus, keyboard, scroll, calculation, threshold, DOM geometry or submit behavior changes. */
-html.gc-fare-history-guard #app{
-  opacity:.001!important;
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M4_FARE_RETURN_STATIC_PAINT_AND_LONG_DISTANCE_POLISH
+   Scope: fare-to-call transition cover + static header repaint + existing long-distance visual hierarchy only.
+   No input, focus, keyboard, scroll, calculation, threshold, form geometry or submit behavior changes. */
+.gc-fare-navigation-cover{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483000!important;
   pointer-events:none!important;
-  transition:opacity .065s cubic-bezier(.20,.78,.24,1)!important;
+  opacity:0!important;
+  background:linear-gradient(180deg,#edf5fa 0,#f6f9fb 205px,#f6f9fb 100%)!important;
+  transition:opacity .052s cubic-bezier(.20,.78,.24,1)!important;
 }
-html.gc-fare-history-release #app{
-  opacity:1!important;
-  transition:opacity .085s cubic-bezier(.20,.78,.24,1)!important;
-}
+.gc-fare-navigation-cover.is-visible{opacity:1!important}
+html.gc-fare-return-paint-repair .brand-header,
+html.gc-fare-return-paint-repair .gc-fare-head{visibility:visible!important;opacity:1!important}
+html.gc-fare-return-paint-repair .brand-header .brand-avatar{transform:none!important;backface-visibility:visible!important}
 
 /* Result-area long-distance notice: same champagne-gold language as the rate card, compact hierarchy. */
 .gc-fare-long-distance:not(.hidden){
@@ -3063,7 +3067,6 @@ html.gc-fare-history-release #app{
   .gc-fare-long-distance:not(.hidden)::before{font-size:9.2px!important;padding:3px 4px!important}
 }
 @media(prefers-reduced-motion:reduce){
-  html.gc-fare-history-guard #app,
-  html.gc-fare-history-release #app{transition:none!important}
+  .gc-fare-navigation-cover{transition:none!important}
 }
 

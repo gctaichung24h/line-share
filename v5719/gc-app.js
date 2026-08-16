@@ -2,7 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m3';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m4';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -9947,8 +9947,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M3_FARE_HANDOFF_HISTORY_VISUAL_STABILITY
-  // Visual-only handoff guard: no scroll/focus/keyboard/layout geometry is changed.
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M4_FARE_HISTORY_RETURN_STATIC_PAINT_REPAIR
+  // Static-paint-only repair: no input, focus, keyboard, scroll, calculation or form geometry changes.
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -9956,8 +9956,8 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   const SNAPSHOT_PREFIX = 'gc_fare_flow_v2_';
   const FLOW_STATE_KEY = 'gcFareFlowId';
   const FLOW_RETURN_KEY = 'gcFareReturnFromCall';
-  const FARE_HISTORY_GUARD_CLASS = 'gc-fare-history-guard';
-  const FARE_HISTORY_RELEASE_CLASS = 'gc-fare-history-release';
+  const FARE_NAV_COVER_ID = 'gcFareNavigationCover';
+  const FARE_RETURN_REPAIR_DONE = 'gcFareReturnPaintRepairDone';
   const TTL_MS = 20 * 60 * 1000;
 
   const cfg = () => (window.GC_FORM_CONFIG && window.GC_FORM_CONFIG.fare) || {};
@@ -10035,54 +10035,82 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return new URLSearchParams(location.search).get('mode') || '';
   }
 
-  function beginFareHistoryVisualGuard() {
-    const root = document.documentElement;
-    root.classList.remove(FARE_HISTORY_RELEASE_CLASS);
-    root.classList.add(FARE_HISTORY_GUARD_CLASS);
+  function clearFareNavigationCover() {
+    document.getElementById(FARE_NAV_COVER_ID)?.remove();
   }
 
-  function releaseFareHistoryVisualGuardAfterAvatarPaint() {
-    const root = document.documentElement;
-    if (currentMode() !== 'fare' || !root.classList.contains(FARE_HISTORY_GUARD_CLASS)) return;
+  function beginFareNavigationCover() {
+    clearFareNavigationCover();
+    const cover = document.createElement('div');
+    cover.id = FARE_NAV_COVER_ID;
+    cover.className = 'gc-fare-navigation-cover';
+    cover.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(cover);
+    requestAnimationFrame(() => cover.classList.add('is-visible'));
+    return cover;
+  }
 
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      root.classList.add(FARE_HISTORY_RELEASE_CLASS);
-      root.classList.remove(FARE_HISTORY_GUARD_CLASS);
-      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove(FARE_HISTORY_RELEASE_CLASS)));
+  function cloneFareStaticPaintNode(selector) {
+    const node = document.querySelector(selector);
+    if (!node || !node.parentNode) return false;
+    const replacement = node.cloneNode(true);
+    const avatar = replacement.matches?.('.brand-header') ? replacement.querySelector('.brand-avatar') : null;
+    if (avatar) {
+      avatar.decoding = 'sync';
+      avatar.loading = 'eager';
+      try { avatar.fetchPriority = 'high'; } catch (_) {}
+      // The fare-return avatar must not remain on a stale WebKit compositor layer.
+      avatar.style.setProperty('transform', 'none', 'important');
+      avatar.style.setProperty('backface-visibility', 'visible', 'important');
+    }
+    node.replaceWith(replacement);
+    // Reading geometry only forces paint invalidation; it does not write scroll or layout values.
+    replacement.getBoundingClientRect();
+    return true;
+  }
+
+  function repairFareReturnStaticPaint() {
+    if (currentMode() !== 'fare') return false;
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    const flowId = trim(state[FLOW_STATE_KEY]);
+    if (!flowId || state[FLOW_RETURN_KEY] !== true) return false;
+    const root = document.documentElement;
+    if (root.dataset[FARE_RETURN_REPAIR_DONE] === '1') return true;
+    if (!document.querySelector('.gc-fare-card') || !document.querySelector('.brand-header') || !document.querySelector('.gc-fare-head')) return false;
+
+    clearFareNavigationCover();
+    root.classList.add('gc-fare-return-paint-repair');
+    const brandDone = cloneFareStaticPaintNode('.brand-header');
+    const headDone = cloneFareStaticPaintNode('.gc-fare-head');
+    if (!brandDone || !headDone) {
+      root.classList.remove('gc-fare-return-paint-repair');
+      return false;
+    }
+    root.dataset[FARE_RETURN_REPAIR_DONE] = '1';
+    requestAnimationFrame(() => {
+      document.getElementById('app')?.getBoundingClientRect();
+      requestAnimationFrame(() => root.classList.remove('gc-fare-return-paint-repair'));
+    });
+    return true;
+  }
+
+  function scheduleFareReturnStaticPaintRepair() {
+    clearFareNavigationCover();
+    if (currentMode() !== 'fare') return;
+    const state = history.state && typeof history.state === 'object' ? history.state : {};
+    if (!trim(state[FLOW_STATE_KEY]) || state[FLOW_RETURN_KEY] !== true) return;
+    let tries = 0;
+    const tryRepair = () => {
+      if (repairFareReturnStaticPaint()) return;
+      tries += 1;
+      if (tries < 36) requestAnimationFrame(tryRepair);
     };
-
-    const avatar = document.querySelector('.brand-header .brand-avatar');
-    if (!avatar) {
-      finish();
-      return;
-    }
-
-    // WKWebView can restore the DOM from BFCache while leaving the cached image layer blank.
-    // Replace only the image node with an identical eager copy so the bitmap is repainted;
-    // width/height/header geometry and every form state stay untouched.
-    const replacement = avatar.cloneNode(false);
-    const src = avatar.getAttribute('src') || '';
-    replacement.decoding = 'sync';
-    replacement.loading = 'eager';
-    try { replacement.fetchPriority = 'high'; } catch (_) {}
-    if (src) replacement.setAttribute('src', src);
-    avatar.replaceWith(replacement);
-
-    const settle = () => finish();
-    replacement.addEventListener('load', settle, { once: true });
-    replacement.addEventListener('error', settle, { once: true });
-    if (replacement.complete && replacement.naturalWidth > 0) {
-      if (typeof replacement.decode === 'function') replacement.decode().then(settle, settle);
-      else requestAnimationFrame(settle);
-    }
-    setTimeout(settle, 180);
+    requestAnimationFrame(tryRepair);
   }
 
-  window.addEventListener('pageshow', () => {
-    requestAnimationFrame(releaseFareHistoryVisualGuardAfterAvatarPaint);
+  window.addEventListener('pageshow', scheduleFareReturnStaticPaintRepair, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleFareReturnStaticPaintRepair();
   }, { passive: true });
 
   function setFieldError(id, message) {
@@ -10488,18 +10516,19 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     url.searchParams.set('mode', 'call');
     url.searchParams.delete('_r');
 
-    // Freeze only the painted app for a few frames before same-document mode navigation.
-    // This prevents the fare scroll snapshot and the call first paint from being exposed as a flash.
-    beginFareHistoryVisualGuard();
+    // Mask only the transition surface; the live #app is never faded, transformed or frozen.
+    // This avoids preserving a partially composited fare page in WKWebView/BFCache.
+    delete document.documentElement.dataset[FARE_RETURN_REPAIR_DONE];
+    const cover = beginFareNavigationCover();
     const navigate = () => {
       try { location.assign(url.toString()); }
       catch (error) {
-        document.documentElement.classList.remove(FARE_HISTORY_GUARD_CLASS, FARE_HISTORY_RELEASE_CLASS);
+        cover?.remove();
         throw error;
       }
     };
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) requestAnimationFrame(navigate);
-    else setTimeout(navigate, 72);
+    else setTimeout(navigate, 52);
   }
 
   function enhanceFare() {
