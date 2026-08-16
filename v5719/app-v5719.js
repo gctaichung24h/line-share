@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m4';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m5';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -18,6 +18,7 @@
   // GC_MASTER_STABLE_2026_08R10Z14F23_LOCATION_BINDING_INVALIDATION
   // GC_MASTER_STABLE_2026_08R10Z14F24_RESERVE_CURRENT_LOCATION_ADDRESS_ONLY
   // GC_MASTER_STABLE_2026_08R10Z14F25_NO_DOOR_LOCATION_COORDINATE_FALLBACK
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M5_CONFIRMATION_CORE_HIERARCHY
   // GC_MASTER_STABLE_2026_08R10Z14F25R4_LOCATION_MODE_ISOLATION_AND_NO_DOOR_SUPPLEMENT
   // GC_MASTER_STABLE_2026_08R10Z14F25R5_FAVORITE_COMPACT_AND_FIRST_EDIT_STABILITY
   // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R1_RECENT_SINGLE_STAGE_PREMIUM_QUICK_PICKER
@@ -8355,22 +8356,25 @@
         return;
       }
 
+      // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M5_CONFIRMATION_CORE_HIERARCHY
+      // Confirmation emphasis follows dispatch priority only: reserve date/time + pickup/driver point;
+      // instant pickup/driver point only. Destination remains visible as reference information without accent.
       const rows = [
         { label: cfg['訊息欄位_用車方式'], value: typeText },
         ...(serviceType === 'reserve' ? [
-          { label: cfg['訊息欄位_日期'], value: reservationDateDisplay },
-          { label: cfg['訊息欄位_時間'], value: value('time') }
+          { label: cfg['訊息欄位_日期'], value: reservationDateDisplay, emphasis: true },
+          { label: cfg['訊息欄位_時間'], value: value('time'), emphasis: true }
         ] : []),
         ...(noDoorLocation
           ? [
-              ...(noDoorCoordinate ? [{ label: noDoorCoordinateLabel, value: noDoorCoordinate }] : []),
+              ...(noDoorCoordinate ? [{ label: noDoorCoordinateLabel, value: noDoorCoordinate, emphasis: true }] : []),
               ...(noDoorSupplement ? [{ label: '周邊辨識點', value: noDoorSupplement }] : []),
               ...(dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
             ]
           : [{ label: reviewedPickupLabel, value: reviewedPickup, emphasis: true }]),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
-        { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）'), emphasis: true },
+        { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）') },
         ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
         ...(!noDoorLocation && dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
       ];
@@ -8388,23 +8392,14 @@
         ? (COMMON['確認標題_代駕'] || '請確認代駕資料')
         : (COMMON['確認標題_叫車'] || '請確認叫車資料');
 
-      const hasReviewedDestination = Boolean(String(reviewedDestination || '').trim());
       const isReservationConfirmation = serviceType === 'reserve';
       const confirmationIntroPrimary = mode === 'driver'
         ? (isReservationConfirmation
-          ? (hasReviewedDestination
-            ? '請確認日期、時間、代駕地點與送達地點及資料，按下「確認送出」後才會正式送出。'
-            : '請確認日期、時間、代駕地點與資料，按下「確認送出」後才會正式送出。')
-          : (hasReviewedDestination
-            ? '請確認代駕地點、送達地點與資料，按下「確認送出」後才會正式送出。'
-            : '請確認代駕地點與資料，按下「確認送出」後才會正式送出。'))
+          ? '請確認日期、時間、代駕地點與其他資料，按下「確認送出」後才會正式送出。'
+          : '請確認代駕地點與其他資料，按下「確認送出」後才會正式送出。')
         : (isReservationConfirmation
-          ? (hasReviewedDestination
-            ? '請確認日期、時間、上車地點與下車地點及資料，按下「確認送出」後才會正式送出。'
-            : '請確認日期、時間、上車地點與資料，按下「確認送出」後才會正式送出。')
-          : (hasReviewedDestination
-            ? '請確認上、下車地點與資料，按下「確認送出」後才會正式送出。'
-            : '請確認上車地點與資料，按下「確認送出」後才會正式送出。'));
+          ? '請確認日期、時間、上車地點與其他資料，按下「確認送出」後才會正式送出。'
+          : '請確認上車地點與其他資料，按下「確認送出」後才會正式送出。');
 
       openConfirmation(confirmTitle, rows, async () => {
         sending = true;
