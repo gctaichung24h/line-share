@@ -7488,3 +7488,87 @@ html.gc-fare-return-paint-repair .brand-header .brand-avatar{transform:none!impo
   .gc-fare-manual-details>summary::after,
   .gc-call-needs-box .gc-info-disclosure>summary::after{transition:none!important}
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M7_TYPOGRAPHY_CLARITY_AND_READABILITY_SEAL
+   Final text-only optical seal. The full-page typography audit found the primary titles, labels,
+   entered values, confirmation hierarchy and CTA sizing already correct. This patch changes only
+   color/font-weight for hint/placeholder/secondary copy that rendered too soft on Retina/WKWebView.
+   No font-size, line-height, dimensions, padding, DOM, input, focus, keyboard, scroll or business logic changes. */
+:root{
+  --gc-text-crisp-secondary:#607789;
+  --gc-text-crisp-tertiary:#5f7585;
+}
+
+/* Placeholder identity is preserved by color, while the thin 400/450 rendering is removed. */
+.gc-call-card .input::placeholder,
+.gc-call-card textarea::placeholder,
+.gc-driver-card .input::placeholder,
+.gc-driver-card textarea::placeholder,
+.gc-fare-card .input::placeholder,
+.gc-fare-card textarea::placeholder{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:540!important;
+  opacity:1!important;
+}
+.gc-fare-card .gc-fare-calc-input::placeholder{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:600!important;
+  opacity:1!important;
+}
+
+/* Secondary copy: same sizes/line-height, slightly stronger ink and weight for cross-device clarity. */
+.brand-copy span{color:var(--gc-text-crisp-secondary)!important;font-weight:560!important}
+.form-head p,
+.gc-fare-card .gc-fare-head .gc-fare-guide-copy{
+  color:var(--gc-text-crisp-tertiary)!important;
+  font-weight:560!important;
+}
+.gc-call-needs-box>summary .gc-needs-summary-meta{
+  color:var(--gc-text-crisp-tertiary)!important;
+  font-weight:600!important;
+}
+.gc-call-needs-box .gc-info-disclosure>summary,
+.gc-call-needs-box[open] .gc-needs-group--vehicle .gc-info-disclosure>summary{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:640!important;
+}
+.hint,.gc-help{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:570!important;
+}
+
+/* Fare helper hierarchy: sharpen the formerly faint secondary lines without competing with price/CTA. */
+.gc-fare-step-kicker span,
+.gc-fare-calc-kicker span,
+.gc-fare-route-inline{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:580!important;
+}
+.gc-fare-result-note{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:560!important;
+}
+.gc-fare-rates-summary small{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:600!important;
+}
+.gc-fare-manual-head span{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:580!important;
+}
+.gc-fare-manual-details>summary small{
+  color:var(--gc-text-crisp-tertiary)!important;
+  font-weight:600!important;
+}
+
+/* Recent/favorite secondary lines remain subordinate, but no longer look washed out on high-DPI phones. */
+#gcFavoriteSheet .favorite-use span,
+.favorite-use span{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:590!important;
+}
+.recent-helper small{
+  color:var(--gc-text-crisp-secondary)!important;
+  font-weight:590!important;
+}
+.recent-clear-all{color:var(--gc-text-crisp-secondary)!important}
