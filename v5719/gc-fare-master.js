@@ -15,6 +15,8 @@
   // Manual full addresses may resolve directly; Google Maps still receives hidden canonical route data.
   // GC_MASTER_STABLE_2026_08R10U_STRICT_MAP_ADDRESS_HANDOFF
   // GC_MASTER_STABLE_2026_08R10T_FARE_TO_CALL_HANDOFF_FIX
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M3_FARE_HANDOFF_HISTORY_VISUAL_STABILITY
+  // Visual-only handoff guard: no scroll/focus/keyboard/layout geometry is changed.
   // GC_FARE_FLOW_SNAPSHOT_20M / GC_FARE_MANUAL_SCROLL_GUARD
   const LEGACY_DRAFT_KEY = 'gc_fare_draft_v1';
   const LEGACY_HANDOFF_KEY = 'gc_fare_to_call_v1';
@@ -22,6 +24,8 @@
   const SNAPSHOT_PREFIX = 'gc_fare_flow_v2_';
   const FLOW_STATE_KEY = 'gcFareFlowId';
   const FLOW_RETURN_KEY = 'gcFareReturnFromCall';
+  const FARE_HISTORY_GUARD_CLASS = 'gc-fare-history-guard';
+  const FARE_HISTORY_RELEASE_CLASS = 'gc-fare-history-release';
   const TTL_MS = 20 * 60 * 1000;
 
   const cfg = () => (window.GC_FORM_CONFIG && window.GC_FORM_CONFIG.fare) || {};
@@ -98,6 +102,56 @@
   function currentMode() {
     return new URLSearchParams(location.search).get('mode') || '';
   }
+
+  function beginFareHistoryVisualGuard() {
+    const root = document.documentElement;
+    root.classList.remove(FARE_HISTORY_RELEASE_CLASS);
+    root.classList.add(FARE_HISTORY_GUARD_CLASS);
+  }
+
+  function releaseFareHistoryVisualGuardAfterAvatarPaint() {
+    const root = document.documentElement;
+    if (currentMode() !== 'fare' || !root.classList.contains(FARE_HISTORY_GUARD_CLASS)) return;
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      root.classList.add(FARE_HISTORY_RELEASE_CLASS);
+      root.classList.remove(FARE_HISTORY_GUARD_CLASS);
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove(FARE_HISTORY_RELEASE_CLASS)));
+    };
+
+    const avatar = document.querySelector('.brand-header .brand-avatar');
+    if (!avatar) {
+      finish();
+      return;
+    }
+
+    // WKWebView can restore the DOM from BFCache while leaving the cached image layer blank.
+    // Replace only the image node with an identical eager copy so the bitmap is repainted;
+    // width/height/header geometry and every form state stay untouched.
+    const replacement = avatar.cloneNode(false);
+    const src = avatar.getAttribute('src') || '';
+    replacement.decoding = 'sync';
+    replacement.loading = 'eager';
+    try { replacement.fetchPriority = 'high'; } catch (_) {}
+    if (src) replacement.setAttribute('src', src);
+    avatar.replaceWith(replacement);
+
+    const settle = () => finish();
+    replacement.addEventListener('load', settle, { once: true });
+    replacement.addEventListener('error', settle, { once: true });
+    if (replacement.complete && replacement.naturalWidth > 0) {
+      if (typeof replacement.decode === 'function') replacement.decode().then(settle, settle);
+      else requestAnimationFrame(settle);
+    }
+    setTimeout(settle, 180);
+  }
+
+  window.addEventListener('pageshow', () => {
+    requestAnimationFrame(releaseFareHistoryVisualGuardAfterAvatarPaint);
+  }, { passive: true });
 
   function setFieldError(id, message) {
     const input = qs(id);
@@ -501,7 +555,19 @@
     const url = new URL(location.href);
     url.searchParams.set('mode', 'call');
     url.searchParams.delete('_r');
-    location.assign(url.toString());
+
+    // Freeze only the painted app for a few frames before same-document mode navigation.
+    // This prevents the fare scroll snapshot and the call first paint from being exposed as a flash.
+    beginFareHistoryVisualGuard();
+    const navigate = () => {
+      try { location.assign(url.toString()); }
+      catch (error) {
+        document.documentElement.classList.remove(FARE_HISTORY_GUARD_CLASS, FARE_HISTORY_RELEASE_CLASS);
+        throw error;
+      }
+    };
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) requestAnimationFrame(navigate);
+    else setTimeout(navigate, 72);
   }
 
   function enhanceFare() {

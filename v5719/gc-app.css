@@ -7351,3 +7351,69 @@ details.gc-fare-manual-details[open]>.gc-fare-manual-inner{
     transition:none!important;
   }
 }
+
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M3_FARE_RETURN_AND_LONG_DISTANCE_POLISH
+   Scope: fare-to-call paint stability + long-distance visual hierarchy only.
+   No input, focus, keyboard, scroll, calculation, threshold, DOM geometry or submit behavior changes. */
+html.gc-fare-history-guard #app{
+  opacity:.001!important;
+  pointer-events:none!important;
+  transition:opacity .065s cubic-bezier(.20,.78,.24,1)!important;
+}
+html.gc-fare-history-release #app{
+  opacity:1!important;
+  transition:opacity .085s cubic-bezier(.20,.78,.24,1)!important;
+}
+
+/* Result-area long-distance notice: same champagne-gold language as the rate card, compact hierarchy. */
+.gc-fare-long-distance:not(.hidden){
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:10px 0 0!important;
+  padding:8px 10px!important;
+  border:1px solid #e3c978!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,#fffaf0 0%,#fff6df 100%)!important;
+  box-shadow:inset 3px 0 0 #d1ad4f,0 3px 10px rgba(35,76,108,.035)!important;
+  color:#174b70!important;
+  font-size:13px!important;
+  font-weight:750!important;
+  line-height:1.35!important;
+  letter-spacing:-.01em!important;
+  white-space:nowrap!important;
+  word-break:keep-all!important;
+  overflow-wrap:normal!important;
+}
+.gc-fare-long-distance:not(.hidden)::before{
+  content:'長途優惠';
+  flex:0 0 auto!important;
+  padding:3px 7px!important;
+  border:1px solid #ddc16d!important;
+  border-radius:8px!important;
+  background:#f7e9bd!important;
+  color:#6b4f1e!important;
+  font-size:10.8px!important;
+  font-weight:800!important;
+  line-height:1.25!important;
+  letter-spacing:.01em!important;
+  white-space:nowrap!important;
+}
+@media(max-width:360px){
+  .gc-fare-long-distance:not(.hidden){gap:6px!important;padding-left:8px!important;padding-right:8px!important;font-size:12.2px!important;letter-spacing:-.02em!important}
+  .gc-fare-long-distance:not(.hidden)::before{padding-left:6px!important;padding-right:6px!important;font-size:10.2px!important}
+}
+@media(max-width:330px){
+  .gc-fare-long-distance:not(.hidden){gap:5px!important;padding-left:7px!important;padding-right:7px!important;font-size:11.5px!important;letter-spacing:-.035em!important}
+  .gc-fare-long-distance:not(.hidden)::before{padding-left:5px!important;padding-right:5px!important;font-size:9.8px!important}
+}
+@media(max-width:300px){
+  .gc-fare-long-distance:not(.hidden){font-size:10.5px!important;letter-spacing:-.045em!important}
+  .gc-fare-long-distance:not(.hidden)::before{font-size:9.2px!important;padding:3px 4px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  html.gc-fare-history-guard #app,
+  html.gc-fare-history-release #app{transition:none!important}
+}

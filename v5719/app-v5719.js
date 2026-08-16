@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m2';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m3';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -6727,7 +6727,7 @@
           <p class="gc-fare-result-basis" id="fareResultBasis"></p>
           <p class="gc-fare-result-note" id="fareResultNote1"></p>
           <p class="gc-fare-result-note" id="fareResultNote2"></p>
-          <p class="gc-fare-long-distance hidden" id="fareLongDistance">${escapeHtml(cfg['長途提示'] || '🚕 45公里以上另有直收優惠價')}</p>
+          <p class="gc-fare-long-distance hidden" id="fareLongDistance">${escapeHtml(cfg['長途提示'] || '45 公里以上，可享直收優惠價')}</p>
         </div>
       </section>`;
   }
@@ -6736,7 +6736,7 @@
     const rules = fareRules(cfg);
     const allDay = cfg['費率_全天同價文案'] || '24H同一費率｜無夜間加成';
     const allDayParts = allDay.split('｜').map(item => item.trim()).filter(Boolean);
-    const longText = `長途超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里另有直收優惠價`;
+    const longText = `長途 ${formatFareRuleValue(rules.longDistanceKm)} 公里以上，可享直收優惠價`;
     const baseRows = [
       ['起跳', `$${formatFareRuleValue(rules.start)}`],
       ['每分鐘', `$${formatFareRuleValue(rules.perMinute)}`],
@@ -6758,7 +6758,7 @@
           <section class="gc-rate-section" aria-label="費率說明">
             <strong class="gc-rate-section-title">費率說明</strong>
             <div class="gc-rate-note-list">${noteRows.map(line => `<div class="gc-rate-note-row"><i aria-hidden="true"></i><span>${escapeHtml(line)}</span></div>`).join('')}</div>
-            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong>${escapeHtml(`超過 ${formatFareRuleValue(rules.longDistanceKm)} 公里，可享直收優惠價`)}</strong></div>
+            <div class="gc-rate-long-benefit"><span>長途優惠</span><strong>${escapeHtml(`${formatFareRuleValue(rules.longDistanceKm)} 公里以上，可享直收優惠價`)}</strong></div>
           </section>
         </div>
       </details>`;
@@ -8546,7 +8546,7 @@
       basis.textContent = `${cfg['結果依據標題'] || '本次試算'}｜${estimate.minutes} 分鐘・${estimate.km} 公里`;
       note1.textContent = String(cfg['結果說明1'] ?? '').trim();
       note2.textContent = fareTextTemplate(cfg['結果說明2'] || '預估與實際車資可能約有 ±NT${浮動} 元差異。', { 浮動: formatFareMoney(estimate.rules.range) });
-      longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '🚕 {公里}公里以上另有直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
+      longDistance.textContent = fareTextTemplate(cfg['長途提示格式'] || '{公里} 公里以上，可享直收優惠價', { 公里: formatFareRuleValue(estimate.rules.longDistanceKm) });
       longDistance.classList.toggle('hidden', !estimate.longDistance);
     });
 
