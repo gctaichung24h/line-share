@@ -564,7 +564,7 @@
   function transformMessage(text) {
     let lines = String(text).split('\n').filter(line => !/[•・]\s*(跨縣市方向|行程方向|車輛資訊|車輛停放位置|乘車需求|補充資訊)\s*：/.test(line));
     if (isDriver || isFare) return lines.join('\n');
-    if (!isCall || !/^🚕 我要【(?:預約)?叫車】/.test(lines[0] || '')) return lines.join('\n');
+    if (!isCall || !/^🚕💨 我要【(?:預約)?叫車】/.test(lines[0] || '')) return lines.join('\n');
     lines = lines.filter(line => !/[•・]\s*(指定車型|寵物同行)\s*：/.test(line));
     const symbol = COMMON['訊息欄位符號'] || '•';
     const serviceIndex = lines.findIndex(line => /[•・]\s*服務類型：/.test(line));
