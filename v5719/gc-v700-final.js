@@ -495,7 +495,8 @@
     const extraTotal = Math.max(vehicleFee, peopleFee) + petFee;
     {
       const row = document.createElement('div');
-      row.className = 'confirm-row gc-confirm-extra-total';
+      // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M6_ZERO_FEE_AND_DISCLOSURE_CHEVRON_POLISH
+      row.className = `confirm-row gc-confirm-extra-total${extraTotal === 0 ? ' gc-confirm-extra-total-zero' : ''}`;
       row.dataset.gcV7Extra = '1';
       row.innerHTML = `<span>車資外另加費用</span><strong>NT$${extraTotal}</strong>`;
       summary.appendChild(row);

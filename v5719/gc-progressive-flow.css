@@ -3070,3 +3070,70 @@ html.gc-fare-return-paint-repair .brand-header .brand-avatar{transform:none!impo
   .gc-fare-navigation-cover{transition:none!important}
 }
 
+/* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M6_ZERO_FEE_AND_DISCLOSURE_CHEVRON_POLISH
+   Final optical-only seal: NT$0 keeps the exact confirmation-row geometry but steps back
+   in color/weight; the two remaining inconsistent disclosures reuse the existing slim
+   native triangle. No details/click/scroll/focus/keyboard/viewport/DOM behavior changes. */
+.gc-confirm-extra-total.gc-confirm-extra-total-zero{
+  background:#fbfcfd!important;
+  border-color:#e2e9ee!important;
+}
+.gc-confirm-extra-total.gc-confirm-extra-total-zero span{
+  color:#80909c!important;
+  font-weight:600!important;
+}
+.gc-confirm-extra-total.gc-confirm-extra-total-zero strong{
+  color:#748591!important;
+  font-weight:650!important;
+  letter-spacing:-.01em!important;
+}
+
+/* Other fare-estimate help: same 8px slim triangle as the regional-fare / ride disclosures. */
+.gc-fare-manual-details>summary::after{
+  content:''!important;
+  display:block!important;
+  flex:0 0 8px!important;
+  width:8px!important;
+  height:8px!important;
+  margin:0 3px 2px auto!important;
+  border:0!important;
+  border-right:1.5px solid #8297a6!important;
+  border-bottom:1.5px solid #8297a6!important;
+  background:transparent!important;
+  transform:rotate(45deg)!important;
+  transform-origin:center!important;
+  transition:transform .18s cubic-bezier(.22,.8,.24,1)!important;
+}
+.gc-fare-manual-details[open]>summary::after{
+  margin-top:2px!important;
+  margin-bottom:0!important;
+  transform:rotate(-135deg)!important;
+}
+
+/* Vehicle / fare explainer: replace the old plus/minus glyph with the same slim triangle. */
+.gc-call-needs-box .gc-info-disclosure>summary::after{
+  content:''!important;
+  display:block!important;
+  float:right!important;
+  width:7px!important;
+  height:7px!important;
+  margin:3px 2px 0 8px!important;
+  border:0!important;
+  border-right:1.5px solid #8297a6!important;
+  border-bottom:1.5px solid #8297a6!important;
+  background:transparent!important;
+  color:transparent!important;
+  transform:rotate(45deg)!important;
+  transform-origin:center!important;
+  transition:transform .18s cubic-bezier(.22,.8,.24,1)!important;
+}
+.gc-call-needs-box .gc-info-disclosure[open]>summary::after{
+  content:''!important;
+  margin-top:5px!important;
+  transform:rotate(-135deg)!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .gc-fare-manual-details>summary::after,
+  .gc-call-needs-box .gc-info-disclosure>summary::after{transition:none!important}
+}
