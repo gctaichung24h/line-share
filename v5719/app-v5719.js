@@ -8299,9 +8299,12 @@
         ? 'ⓘ 尚未填寫行政區，建議返回補充'
         : '';
       // F23/F25 final safety gate: the visible address must still match the current-location
-      // session. Instant service may attach the LINE map pin; all four service variants may carry
-      // a text coordinate ONLY for a precise current-location result that has no reliable door.
+      // session. Instant service may attach the existing LINE map pin. For all four service variants,
+      // a successfully resolved current-location address also carries a DMS coordinate in LINE text;
+      // no-door fallback keeps the coordinate directly in the pickup/driver-address field instead.
+      const boundLocation = boundAttachedLocation();
       const dispatchLocation = serviceType === 'instant' ? dispatchableAttachedLocation() : null;
+      const resolvedLocationCoordinate = !noDoorLocation ? formatLocationCoordinate(boundLocation) : '';
       const noDoorCoordinate = formatLocationCoordinate(noDoorLocation);
       const noDoorSupplement = noDoorLocation ? currentLocationSupplement() : '';
 
@@ -8317,9 +8320,9 @@
       if (noDoorLocation) {
         appendLine(lines, noDoorCoordinateLabel, noDoorCoordinate);
         appendLine(lines, '周邊辨識點', noDoorSupplement);
-        if (dispatchLocation) appendLine(lines, '目前定位', '已附上 LINE 地圖定位');
       } else {
         appendLine(lines, reviewedPickupLabel, reviewedPickup);
+        appendLine(lines, '座標位置', resolvedLocationCoordinate);
       }
       if (adminWarningValue) lines.push(`⚠️ ${adminWarningLabel}：${adminWarningValue}`);
       appendLine(lines, cfg['訊息欄位_下車'], reviewedDestination);
@@ -8369,15 +8372,13 @@
         ...(noDoorLocation
           ? [
               ...(noDoorCoordinate ? [{ label: noDoorCoordinateLabel, value: noDoorCoordinate, emphasis: true }] : []),
-              ...(noDoorSupplement ? [{ label: '周邊辨識點', value: noDoorSupplement }] : []),
-              ...(dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+              ...(noDoorSupplement ? [{ label: '周邊辨識點', value: noDoorSupplement }] : [])
             ]
           : [{ label: reviewedPickupLabel, value: reviewedPickup, emphasis: true }]),
         ...(adminWarningValue ? [{ label: `⚠️ ${adminWarningLabel}`, value: adminWarningValue, warning: true }] : []),
         ...(pickupAdminSoftReminder ? [{ label: '', value: pickupAdminSoftReminder, note: true }] : []),
         { label: cfg['訊息欄位_下車'], value: reviewedDestination || (COMMON['選填未填寫'] || '未填寫（選填）') },
-        ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : []),
-        ...(!noDoorLocation && dispatchLocation ? [{ label: '目前定位', value: '已附上 LINE 地圖定位' }] : [])
+        ...(mode !== 'driver' && value('passengers') ? [{ label: cfg['訊息欄位_人數'], value: value('passengers') }] : [])
       ];
 
       if (mode === 'driver') {
