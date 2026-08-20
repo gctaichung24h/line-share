@@ -1,7 +1,9 @@
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m8dms2';
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7f1m9';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M9_DIRECT_INTERACTIVE_BOOT
+  // GC_MASTER_STABLE_2026_08R10Z9_PARALLEL_SAFE_BOOT
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
   // GC_MASTER_STABLE_2026_08R10Z14F10_FAVORITE_SHEET_SAVE_FLOW
@@ -80,12 +82,13 @@
   // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
-  // R10Z8: version safety is now first-paint coherent. A stale page may show the loading surface,
-  // but it may never show an old usable form for ~1 second and then jump to the new build.
+  // GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE
+  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M9_DIRECT_INTERACTIVE_BOOT
+  // The current visit is never covered, refreshed, re-rendered or scrolled by a version check.
+  // Fresh HTML is no-store and points to a versioned bundle, so a later fresh opening receives the update.
   let gcLastVersionCheck = 0;
-  let gcVersionRedirecting = false;
+  let gcPendingBuildVersion = '';
   const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
-  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1500;
   async function ensureLatestBuild(force = false, options = {}) {
     const now = Date.now();
     if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return 'recent';
@@ -94,21 +97,16 @@
     const controller = timeoutMs > 0 && typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
-      const res = await fetch('version.json?t=' + now, {
-        cache: 'no-store',
-        signal: controller?.signal
-      });
+      const res = await fetch('version.json?t=' + now, { cache: 'no-store', signal: controller?.signal });
       if (!res.ok) return 'unknown';
       const info = await res.json();
       if (info && info.version && info.version !== GC_BUILD_VERSION) {
-        gcVersionRedirecting = true;
-        document.documentElement.classList.add('gc-version-hold');
-        const url = new URL(location.href);
-        url.searchParams.set('gcver', info.version);
-        url.searchParams.set('_r', String(now));
-        location.replace(url.toString());
-        return 'stale';
+        gcPendingBuildVersion = String(info.version);
+        try { sessionStorage.setItem('gc_pending_build_version_v1', gcPendingBuildVersion); } catch (_) {}
+        return 'deferred';
       }
+      gcPendingBuildVersion = '';
+      try { sessionStorage.removeItem('gc_pending_build_version_v1'); } catch (_) {}
       return 'current';
     } catch (_) {
       return 'unknown';
@@ -116,8 +114,7 @@
       if (timer) clearTimeout(timer);
     }
   }
-  function releaseVersionHold(status) {
-    if (status === 'stale' || gcVersionRedirecting) return;
+  function releaseVersionHold() {
     document.documentElement.classList.remove('gc-version-hold');
   }
   function scheduleLatestBuildCheck(force = false) {
@@ -125,28 +122,14 @@
     if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2200 });
     else setTimeout(run, 900);
   }
-  window.addEventListener('pagehide', event => {
-    // Only freeze a bfcache snapshot when its last version proof is old. Normal Google Maps
-    // round-trips within the same two-minute window remain immediate and do not flash a loader.
-    if (event.persisted && Date.now() - gcLastVersionCheck >= GC_VERSION_CHECK_INTERVAL_MS) {
-      document.documentElement.classList.add('gc-version-hold');
-    }
-  });
-  window.addEventListener('pageshow', event => {
-    if (event.persisted && document.documentElement.classList.contains('gc-version-hold')) {
-      ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS }).then(releaseVersionHold);
-      return;
-    }
-    scheduleLatestBuildCheck(false);
-  });
+  window.addEventListener('pageshow', () => scheduleLatestBuildCheck(false));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleLatestBuildCheck(false); });
-
 
   const CONFIG = window.GC_FORM_CONFIG || {};
   const COMMON = CONFIG.common || {};
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
-  const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
+  const brandAvatarUrl = document.querySelector('[data-gc-boot-brand] .brand-avatar')?.getAttribute('src') || document.querySelector('link[rel="preload"][as="image"]')?.getAttribute('href') || '表格頭像_直接更換.png';
   const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_FINAL_ENTERPRISE_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 5;
@@ -8769,48 +8752,112 @@
     return false;
   }
 
+  function releaseDirectFormBoot() {
+    document.documentElement.classList.remove('gc-direct-form-boot');
+    document.documentElement.classList.add('gc-direct-form-ready');
+  }
+
+  function initialPresentationReady(mode) {
+    if (mode === 'fare') {
+      const card = document.querySelector('.gc-fare-card');
+      return Boolean(
+        card?.dataset.gcEnterpriseProgressive === '1' &&
+        document.documentElement.dataset.gcFareMasterReady === '1' &&
+        document.getElementById('gcFareRouteStep') &&
+        document.querySelector('.gc-fare-manual-details')
+      );
+    }
+    const form = document.getElementById('serviceForm');
+    if (!form || form.dataset.gcEnterpriseProgressive !== '1') return false;
+    if (mode === 'call') {
+      return Boolean(
+        document.querySelector('.gc-call-needs-box') &&
+        document.querySelector('.gc-needs-group--vehicle') &&
+        document.querySelector('.gc-passenger-public #passengers') &&
+        document.querySelector('.gc-pickup-address .gc-address-utility-row')
+      );
+    }
+    if (mode === 'driver') {
+      return Boolean(
+        document.querySelector('.gc-driver-card .gc-secondary-box') &&
+        document.querySelector('.gc-pickup-address .gc-address-utility-row')
+      );
+    }
+    return true;
+  }
+
+  function revealRealFormWhenPresentationReady(mode) {
+    const started = performance.now();
+    return new Promise(resolve => {
+      const reveal = () => requestAnimationFrame(() => {
+        releaseDirectFormBoot();
+        resolve();
+      });
+      const inspect = () => {
+        if (initialPresentationReady(mode) || performance.now() - started >= 600) {
+          reveal();
+          return;
+        }
+        setTimeout(inspect, 8);
+      };
+      inspect();
+    });
+  }
+
+  function beginBackgroundRuntimeChecks() {
+    // These promises are intentionally detached from presentation. Submission still awaits the
+    // exact existing LIFF-ready promise inside sendFormMessages, preserving send safety.
+    ensureLiffReady().catch(() => {});
+    ensureLatestBuild(true, { timeoutMs: 1500 }).then(releaseVersionHold);
+  }
+
   async function initialize() {
-    // GC_MASTER_STABLE_2026_08R10Z9_PARALLEL_SAFE_BOOT
-    // Version proof and LIFF SDK initialization run in parallel behind the single loading surface.
-    // A stale form is still never painted; sendFormMessages continues to await the same LIFF promise.
+    // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M9_DIRECT_INTERACTIVE_BOOT
+    // renderRequestedMode creates the existing real DOM and immediately calls the existing binders.
+    // No fake form is ever shown; the form is revealed once unchanged enhancement modules finish.
     const initialParams = new URLSearchParams(location.search);
     const initialMode = initialParams.get('mode');
-    const mightBeLiff = !preview && (initialParams.has('liff.state') || Boolean(initialMode));
-    const liffBoot = mightBeLiff ? ensureLiffReady().then(sdk => ({ sdk, error: null })).catch(error => ({ sdk: null, error })) : null;
-
-    const firstBuildStatus = await ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS });
-    if (firstBuildStatus === 'stale' || gcVersionRedirecting) return;
-    releaseVersionHold(firstBuildStatus);
-
     const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));
-    if (preview) {
-      if (!initialModeRendered) renderQr();
+
+    if (initialModeRendered) {
+      if (!preview) beginBackgroundRuntimeChecks();
+      else scheduleLatestBuildCheck(true);
+      await revealRealFormWhenPresentationReady(initialMode);
       return;
     }
 
-    if (mightBeLiff) {
-      const result = await liffBoot;
-      if (result?.error) {
-        renderFatal('表格無法開啟', result.error?.message || 'LIFF 初始化失敗。');
-        return;
-      }
-      if (!result?.sdk || !result.sdk.isInClient()) {
-        renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
-        return;
-      }
-    }
-
-    const finalMode = new URLSearchParams(location.search).get('mode');
-    if (!finalMode) {
-      if (!initialModeRendered) renderQr();
+    if (preview || !initialParams.has('liff.state')) {
+      renderQr();
+      releaseDirectFormBoot();
+      scheduleLatestBuildCheck(true);
       return;
     }
-    if (!initialModeRendered || finalMode !== initialMode) {
-      if (!renderRequestedMode(finalMode)) renderQr();
+
+    // Primary LIFF redirect is normally handled by the lightweight index bootstrap before this
+    // bundle is executed. This fallback keeps failure behavior safe if a legacy cached index runs.
+    try {
+      const sdk = await ensureLiffReady();
+      if (!sdk || !sdk.isInClient()) throw new Error(COMMON['非LINE開啟提醒']);
+      const finalMode = new URLSearchParams(location.search).get('mode');
+      if (finalMode && renderRequestedMode(finalMode)) {
+        beginBackgroundRuntimeChecks();
+        await revealRealFormWhenPresentationReady(finalMode);
+      } else {
+        renderQr();
+        releaseDirectFormBoot();
+      }
+    } catch (error) {
+      renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
+      releaseDirectFormBoot();
     }
   }
 
-  const loadingText = document.getElementById('loadingText');
-  if (loadingText && COMMON['初始化文字']) loadingText.textContent = COMMON['初始化文字'];
-  initialize();
+  // Queue after the concatenated bundle has registered all existing observers and compatibility
+  // handlers. The real form is still created before the next visible paint.
+  const startDirectInteractiveBoot = () => initialize().catch(error => {
+    renderFatal('表格無法開啟', error?.message || '表格初始化失敗。');
+    releaseDirectFormBoot();
+  });
+  if (typeof queueMicrotask === 'function') queueMicrotask(startDirectInteractiveBoot);
+  else Promise.resolve().then(startDirectInteractiveBoot);
 })();
