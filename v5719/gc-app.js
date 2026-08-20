@@ -2,8 +2,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
 ;
 (() => {
   'use strict';
-  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7f1m10';
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_LOW_RISK_FIRST_FORM_BOOT
+  const GC_BUILD_VERSION = 'master202608r10z14f25r6m2r15r7m8dms2';
   // GC_MASTER_STABLE_2026_08R10Z14F_TARGETED_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Z14F7_CALL_CONFIRM_REVIEW_AND_ADMIN_RECHECK
   // GC_MASTER_STABLE_2026_08R10Z14F9_FAVORITE_PREVIEW_SHEET_AND_CALL_HINT_TONE
@@ -83,13 +82,12 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   // GC_MASTER_STABLE_2026_08R10R_VISUAL_SYSTEM_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10Q_TEN_POINT_FINAL_SEAL
   // GC_MASTER_STABLE_2026_08R10P_DEFERRED_VERSION_CHECK
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_LOW_RISK_FIRST_FORM_BOOT
-  // M10: version proof is an idle/background task. It may record a newer build for the next fresh
-  // opening, but it may never block first form paint, refresh an active form, steal focus or scroll.
+  // R10Z8: version safety is now first-paint coherent. A stale page may show the loading surface,
+  // but it may never show an old usable form for ~1 second and then jump to the new build.
   let gcLastVersionCheck = 0;
-  let gcVersionCheckScheduled = false;
-  let gcPendingBuildVersion = '';
+  let gcVersionRedirecting = false;
   const GC_VERSION_CHECK_INTERVAL_MS = 2 * 60 * 1000;
+  const GC_FIRST_BUILD_CHECK_TIMEOUT_MS = 1500;
   async function ensureLatestBuild(force = false, options = {}) {
     const now = Date.now();
     if (!force && now - gcLastVersionCheck < GC_VERSION_CHECK_INTERVAL_MS) return 'recent';
@@ -98,16 +96,21 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     const controller = timeoutMs > 0 && typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
     try {
-      const res = await fetch('version.json?t=' + now, { cache: 'no-store', signal: controller?.signal });
+      const res = await fetch('version.json?t=' + now, {
+        cache: 'no-store',
+        signal: controller?.signal
+      });
       if (!res.ok) return 'unknown';
       const info = await res.json();
       if (info && info.version && info.version !== GC_BUILD_VERSION) {
-        gcPendingBuildVersion = String(info.version);
-        try { sessionStorage.setItem('gc_pending_build_version_v1', gcPendingBuildVersion); } catch (_) {}
-        return 'deferred';
+        gcVersionRedirecting = true;
+        document.documentElement.classList.add('gc-version-hold');
+        const url = new URL(location.href);
+        url.searchParams.set('gcver', info.version);
+        url.searchParams.set('_r', String(now));
+        location.replace(url.toString());
+        return 'stale';
       }
-      gcPendingBuildVersion = '';
-      try { sessionStorage.removeItem('gc_pending_build_version_v1'); } catch (_) {}
       return 'current';
     } catch (_) {
       return 'unknown';
@@ -115,21 +118,29 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
       if (timer) clearTimeout(timer);
     }
   }
-  function releaseVersionHold() {
-    // Legacy stale bfcache class is always released; M10 never adds a visual hold.
+  function releaseVersionHold(status) {
+    if (status === 'stale' || gcVersionRedirecting) return;
     document.documentElement.classList.remove('gc-version-hold');
   }
   function scheduleLatestBuildCheck(force = false) {
-    if (gcVersionCheckScheduled) return;
-    gcVersionCheckScheduled = true;
-    const run = () => {
-      gcVersionCheckScheduled = false;
-      ensureLatestBuild(force, { timeoutMs: 1500 }).then(releaseVersionHold);
-    };
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2400 });
+    const run = () => ensureLatestBuild(force).then(releaseVersionHold);
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2200 });
     else setTimeout(run, 900);
   }
-  window.addEventListener('pageshow', () => scheduleLatestBuildCheck(false));
+  window.addEventListener('pagehide', event => {
+    // Only freeze a bfcache snapshot when its last version proof is old. Normal Google Maps
+    // round-trips within the same two-minute window remain immediate and do not flash a loader.
+    if (event.persisted && Date.now() - gcLastVersionCheck >= GC_VERSION_CHECK_INTERVAL_MS) {
+      document.documentElement.classList.add('gc-version-hold');
+    }
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted && document.documentElement.classList.contains('gc-version-hold')) {
+      ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS }).then(releaseVersionHold);
+      return;
+    }
+    scheduleLatestBuildCheck(false);
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleLatestBuildCheck(false); });
 
 
@@ -137,7 +148,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
   const COMMON = CONFIG.common || {};
   const app = document.getElementById('app');
   const preview = new URLSearchParams(location.search).get('preview') === '1';
-  const brandAvatarUrl = document.querySelector('link[rel="preload"][as="image"]')?.getAttribute('href') || '表格頭像_直接更換.png';
+  const brandAvatarUrl = document.querySelector('.loading-card .brand-avatar')?.getAttribute('src') || '表格頭像_直接更換.png';
   const RELEASE_MARKER = 'GC_MASTER_STABLE_2026_08R10_FINAL_ENTERPRISE_UX_LOCKED_SAFE';
   const RECENT_STORAGE_KEY = 'gc_recent_addresses_v1';
   const RECENT_LIMIT = 5;
@@ -5485,35 +5496,7 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
         : '地址已確認，定位會一併附上。', 'success');
     });
 
-    // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_EXPLICIT_LOCATION_GESTURE_GATE
-    // A permission request is allowed only after a real pointer/key activation on this exact
-    // button. This blocks cross-navigation residual clicks and script-triggered .click() calls
-    // without delaying or disabling any normal first tap on the rest of the form.
-    let locationActivationAt = 0;
-    const armLocationActivation = event => {
-      if (!event?.isTrusted) return;
-      locationActivationAt = performance.now();
-    };
-    if (window.PointerEvent) button.addEventListener('pointerdown', armLocationActivation, { passive: true });
-    else {
-      button.addEventListener('touchstart', armLocationActivation, { passive: true });
-      button.addEventListener('mousedown', armLocationActivation, { passive: true });
-    }
-    button.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') armLocationActivation(event);
-    });
-
-    button.addEventListener('click', async event => {
-      const trustedAssistiveClick = Boolean(event?.isTrusted && event.detail === 0);
-      const trustedPairedActivation = Boolean(
-        event?.isTrusted && locationActivationAt > 0 && performance.now() - locationActivationAt <= 1600
-      );
-      locationActivationAt = 0;
-      if (!trustedAssistiveClick && !trustedPairedActivation) {
-        event?.preventDefault?.();
-        event?.stopPropagation?.();
-        return;
-      }
+    button.addEventListener('click', async () => {
       const requestedServiceType = checked('serviceType');
       if (requestedServiceType !== 'instant' && requestedServiceType !== 'reserve') return;
       const reserveAddressOnly = requestedServiceType === 'reserve';
@@ -8788,89 +8771,50 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return false;
   }
 
-  function hasRecentPrimaryLiffEntry() {
-    try {
-      const startedAt = Number(sessionStorage.getItem('gc_liff_entry_started_v1') || 0);
-      return Number.isFinite(startedAt) && startedAt > 0 && Date.now() - startedAt <= 45 * 1000;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function likelyLineClient(params) {
-    return params.has('liff.state') || hasRecentPrimaryLiffEntry() || /(?:^|[\s;])Line\/\d/i.test(navigator.userAgent || '');
-  }
-
-  function beginDetachedRuntimeChecks() {
-    // The existing submission path still awaits this exact promise before sendMessages.
-    // Here it is detached only from first paint and normal field interaction.
-    ensureLiffReady().catch(() => {});
-    scheduleLatestBuildCheck(true);
-  }
-
   async function initialize() {
     // GC_MASTER_STABLE_2026_08R10Z9_PARALLEL_SAFE_BOOT
-    // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_LOW_RISK_FIRST_FORM_BOOT
-    // The first visible form is the existing real DOM with existing binders. No fake form, loader,
-    // version wait, delayed reveal class or second app replacement is used.
+    // Version proof and LIFF SDK initialization run in parallel behind the single loading surface.
+    // A stale form is still never painted; sendFormMessages continues to await the same LIFF promise.
     const initialParams = new URLSearchParams(location.search);
     const initialMode = initialParams.get('mode');
+    const mightBeLiff = !preview && (initialParams.has('liff.state') || Boolean(initialMode));
+    const liffBoot = mightBeLiff ? ensureLiffReady().then(sdk => ({ sdk, error: null })).catch(error => ({ sdk: null, error })) : null;
 
+    const firstBuildStatus = await ensureLatestBuild(true, { timeoutMs: GC_FIRST_BUILD_CHECK_TIMEOUT_MS });
+    if (firstBuildStatus === 'stale' || gcVersionRedirecting) return;
+    releaseVersionHold(firstBuildStatus);
+
+    const initialModeRendered = Boolean(initialMode && renderRequestedMode(initialMode));
     if (preview) {
-      if (!initialMode || !renderRequestedMode(initialMode)) renderQr();
-      scheduleLatestBuildCheck(true);
+      if (!initialModeRendered) renderQr();
       return;
     }
 
-    if (initialMode && likelyLineClient(initialParams)) {
-      if (!renderRequestedMode(initialMode)) renderQr();
-      beginDetachedRuntimeChecks();
-      return;
-    }
-
-    if (initialMode) {
-      // Preserve the original non-LINE gate for direct browser links. This path is not the rich-menu
-      // entry and therefore does not trade correctness for a misleading external-browser form.
-      try {
-        const sdk = await ensureLiffReady();
-        if (!sdk || !sdk.isInClient()) {
-          renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
-          return;
-        }
-        if (!renderRequestedMode(initialMode)) renderQr();
-        scheduleLatestBuildCheck(true);
-      } catch (error) {
-        renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
+    if (mightBeLiff) {
+      const result = await liffBoot;
+      if (result?.error) {
+        renderFatal('表格無法開啟', result.error?.message || 'LIFF 初始化失敗。');
+        return;
       }
-      return;
-    }
-
-    if (initialParams.has('liff.state')) {
-      // Legacy/cached index fallback. The M10 index normally performs this primary handshake before
-      // the full bundle is loaded.
-      try {
-        const sdk = await ensureLiffReady();
-        if (!sdk || !sdk.isInClient()) throw new Error(COMMON['非LINE開啟提醒']);
-        const finalMode = new URLSearchParams(location.search).get('mode');
-        if (!finalMode || !renderRequestedMode(finalMode)) renderQr();
-        scheduleLatestBuildCheck(true);
-      } catch (error) {
-        renderFatal('表格無法開啟', error?.message || 'LIFF 初始化失敗。');
+      if (!result?.sdk || !result.sdk.isInClient()) {
+        renderFatal('請從 LINE 開啟', COMMON['非LINE開啟提醒']);
+        return;
       }
-      return;
     }
 
-    renderQr();
-    scheduleLatestBuildCheck(true);
+    const finalMode = new URLSearchParams(location.search).get('mode');
+    if (!finalMode) {
+      if (!initialModeRendered) renderQr();
+      return;
+    }
+    if (!initialModeRendered || finalMode !== initialMode) {
+      if (!renderRequestedMode(finalMode)) renderQr();
+    }
   }
 
-  const startLowRiskFirstFormBoot = () => initialize().catch(error => {
-    renderFatal('表格無法開啟', error?.message || '表格初始化失敗。');
-  });
-  // Run only after all concatenated compatibility modules have registered their existing observers;
-  // MutationObserver callbacks then finish structural enhancements before the next visible paint.
-  if (typeof queueMicrotask === 'function') queueMicrotask(startLowRiskFirstFormBoot);
-  else Promise.resolve().then(startLowRiskFirstFormBoot);
+  const loadingText = document.getElementById('loadingText');
+  if (loadingText && COMMON['初始化文字']) loadingText.textContent = COMMON['初始化文字'];
+  initialize();
 })();
 ;
 (() => {
@@ -9934,34 +9878,20 @@ window.GC_FORM_CONFIG = {"liffId":"2010952768-gu3rzglx","common":{"品牌名稱"
     return true;
   }
 
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_PREPAINT_ENHANCEMENT_BOOT
-  // Register before app-v5719's queued initialize() runs. The existing applyOnce() transformation
-  // is therefore triggered by the real form mutation in the same microtask checkpoint, before paint.
-  let gcV700BootObserver = null;
-  const stopGcV700BootObserver = () => {
-    gcV700BootObserver?.disconnect();
-    gcV700BootObserver = null;
-  };
-  const attemptGcV700Boot = () => {
+  let tries = 0;
+  const timer = setInterval(() => {
     if (document.querySelector('.error-card')) {
-      stopGcV700BootObserver();
-      return true;
+      clearInterval(timer);
+      return;
     }
-    const appliedNow = applyOnce();
+    tries += 1;
+    applyOnce();
     patchSend();
-    if (applied || appliedNow) {
-      stopGcV700BootObserver();
-      return true;
-    }
-    return false;
-  };
-  if (!attemptGcV700Boot()) {
-    gcV700BootObserver = new MutationObserver(attemptGcV700Boot);
-    gcV700BootObserver.observe(document.getElementById('app') || document.documentElement, { childList: true, subtree: true });
-  }
+    if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
+  }, 50);
   window.addEventListener('gc:liff-settled', event => {
     if (event.detail?.ready) patchSend();
-    else if (!applied) stopGcV700BootObserver();
+    else clearInterval(timer);
   }, { once: true });
 })();
 ;
