@@ -20,25 +20,91 @@
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f6f9fb">
   <title>GC 台中白牌車隊 24H</title>
+  <!-- GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_LOW_RISK_FIRST_FORM_BOOT -->
   <style id="gc-critical-loading">
-    /* GC_R10_CRITICAL_LOADING：只負責第一眼立即有畫面；完整樣式仍由 gc-app.css 接手。 */
+    /* GC_R10_CRITICAL_LOADING 相容標記：M10 僅保留首屏底色與真正錯誤卡；正常流程不畫載入卡、轉圈或假表格。 */
     :root{--gc-load-page:#f6f9fb;--gc-load-line:#d8e4eb;--gc-load-navy:#0f3552}
-    *{box-sizing:border-box}html,body{min-height:100%}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:linear-gradient(180deg,#edf5fa 0,var(--gc-load-page) 205px,var(--gc-load-page) 100%);-webkit-font-smoothing:antialiased}
+    *{box-sizing:border-box}html,body{min-height:100%}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:linear-gradient(180deg,#edf5fa 0,var(--gc-load-page) 205px,var(--gc-load-page) 100%);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
     #app{width:100%;max-width:620px;min-height:100vh;margin:0 auto;padding:18px 14px calc(28px + env(safe-area-inset-bottom))}
-    .loading-card{margin-top:14vh;padding:28px 24px;min-height:210px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#fff;border:1px solid rgba(217,228,238,.92);border-radius:22px;box-shadow:0 12px 34px rgba(16,45,81,.12)}
-    .loading-card .brand-avatar{display:block;width:58px;height:58px;flex:0 0 58px;object-fit:cover;border-radius:18px;background:var(--gc-load-navy);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 7px 18px rgba(16,45,81,.2)}
-    .loading-card p{margin:15px 0 0;color:#60778b;font-size:13px;font-weight:600;letter-spacing:.01em}
-    .gc-loading-dots{display:flex;gap:6px;margin-top:13px;height:7px;align-items:center}.gc-loading-dots span{display:block;width:6px;height:6px;border-radius:50%;background:#6f96b7;opacity:.34;animation:gcCriticalDot 1.05s ease-in-out infinite}.gc-loading-dots span:nth-child(2){animation-delay:.14s}.gc-loading-dots span:nth-child(3){animation-delay:.28s}@keyframes gcCriticalDot{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:.9;transform:translateY(-2px)}}
-    @media(prefers-reduced-motion:reduce){.gc-loading-dots span{animation:none}}
-    /* R10Z8: when a stale bfcache snapshot is being revalidated, cover it with a neutral loading surface instead of exposing the old form. */
-    html.gc-version-hold body::before{content:'';position:fixed;inset:0;z-index:2147483646;background:linear-gradient(180deg,#edf5fa 0,#f6f9fb 205px,#f6f9fb 100%)}
-    html.gc-version-hold body::after{content:'正在開啟服務…';position:fixed;z-index:2147483647;left:50%;top:46%;transform:translate(-50%,-50%);padding:15px 22px;border:1px solid rgba(217,228,238,.92);border-radius:16px;background:#fff;color:#60778b;box-shadow:0 12px 34px rgba(16,45,81,.12);font-size:13px;font-weight:600;white-space:nowrap}
+    .gc-boot-error{margin-top:16px;padding:24px 20px;text-align:center;background:#fff;border:1px solid rgba(217,228,238,.92);border-radius:20px;box-shadow:0 12px 34px rgba(16,45,81,.12)}
+    .gc-boot-error h1{margin:0;color:#123853;font-size:20px}.gc-boot-error p{margin:10px 0 0;color:#60778b;font-size:14px;line-height:1.6}
+    @media(max-width:330px){#app{padding-left:8px;padding-right:8px}.gc-boot-error{padding:22px 16px}}
   </style>
   <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
   <link rel="dns-prefetch" href="//static.line-scdn.net">
-  <link rel="stylesheet" href="gc-app.css?v=r10z14f25r6m2r15r7m8dms2">
-  <link rel="preload" href="表格頭像_直接更換.png?v=r10z14f25r6m2r15r7m8dms2" as="image" type="image/png" fetchpriority="high">
-  <script defer src="gc-app.js?v=r10z14f25r6m2r15r7m8dms2"></script>
+  <script id="gc-m10-entry-bootstrap">
+    /* GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_LOW_RISK_FIRST_FORM_BOOT */
+    (() => {
+      'use strict';
+      const GC_BOOT_LIFF_ID = '2010952768-gu3rzglx';
+      const GC_APP_STYLE = 'gc-app.css?v=r10z14f25r6m2r15r7f1m10';
+      const GC_APP_SOURCE = 'gc-app.js?v=r10z14f25r6m2r15r7f1m10';
+      const GC_APP_IMAGE = '表格頭像_直接更換.png?v=r10z14f25r6m2r15r7f1m10';
+      const params = new URLSearchParams(location.search);
+      const preview = params.get('preview') === '1';
+      const primaryLiffRedirect = !preview && params.has('liff.state');
+
+      const writeFinalRuntime = () => {
+        document.write('<link rel="stylesheet" href="' + GC_APP_STYLE + '">');
+        document.write('<link rel="preload" href="' + GC_APP_IMAGE + '" as="image" type="image/png" fetchpriority="high">');
+        document.write('<script defer src="' + GC_APP_SOURCE + '"><\/script>');
+      };
+
+      if (!primaryLiffRedirect) {
+        writeFinalRuntime();
+        return;
+      }
+
+      // Primary LIFF redirect: start the mandatory LINE handshake before the heavy form runtime.
+      // Do not preload the full bundle here: cross-navigation preloads are re-requested by LINE/WebView
+      // in testing and can compete with the SDK. Normal flow paints no loader or fake control.
+      document.documentElement.dataset.gcPrimaryLiffBootstrap = '1';
+      try { sessionStorage.setItem('gc_liff_entry_started_v1', String(Date.now())); } catch (_) {}
+
+      let failed = false;
+      const showFailure = message => {
+        if (failed) return;
+        failed = true;
+        const paint = () => {
+          const app = document.getElementById('app');
+          if (!app || app.querySelector('.gc-boot-error')) return;
+          const card = document.createElement('section');
+          card.className = 'gc-boot-error';
+          card.setAttribute('role', 'alert');
+          const title = document.createElement('h1');
+          title.textContent = '表格無法開啟';
+          const detail = document.createElement('p');
+          detail.textContent = String(message || 'LINE 連線失敗，請返回聊天室後重新開啟。');
+          card.append(title, detail);
+          app.appendChild(card);
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paint, { once: true });
+        else paint();
+      };
+      const startLiff = sdk => {
+        Promise.resolve(sdk.init({ liffId: GC_BOOT_LIFF_ID })).catch(error => {
+          showFailure(error?.message || 'LINE 初始化失敗，請返回聊天室後重新開啟。');
+        });
+      };
+      const sdkUrl = 'https://static.' + 'line-scdn.net/liff/edge/2/sdk.js';
+      if (window.liff) {
+        startLiff(window.liff);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = sdkUrl;
+      script.async = true;
+      script.dataset.gcLiffSdk = '1';
+      script.addEventListener('load', () => window.liff ? startLiff(window.liff) : showFailure('LIFF SDK 載入失敗。'), { once: true });
+      script.addEventListener('error', () => showFailure('LINE 連線失敗，請確認網路後重試。'), { once: true });
+      document.head.appendChild(script);
+      window.setTimeout(() => {
+        if (new URLSearchParams(location.search).has('liff.state')) {
+          showFailure('LINE 連線逾時，請確認網路後重試。');
+        }
+      }, 12000);
+    })();
+  </script>
   <!-- GC_MASTER_STABLE_2026_08R10Z_DISPATCH_CORE_FINAL -->
   <!-- GC_MASTER_STABLE_2026_08R10Z1_ADDRESS_ROOT_FIX -->
 <!-- GC_MASTER_STABLE_2026_08R10Z2_FARE_RETURN_SCROLL_STABLE -->
@@ -55,13 +121,7 @@
   <!-- GC_R10Z3_SAFE_VISIBLE_ADDRESS_SANITIZER -->
 </head>
 <body>
-  <main id="app" aria-live="polite">
-    <section class="loading-card" aria-label="服務載入中">
-      <img class="brand-avatar" src="表格頭像_直接更換.png?v=r10z14f25r6m2r15r7m8dms2" width="58" height="58" decoding="async" fetchpriority="high" alt="GC 車隊頭像">
-      <p id="loadingText">正在開啟服務…</p>
-      <div class="gc-loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-    </section>
-  </main>
+  <main id="app" aria-live="polite"></main>
   <!-- GC_MASTER_STABLE_2026_08R10Z7_PROGRESSIVE_COMPLETION_UX -->
   <!-- GC_MASTER_STABLE_2026_08R10Z8_FIRST_PAINT_VERSION_COHERENCE -->
   <!-- GC_MASTER_STABLE_2026_08R10Z9_ENTERPRISE_POI_PROGRESSIVE_UX -->
