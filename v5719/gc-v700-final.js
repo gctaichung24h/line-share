@@ -614,33 +614,19 @@
     return true;
   }
 
-  // GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M10_PREPAINT_ENHANCEMENT_BOOT
-  // Register before app-v5719's queued initialize() runs. The existing applyOnce() transformation
-  // is therefore triggered by the real form mutation in the same microtask checkpoint, before paint.
-  let gcV700BootObserver = null;
-  const stopGcV700BootObserver = () => {
-    gcV700BootObserver?.disconnect();
-    gcV700BootObserver = null;
-  };
-  const attemptGcV700Boot = () => {
+  let tries = 0;
+  const timer = setInterval(() => {
     if (document.querySelector('.error-card')) {
-      stopGcV700BootObserver();
-      return true;
+      clearInterval(timer);
+      return;
     }
-    const appliedNow = applyOnce();
+    tries += 1;
+    applyOnce();
     patchSend();
-    if (applied || appliedNow) {
-      stopGcV700BootObserver();
-      return true;
-    }
-    return false;
-  };
-  if (!attemptGcV700Boot()) {
-    gcV700BootObserver = new MutationObserver(attemptGcV700Boot);
-    gcV700BootObserver.observe(document.getElementById('app') || document.documentElement, { childList: true, subtree: true });
-  }
+    if ((applied && (sendPatched || new URLSearchParams(location.search).get('preview') === '1')) || tries >= 400) clearInterval(timer);
+  }, 50);
   window.addEventListener('gc:liff-settled', event => {
     if (event.detail?.ready) patchSend();
-    else if (!applied) stopGcV700BootObserver();
+    else clearInterval(timer);
   }, { once: true });
 })();
