@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- GC_MASTER_STABLE_2026_08R10Z14F25R6M2R15R7F1M8R2_ROOT_LIFF_ENTRY_CONTINUITY -->
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
@@ -7,23 +8,84 @@
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f7f9fb">
   <title>GC 台中白牌車隊 24H</title>
-  <link rel="stylesheet" href="style.css?v=1785918265">
-  <script>
-    if (new URLSearchParams(location.search).get('preview') !== '1') {
-      document.write('<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"><\/script>');
-    }
-  </script>
-  <script src="form-config.js?v=1785918265"></script>
-  <script defer src="app-v570.js?v=1785918265"></script>
+  <style id="gc-root-entry-critical">
+    :root{--gc-entry-page:#f7f9fb;--gc-entry-ink:#123853;--gc-entry-muted:#607789}
+    *{box-sizing:border-box}
+    html,body{width:100%;min-height:100%;margin:0;overflow-x:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:linear-gradient(180deg,#edf5fa 0,var(--gc-entry-page) 185px,var(--gc-entry-page) 100%);color:#17384f;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+    #app{width:100%;max-width:620px;min-height:100vh;min-height:100dvh;margin:0 auto;padding:clamp(10px,2.8vw,16px) clamp(10px,3.5vw,16px) calc(26px + env(safe-area-inset-bottom))}
+    .brand-header{display:flex;align-items:center;margin:0 3px 9px;padding:1px 3px 9px;gap:10px;border-bottom:1px solid rgba(194,211,224,.72)}
+    .brand-avatar{display:block;width:43px;height:43px;flex:0 0 43px;object-fit:cover;border-radius:13px;background:#0f3552;box-shadow:0 7px 18px rgba(16,50,76,.12)}
+    .brand-copy{min-width:0}
+    .brand-copy strong{display:block;color:#0f3552;font-size:clamp(15.5px,4.2vw,16.5px);line-height:1.25;font-weight:700;letter-spacing:-.018em}
+    .brand-copy span{display:block;margin-top:3px;color:var(--gc-entry-muted);font-size:clamp(11.5px,3.1vw,12px);line-height:1.35;font-weight:560;letter-spacing:.025em}
+    .gc-entry-error{margin-top:16px;padding:24px 20px;text-align:center;background:#fff;border:1px solid rgba(217,228,238,.92);border-radius:20px;box-shadow:0 12px 34px rgba(16,45,81,.12)}
+    .gc-entry-error h1{margin:0;color:#123853;font-size:20px}.gc-entry-error p{margin:10px 0 0;color:#607789;font-size:14px;line-height:1.6}
+    .qr-page{display:grid;min-height:calc(100dvh - 40px);place-items:center}.qr-page img{display:block;width:min(100%,560px);height:auto;border-radius:22px}
+    @media(max-width:380px){#app{padding-left:9px;padding-right:9px}}
+    @media(max-width:220px){.brand-header{align-items:flex-start}}
+  </style>
+  <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
+  <link rel="dns-prefetch" href="//static.line-scdn.net">
+  <link rel="preload" href="v5719/表格頭像_直接更換.png?v=r10z14f25r6m2r15r7f1m8r2entry" as="image" type="image/png" fetchpriority="high">
 </head>
 <body>
   <main id="app" aria-live="polite">
-    <section class="loading-card">
-      <img class="brand-avatar" src="表格頭像_直接更換.png?v=1785918265" alt="GC 車隊頭像">
-      <p id="loadingText">表格載入中，請稍候…</p>
-    </section>
+    <header class="brand-header" data-gc-root-entry-brand>
+      <img class="brand-avatar" src="v5719/表格頭像_直接更換.png?v=r10z14f25r6m2r15r7f1m8r2entry" width="43" height="43" decoding="async" fetchpriority="high" alt="GC 車隊頭像">
+      <div class="brand-copy"><strong>GC 台中白牌車隊 24H</strong><span>安全｜專業｜可靠｜貼心</span></div>
+    </header>
   </main>
+  <script id="gc-root-liff-bootstrap">
+    (() => {
+      'use strict';
+      const GC_ENTRY_LIFF_ID = '2010952768-gu3rzglx';
+      const params = new URLSearchParams(location.search);
+      const app = document.getElementById('app');
+      const primaryLiffEntry = params.has('liff.state');
+
+      if (!primaryLiffEntry) {
+        app.innerHTML = '<section class="qr-page"><img src="v5719/IMG_1323.jpeg?v=r10z14f25r6m2r15r7f1m8r2entry" alt="GC 官方 QR Code"></section>';
+        return;
+      }
+
+      let failed = false;
+      const showFailure = message => {
+        if (failed) return;
+        failed = true;
+        const card = document.createElement('section');
+        card.className = 'gc-entry-error';
+        card.setAttribute('role', 'alert');
+        const title = document.createElement('h1');
+        title.textContent = '表格無法開啟';
+        const detail = document.createElement('p');
+        detail.textContent = String(message || 'LINE 連線失敗，請返回聊天室後重新開啟。');
+        card.append(title, detail);
+        app.appendChild(card);
+      };
+      const initialize = () => {
+        if (!window.liff) {
+          showFailure('LIFF SDK 載入失敗。');
+          return;
+        }
+        Promise.resolve(window.liff.init({ liffId: GC_ENTRY_LIFF_ID })).catch(error => {
+          showFailure(error?.message || 'LINE 初始化失敗，請返回聊天室後重新開啟。');
+        });
+      };
+      if (window.liff) {
+        initialize();
+        return;
+      }
+      const sdk = document.createElement('script');
+      sdk.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+      sdk.async = true;
+      sdk.dataset.gcRootLiffSdk = '1';
+      sdk.addEventListener('load', initialize, { once: true });
+      sdk.addEventListener('error', () => showFailure('LINE 連線失敗，請確認網路後重試。'), { once: true });
+      document.head.appendChild(sdk);
+    })();
+  </script>
 </body>
 </html>
-<!-- clean redeploy trigger: 2026-08-07 03:12 Asia/Taipei -->
